@@ -1,0 +1,804 @@
+.login-page {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Poppins', sans-serif;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  overflow-y: auto;
+  text-align: left;
+  z-index: 9999;
+  box-sizing: border-box;
+  padding: 24px;
+}
+
+.login-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 37, 87, 0.08);
+}
+
+.login-card {
+  position: relative;
+  z-index: 1;
+  width: 380px;
+  max-width: 100%;
+  padding: 32px 28px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 15px 40px rgba(15, 37, 87, 0.18);
+  box-sizing: border-box;
+  opacity: 0;
+  transform: translateY(10px);
+  animation: login-card-in 450ms ease forwards;
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+}
+
+@keyframes login-card-in {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* .sb-brand-logo (BrandLogo.css) is display: inline-flex, and auto margins
+   don't center inline-level boxes — that's why this was sitting off-center.
+   Forcing display: flex (block-level) here makes the margin: auto actually
+   center it. Compound selector (.sb-brand-logo.login-card-brand) keeps this
+   override deterministic regardless of CSS import order between the two
+   stylesheets, instead of relying on a same-specificity tie-break. */
+.sb-brand-logo.login-card-brand {
+  display: flex;
+  width: fit-content;
+  margin: 0 auto 0.5rem auto;
+}
+
+/* Tighter, login-card-specific lockup: pull "DENTAL CLINIC" closer under
+   "Smile Bay" than the shared component's default gap. Small negative
+   margin only (not combined with a tighter line-height) — line-height:1
+   on .sb-title is untouched, which is what keeps the "y" descender from
+   colliding with the line below. */
+.sb-brand-logo.login-card-brand .sb-text-block {
+  gap: 0;
+}
+
+.sb-brand-logo.login-card-brand .sb-subtitle {
+  margin-top: -2px;
+}
+
+.login-heading {
+  text-align: center;
+  color: #0f2557;
+  font-size: 1.3rem;
+  margin: 0 0 0.2rem 0;
+}
+
+.login-subheading {
+  text-align: center;
+  color: #64748b;
+  font-size: 0.78rem;
+  margin: 0 0 1.2rem 0;
+}
+
+.login-error {
+  background: rgba(253, 232, 232, 0.9);
+  color: #b42318;
+  border-radius: 8px;
+  padding: 0.6rem 0.9rem;
+  font-size: 0.85rem;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.login-error a {
+  color: #b42318;
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.login-success {
+  background: rgba(220, 252, 231, 0.9);
+  color: #15803d;
+  border-radius: 8px;
+  padding: 0.6rem 0.9rem;
+  font-size: 0.85rem;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.login-label {
+  display: block;
+  text-align: left;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #334155;
+  margin-bottom: 0.3rem;
+  margin-top: 0.85rem;
+}
+
+.login-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.login-input-icon {
+  position: absolute;
+  left: 12px;
+  color: #64748b;
+  display: flex;
+  pointer-events: none;
+}
+
+.login-input-wrap input {
+  width: 100%;
+  padding: 0.55rem 2.4rem 0.55rem 2.2rem;
+  border: 1px solid rgba(203, 213, 225, 0.8);
+  border-radius: 8px;
+  font-size: 0.82rem;
+  outline: none;
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, 0.55);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  color-scheme: light;
+  color: #0f2557;
+  caret-color: #0f2557;
+}
+
+.login-input-wrap input::placeholder {
+  color: #94a3b8;
+}
+
+.login-input-wrap input::-ms-reveal,
+.login-input-wrap input::-ms-clear {
+  display: none;
+}
+
+.login-input-wrap input:focus {
+  border-color: #2952e3;
+  box-shadow: 0 0 0 3px rgba(41, 82, 227, 0.15);
+}
+
+.login-input-wrap--error input,
+.login-input-wrap--error select {
+  border-color: #b42318;
+}
+
+.login-input-wrap--error input:focus,
+.login-input-wrap--error select:focus {
+  border-color: #b42318;
+  box-shadow: 0 0 0 3px rgba(180, 35, 24, 0.15);
+}
+
+.login-eye-toggle {
+  position: absolute;
+  right: 12px;
+  background: none;
+  border: none;
+  padding: 0;
+  color: #64748b;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+
+/* Small inline spinner shown while an async field check (e.g. email
+   availability) is in flight — sits in the same right-side slot as the
+   password eye-toggle, so the field never looks frozen. */
+.login-input-spinner {
+  position: absolute;
+  right: 12px;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(41, 82, 227, 0.25);
+  border-top-color: #2952e3;
+  border-radius: 50%;
+  animation: login-spinner-spin 0.6s linear infinite;
+}
+
+@keyframes login-spinner-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.login-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 1rem;
+  font-size: 0.78rem;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.login-remember {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: #334155;
+}
+
+.login-remember input {
+  accent-color: #2952e3;
+}
+
+.login-forgot {
+  color: #2952e3;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.login-forgot:hover {
+  text-decoration: underline;
+}
+
+.login-button {
+  width: 100%;
+  margin-top: 1.1rem;
+  padding: 0.6rem;
+  background: #2952e3;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+}
+
+.login-button:hover:not(:disabled) {
+  background: #1e40c9;
+}
+
+.login-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.login-signup {
+  text-align: center;
+  margin-top: 0.9rem;
+  font-size: 0.78rem;
+  color: #64748b;
+}
+
+.login-signup a {
+  color: #2952e3;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.login-signup a:hover {
+  text-decoration: underline;
+}
+
+/* Tablet */
+@media (max-width: 900px) {
+  .login-card {
+    width: 360px;
+  }
+}
+
+/* Mobile */
+@media (max-width: 600px) {
+  .login-page {
+    padding: 16px;
+  }
+
+  .login-card {
+    padding: 26px 20px;
+    border-radius: 18px;
+  }
+
+  .login-heading {
+    font-size: 1.15rem;
+  }
+
+  .login-subheading {
+    font-size: 0.72rem;
+  }
+
+  .login-label {
+    font-size: 0.72rem;
+  }
+
+  .login-input-wrap input {
+    font-size: 0.78rem;
+    padding: 0.5rem 2.2rem 0.5rem 2rem;
+  }
+
+  .login-row {
+    font-size: 0.72rem;
+  }
+
+  .login-button {
+    font-size: 0.8rem;
+    padding: 0.55rem;
+  }
+}
+
+/* Very small phones */
+@media (max-width: 360px) {
+  .login-card {
+    padding: 20px 14px;
+  }
+
+  .login-heading {
+    font-size: 1.05rem;
+  }
+}
+
+/* ====================================================================
+   Shared extensions for the registration wizard (registerSteps/).
+   These are ADDITIVE only — nothing above this point is modified, so
+   the login page itself is visually unaffected.
+   ==================================================================== */
+
+/* Step progress indicator ("Step X of 4" + thin bar) */
+.login-step-progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 1.1rem 0;
+}
+
+.login-step-progress-track {
+  flex: 1;
+  height: 8px;
+  background: rgba(203, 213, 225, 0.6);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.login-step-progress-fill {
+  height: 100%;
+  background: #2952e3;
+  border-radius: 999px;
+  transition: width 300ms ease;
+}
+
+.login-step-progress-label {
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+/* Left-aligned step heading (page-level .login-heading stays centered) */
+.login-step-heading {
+  text-align: left;
+  color: #0f2557;
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin: 0 0 0.9rem 0;
+}
+
+/* Left-aligned helper note within a step (e.g. Step 3's "optional" note) */
+.login-step-note {
+  text-align: left;
+  color: #64748b;
+  font-size: 0.74rem;
+  line-height: 1.4;
+  margin: 0 0 1rem 0;
+}
+
+/* Extend the existing .login-input-wrap input look to <select> elements
+   (e.g. Sex), since the base rule only targets input tags. */
+.login-input-wrap select {
+  width: 100%;
+  padding: 0.55rem 2.4rem 0.55rem 2.2rem;
+  border: 1px solid rgba(203, 213, 225, 0.8);
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-family: inherit;
+  outline: none;
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, 0.55);
+  color: #0f2557;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.login-input-wrap select:focus {
+  border-color: #2952e3;
+  box-shadow: 0 0 0 3px rgba(41, 82, 227, 0.15);
+}
+
+/* Taller variant of the same input look, for the Step 3 medical textareas */
+.login-textarea {
+  width: 100%;
+  padding: 0.55rem 0.8rem;
+  border: 1px solid rgba(203, 213, 225, 0.8);
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-family: inherit;
+  outline: none;
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, 0.55);
+  color: #0f2557;
+  resize: vertical;
+  min-height: 64px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.login-textarea::placeholder {
+  color: #94a3b8;
+}
+
+.login-textarea:focus {
+  border-color: #2952e3;
+  box-shadow: 0 0 0 3px rgba(41, 82, 227, 0.15);
+}
+
+/* Live password-requirements checklist under the password field */
+.login-password-checklist {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 0.5rem 0 0 0;
+  padding: 0;
+}
+
+.login-password-checklist li {
+  list-style: none;
+  font-size: 0.7rem;
+  color: #94a3b8;
+  transition: color 0.15s ease;
+}
+
+.login-password-checklist li.met {
+  color: #15803d;
+}
+
+/* Back/Next step navigation row */
+.login-step-nav {
+  display: flex;
+  gap: 0.7rem;
+  margin-top: 1.1rem;
+}
+
+.login-step-next {
+  flex: 1;
+  padding: 0.6rem;
+  background: #2952e3;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.login-step-next:hover:not(:disabled) {
+  background: #1e40c9;
+}
+
+.login-step-back {
+  flex: 1;
+  padding: 0.6rem;
+  background: rgba(255, 255, 255, 0.5);
+  color: #2952e3;
+  border: 1px solid rgba(41, 82, 227, 0.4);
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.login-step-back:hover:not(:disabled) {
+  background: rgba(41, 82, 227, 0.08);
+}
+
+.login-step-nav .login-button {
+  width: auto;
+  flex: 1;
+  margin-top: 0;
+}
+
+/* Step 4 review summary */
+.login-review-group-title {
+  margin: 0.9rem 0 0.35rem 0;
+  color: #64748b;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.login-review-group-title:first-child {
+  margin-top: 0;
+}
+
+.login-review-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid rgba(203, 213, 225, 0.5);
+  font-size: 0.8rem;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.login-review-row:last-child {
+  border-bottom: none;
+}
+
+.login-review-label {
+  color: #64748b;
+}
+
+.login-review-value {
+  color: #0f2557;
+  font-weight: 600;
+  text-align: right;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+/* Wider modifier for the registration wizard card. Only overrides what needs
+   to differ from .login-card (width, and the internal scroll layout below)
+   — padding, blur, border, shadow, and animation still come from .login-card
+   itself, since this is applied alongside it, not instead.
+
+   The card is capped to the viewport (minus .login-page's padding) and laid
+   out as a column: a fixed-size header, a form that fills the remaining
+   space, and a fixed-size sign-in line. Inside the form, only
+   .form-content-scrollable scrolls — the page itself never does, and the
+   step-nav buttons stay pinned and visible regardless of how long a given
+   step's fields run. */
+.login-card--wizard {
+  width: 560px;
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
+  overflow: hidden;
+}
+
+.login-card--wizard .login-card-header {
+  flex-shrink: 0;
+}
+
+.login-wizard-form {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+/* min-height: 0 overrides flexbox's default (content-based) min-height,
+   which is what actually lets this item shrink below the height of its
+   content so overflow-y: auto has room to kick in instead of the flex
+   container just growing to fit everything. */
+.form-content-scrollable {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 10px;
+  margin-right: -10px;
+}
+
+.form-content-scrollable::-webkit-scrollbar {
+  width: 6px;
+}
+
+.form-content-scrollable::-webkit-scrollbar-thumb {
+  background: rgba(41, 82, 227, 0.25);
+  border-radius: 999px;
+}
+
+.form-content-scrollable::-webkit-scrollbar-thumb:hover {
+  background: rgba(41, 82, 227, 0.4);
+}
+
+.login-card--wizard .login-step-nav,
+.login-card--wizard .login-signup {
+  flex-shrink: 0;
+}
+
+/* Responsive field grid: single column on narrow screens, two columns once
+   there's room to pair fields side by side. */
+.login-field-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px 16px;
+}
+
+@media (min-width: 600px) {
+  .login-field-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.login-field-grid-full {
+  grid-column: 1 / -1;
+}
+
+/* Wrapper for a single FormField. Tightens the label-to-input gap (overriding
+   the cascading margin-top .login-label normally relies on between flat
+   sibling label/input pairs, which doesn't apply once fields are grid items)
+   and gives stacked fields (e.g. outside a grid, like Step 3's textareas)
+   consistent vertical rhythm without needing the grid's own gap. */
+.login-field {
+  min-width: 0;
+  margin-bottom: 14px;
+}
+
+.login-field:last-child {
+  margin-bottom: 0;
+}
+
+.login-field-grid .login-field {
+  margin-bottom: 0;
+}
+
+.login-field .login-label {
+  margin-top: 0;
+  margin-bottom: 0.25rem;
+}
+
+.login-field-error {
+  display: block;
+  margin-top: 4px;
+  color: #b42318;
+  font-size: 0.72rem;
+}
+
+/* Lets a field error carry an inline link (e.g. the taken-email message's
+   "Try signing in instead") without a bespoke class — inherits the same
+   red tone as the surrounding error text. */
+.login-field-error a {
+  color: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+/* Non-blocking status text (e.g. "Checking availability…") — deliberately
+   muted, not red, so an in-progress check never reads as an error. */
+.login-field-hint {
+  display: block;
+  margin-top: 4px;
+  color: #64748b;
+  font-size: 0.72rem;
+}
+
+/* Positive confirmation (e.g. "This email is available.") — same slot and
+   size as .login-field-error/.login-field-hint, distinct green tone. */
+.login-field-success {
+  display: block;
+  margin-top: 4px;
+  color: #15803d;
+  font-size: 0.72rem;
+}
+
+/* Patient Category step: Cash vs HMO selector cards. */
+.patient-type-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin-bottom: 0.4rem;
+}
+
+@media (min-width: 600px) {
+  .patient-type-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.patient-type-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  text-align: left;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1.5px solid rgba(203, 213, 225, 0.8);
+  background: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  font-family: inherit;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.patient-type-option:hover {
+  border-color: rgba(41, 82, 227, 0.5);
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.patient-type-option.selected {
+  border-color: #2952e3;
+  background: rgba(41, 82, 227, 0.08);
+  box-shadow: 0 0 0 3px rgba(41, 82, 227, 0.12);
+}
+
+.patient-type-icon {
+  color: #2952e3;
+  display: flex;
+}
+
+.patient-type-label {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #0f2557;
+}
+
+.patient-type-desc {
+  font-size: 0.74rem;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+.patient-type-hmo-fields {
+  margin-top: 1rem;
+}
+
+/* Understated fade/slide when switching steps — replayed each time by
+   remounting this wrapper via a React `key` tied to the step index. */
+@keyframes login-step-fade {
+  from {
+    opacity: 0;
+    transform: translateX(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.login-step-content {
+  animation: login-step-fade 250ms ease;
+}
+
+/* Tablet */
+@media (max-width: 900px) {
+  .login-card--wizard {
+    width: 520px;
+  }
+}
+
+/* Mobile */
+@media (max-width: 600px) {
+  .login-textarea {
+    font-size: 0.78rem;
+  }
+
+  .login-step-next,
+  .login-step-back {
+    font-size: 0.8rem;
+    padding: 0.55rem;
+  }
+
+  .login-field-grid {
+    gap: 12px;
+  }
+
+  .form-content-scrollable {
+    padding-right: 6px;
+    margin-right: -6px;
+  }
+}
+
+/* Very small phones */
+@media (max-width: 360px) {
+  .login-step-nav {
+    flex-direction: column;
+  }
+}

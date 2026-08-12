@@ -1,0 +1,138 @@
+/* Single source of truth for the brand lockup: circular tooth badge on the
+   left, two-line wordmark on the right ("Smile Bay" script over "DENTAL
+   CLINIC" tracked caps). Used by the landing page navbar/footer, every
+   portal sidebar, and every auth screen. */
+
+.sb-brand-logo {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+.sb-logo-badge {
+  flex-shrink: 0;
+  display: flex;
+}
+
+.sb-logo-img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+  border-radius: 50%;
+}
+
+/* Both lines left-align at their own natural width (not stretched/centered)
+   — "DENTAL CLINIC" is inherently the shorter measure at this size, which
+   is what makes it stop under "Bay" instead of spanning the full width of
+   "Smile Bay", letting the script's descenders hang free on the right.
+   The vertical gap between the two lines is a flex `gap`, not a tight
+   line-height + negative margin-top — that combination previously let the
+   Pacifico "y" descender in "Bay" collide with "DENTAL CLINIC" below it. */
+.sb-text-block {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.sb-title {
+  font-family: 'Pacifico', cursive;
+  line-height: 1;
+  margin: 0;
+  padding: 0;
+  white-space: nowrap;
+}
+
+.sb-subtitle {
+  font-family: 'Poppins', sans-serif;
+  font-weight: 700;
+  letter-spacing: 2.2px;
+  text-transform: uppercase;
+  margin: 0;
+  padding-left: 2px;
+  white-space: nowrap;
+}
+
+/* ---- Variants ---- */
+
+.variant-blue .sb-title,
+.variant-blue .sb-subtitle {
+  color: #1d4ed8;
+}
+
+.variant-white .sb-title {
+  color: #ffffff;
+}
+
+.variant-white .sb-subtitle {
+  color: #cbd5e1;
+}
+
+/* ---- Sizes — badge, text, and the gaps between them all scale together ---- */
+
+.size-sm {
+  gap: 8px;
+}
+
+.size-sm .sb-logo-badge {
+  width: 34px;
+  height: 34px;
+}
+
+.size-sm .sb-text-block {
+  gap: 3px;
+}
+
+.size-sm .sb-title {
+  font-size: 1.15rem;
+}
+
+.size-sm .sb-subtitle {
+  font-size: 0.5rem;
+  letter-spacing: 1.6px;
+}
+
+.size-md {
+  gap: 12px;
+}
+
+.size-md .sb-logo-badge {
+  width: 50px;
+  height: 50px;
+}
+
+.size-md .sb-text-block {
+  gap: 4px;
+}
+
+.size-md .sb-title {
+  font-size: 1.7rem;
+}
+
+.size-md .sb-subtitle {
+  font-size: 0.66rem;
+  letter-spacing: 2.2px;
+}
+
+.size-lg {
+  gap: 16px;
+}
+
+.size-lg .sb-logo-badge {
+  width: 74px;
+  height: 74px;
+}
+
+.size-lg .sb-text-block {
+  gap: 6px;
+}
+
+.size-lg .sb-title {
+  font-size: 2.5rem;
+}
+
+.size-lg .sb-subtitle {
+  font-size: 0.95rem;
+  letter-spacing: 2.8px;
+}

@@ -1,0 +1,7 @@
+# OS and editor clutter that could land at the project root, outside
+# backend/ and frontend/ (each of which has its own, more specific .gitignore).
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.log

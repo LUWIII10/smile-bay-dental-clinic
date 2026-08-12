@@ -1,0 +1,397 @@
+.portal-shell {
+  min-height: 100vh;
+  max-width: 100vw;
+  background: var(--portal-canvas);
+  font-family: 'Poppins', sans-serif;
+  box-sizing: border-box;
+  overflow-x: hidden;
+}
+
+.portal-shell *,
+.portal-shell *::before,
+.portal-shell *::after {
+  box-sizing: border-box;
+}
+
+/* ============ Sidebar ============ */
+
+.portal-sidebar {
+  position: fixed;
+  inset: 0 auto 0 0;
+  width: var(--portal-sidebar-w);
+  background: var(--portal-card);
+  border-right: 1px solid var(--portal-border-light);
+  display: flex;
+  flex-direction: column;
+  z-index: 40;
+  transition: width 0.2s ease, transform 0.25s ease;
+}
+
+.portal-sidebar-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 20px 20px 16px;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+/* Brand icon + wordmark now owned by components/common/BrandLogo.css —
+   this used to be hand-rolled here with its own font (Dancing Script,
+   since replaced app-wide by Pacifico for consistency). The tablet
+   icon-only breakpoint below still needs to hide just the text half while
+   keeping the icon visible, via .sb-text-block specifically. */
+
+/* Sidebar shows just "Smile Bay" — "DENTAL CLINIC" is hidden here only,
+   same as the landing page navbar. All four role portals share this one
+   PortalLayout, so this covers Patient/Dentist/Staff/Admin at once. */
+.portal-sidebar-header .sb-subtitle {
+  display: none;
+}
+
+.portal-nav {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.portal-nav-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px 10px 14px;
+  border-radius: var(--portal-radius-sm);
+  color: var(--portal-muted);
+  text-decoration: none;
+  font-size: 0.88rem;
+  font-weight: 500;
+  border-left: 3px solid transparent;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  white-space: nowrap;
+}
+
+.portal-nav-item:hover {
+  background: var(--portal-canvas);
+  color: var(--portal-slate);
+}
+
+.portal-nav-item--active {
+  background: var(--portal-blue-tint);
+  color: var(--portal-blue);
+  border-left-color: var(--portal-blue);
+  font-weight: 600;
+}
+
+.portal-nav-icon {
+  display: flex;
+  flex-shrink: 0;
+}
+
+.portal-sidebar-footer {
+  flex-shrink: 0;
+  padding: 14px 16px 18px;
+  border-top: 1px solid var(--portal-border-light);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.portal-user-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.portal-avatar {
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--portal-blue-tint);
+  color: var(--portal-blue);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 0.82rem;
+}
+
+.portal-avatar--sm {
+  width: 32px;
+  height: 32px;
+  font-size: 0.75rem;
+}
+
+.portal-user-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.portal-user-name {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--portal-navy);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.portal-user-role {
+  font-size: 0.72rem;
+  color: var(--portal-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.portal-logout {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 6px 0;
+  margin-top: 2px;
+  border: none;
+  border-top: 1px solid var(--portal-border-light);
+  background: none;
+  color: var(--portal-muted);
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  padding-top: 10px;
+  transition: color 0.15s ease;
+}
+
+.portal-logout:hover {
+  color: var(--portal-red-text);
+}
+
+/* ============ Main column ============ */
+
+.portal-main {
+  margin-left: var(--portal-sidebar-w);
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  transition: margin-left 0.2s ease;
+}
+
+.portal-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  height: var(--portal-topbar-h);
+  background: var(--portal-card);
+  border-bottom: 1px solid var(--portal-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: nowrap;
+  padding: 0 24px;
+  flex-shrink: 0;
+}
+
+.portal-topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.portal-page-title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--portal-navy);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.portal-hamburger {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: none;
+  background: none;
+  color: var(--portal-slate);
+  cursor: pointer;
+  border-radius: var(--portal-radius-sm);
+  flex-shrink: 0;
+}
+
+.portal-hamburger:hover {
+  background: var(--portal-canvas);
+}
+
+.portal-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-shrink: 0;
+}
+
+.portal-bell {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: none;
+  color: var(--portal-muted);
+  cursor: pointer;
+  border-radius: 50%;
+}
+
+.portal-bell:hover {
+  background: var(--portal-canvas);
+  color: var(--portal-slate);
+}
+
+.portal-bell-dot {
+  position: absolute;
+  top: 7px;
+  right: 8px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--portal-red-text);
+  border: 1.5px solid var(--portal-card);
+}
+
+.portal-content {
+  flex: 1;
+  max-width: 100%;
+  padding: 32px;
+  box-sizing: border-box;
+  overflow-x: hidden;
+}
+
+.portal-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 37, 87, 0.45);
+  z-index: 30;
+}
+
+/* ============ Tablet: icon-only sidebar with hover tooltips ============ */
+
+@media (min-width: 768px) and (max-width: 1024px) {
+  .portal-sidebar {
+    width: var(--portal-sidebar-w-tablet);
+  }
+
+  .portal-sidebar-header .sb-text-block,
+  .portal-nav-label,
+  .portal-user-info {
+    display: none;
+  }
+
+  .portal-sidebar-header {
+    justify-content: center;
+    padding: 20px 8px 16px;
+  }
+
+  .portal-nav-item {
+    justify-content: center;
+    padding: 12px;
+    gap: 0;
+    border-left-width: 3px;
+  }
+
+  .portal-user-summary {
+    justify-content: center;
+  }
+
+  .portal-logout {
+    justify-content: center;
+    gap: 0;
+  }
+
+  .portal-main {
+    margin-left: var(--portal-sidebar-w-tablet);
+  }
+
+  .portal-content {
+    padding: 20px;
+  }
+
+  /* Hover tooltip since labels are hidden at this width */
+  .portal-nav-item {
+    position: relative;
+  }
+
+  .portal-nav-item::after {
+    content: attr(data-label);
+    position: absolute;
+    left: calc(100% + 10px);
+    top: 50%;
+    transform: translateY(-50%);
+    background: var(--portal-navy);
+    color: #fff;
+    font-size: 0.72rem;
+    font-weight: 500;
+    padding: 5px 10px;
+    border-radius: 6px;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease;
+    z-index: 50;
+  }
+
+  .portal-nav-item:hover::after {
+    opacity: 1;
+  }
+}
+
+/* ============ Mobile: sidebar becomes a slide-in drawer ============ */
+
+@media (max-width: 767px) {
+  .portal-sidebar {
+    width: var(--portal-sidebar-w);
+    transform: translateX(-100%);
+    z-index: 50;
+  }
+
+  .portal-sidebar--open {
+    transform: translateX(0);
+    box-shadow: 0 0 32px rgba(15, 37, 87, 0.25);
+  }
+
+  .portal-backdrop {
+    display: block;
+  }
+
+  .portal-main {
+    margin-left: 0;
+  }
+
+  .portal-hamburger {
+    display: flex;
+  }
+
+  .portal-topbar {
+    padding: 0 16px;
+  }
+
+  .portal-page-title {
+    font-size: 1.02rem;
+  }
+
+  .portal-content {
+    padding: 12px;
+  }
+}

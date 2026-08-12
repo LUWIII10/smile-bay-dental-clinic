@@ -1,0 +1,911 @@
+/* Smile Bay public landing page. Tokens are scoped to .landing-page (not
+   global :root) so this public route never leaks styling into the rest of
+   the app, and never depends on portalTokens.css being loaded either —
+   it's outside the authenticated portal entirely. */
+
+.landing-page {
+  --landing-blue: #1d4ed8;
+  --landing-blue-hover: #1e40af;
+  --landing-blue-glow: rgba(29, 78, 216, 0.07);
+  --landing-canvas: #f8fafc;
+  --landing-card: #ffffff;
+  --landing-navy-footer: #0b132b;
+  --landing-text-main: #0f172a;
+  --landing-text-body: #1e293b;
+  --landing-text-muted: #64748b;
+  --landing-glass-bg: rgba(255, 255, 255, 0.85);
+  --landing-glass-border: rgba(226, 232, 240, 0.8);
+
+  font-family: 'Poppins', sans-serif;
+  color: var(--landing-text-body);
+  background: var(--landing-canvas);
+  max-width: 100vw;
+  overflow-x: hidden;
+  box-sizing: border-box;
+}
+
+.landing-page *,
+.landing-page *::before,
+.landing-page *::after {
+  box-sizing: border-box;
+}
+
+.landing-section-inner {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* ============ Shared brand wordmark ============
+   Now owned by components/common/BrandLogo.css — this whole block was
+   the drift the shared component replaces. */
+
+/* ============ Shared buttons ============ */
+
+.landing-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.6rem 1.3rem;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.88rem;
+  text-decoration: none;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+  white-space: nowrap;
+}
+
+.landing-btn--solid {
+  background: var(--landing-blue);
+  color: #ffffff;
+  border: 1px solid var(--landing-blue);
+}
+
+.landing-btn--solid:hover {
+  background: var(--landing-blue-hover);
+  border-color: var(--landing-blue-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 14px 28px rgba(29, 78, 216, 0.28);
+}
+
+.landing-btn--ghost {
+  background: transparent;
+  color: var(--landing-blue);
+  border: 1px solid rgba(29, 78, 216, 0.35);
+}
+
+.landing-btn--ghost:hover {
+  background: rgba(29, 78, 216, 0.06);
+}
+
+.landing-btn--lg {
+  padding: 0.8rem 1.8rem;
+  font-size: 0.98rem;
+}
+
+/* ============ Shared glass surface ============ */
+
+.landing-glass-card {
+  background: var(--landing-glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--landing-glass-border);
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+  padding: 28px;
+}
+
+/* ============ Navbar ============ */
+
+.landing-navbar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--landing-glass-border);
+}
+
+.landing-navbar-inner {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 14px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+/* BrandLogo's own .brand-logo class already provides
+   display/align-items/gap/text-decoration — this only adds what's specific
+   to this one placement, so there's nothing to fight over between this
+   stylesheet and BrandLogo.css regardless of which happens to load/cascade
+   second. */
+.landing-navbar-brand {
+  flex-shrink: 0;
+}
+
+/* Navbar shows just "Smile Bay" — "DENTAL CLINIC" is hidden here only.
+   Footer, portal sidebar, and auth pages keep the full two-line lockup. */
+.sb-brand-logo.landing-navbar-brand .sb-subtitle {
+  display: none;
+}
+
+.landing-navbar-links {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  flex: 1;
+  justify-content: center;
+}
+
+.landing-navbar-links a {
+  position: relative;
+  color: #334155;
+  text-decoration: none;
+  font-size: 0.88rem;
+  font-weight: 500;
+  padding-bottom: 4px;
+  transition: color 0.15s ease;
+}
+
+.landing-navbar-links a::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 100%;
+  bottom: 0;
+  height: 2px;
+  background: var(--landing-blue);
+  border-radius: 2px;
+  transition: right 0.2s ease;
+}
+
+.landing-navbar-links a:hover {
+  color: var(--landing-blue);
+}
+
+.landing-navbar-links a:hover::after {
+  right: 0;
+}
+
+.landing-navbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.landing-hamburger {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border: none;
+  background: none;
+  color: var(--landing-text-main);
+  cursor: pointer;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.landing-hamburger:hover {
+  background: rgba(226, 232, 240, 0.6);
+}
+
+.landing-mobile-drawer {
+  display: none;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0 24px 20px;
+  background: rgba(255, 255, 255, 0.97);
+  border-bottom: 1px solid var(--landing-glass-border);
+}
+
+.landing-mobile-drawer a {
+  padding: 10px 4px;
+  color: #334155;
+  text-decoration: none;
+  font-size: 0.92rem;
+  font-weight: 500;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.6);
+}
+
+.landing-mobile-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.landing-mobile-actions .landing-btn {
+  flex: 1;
+}
+
+/* ============ Hero ============ */
+
+.landing-hero {
+  position: relative;
+  padding: 64px 0 88px;
+  overflow: hidden;
+}
+
+.landing-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 25% 20%, var(--landing-blue-glow), transparent 55%),
+    radial-gradient(circle at 85% 65%, rgba(29, 78, 216, 0.05), transparent 50%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.landing-hero-inner {
+  position: relative;
+  z-index: 1;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 24px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 48px;
+  align-items: center;
+}
+
+.landing-pill-badge {
+  display: inline-block;
+  padding: 6px 16px;
+  border-radius: 999px;
+  background: rgba(29, 78, 216, 0.08);
+  border: 1px solid rgba(29, 78, 216, 0.15);
+  color: var(--landing-blue);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  margin-bottom: 20px;
+}
+
+.landing-hero-heading {
+  font-size: 2.6rem;
+  font-weight: 700;
+  line-height: 1.15;
+  color: var(--landing-text-main);
+  margin: 0 0 18px;
+}
+
+.landing-hero-subheading {
+  font-size: 1.05rem;
+  color: var(--landing-text-muted);
+  line-height: 1.6;
+  margin: 0 0 32px;
+  max-width: 480px;
+}
+
+.landing-hero-cta {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.landing-hero-signin {
+  color: var(--landing-blue);
+  font-weight: 600;
+  font-size: 0.92rem;
+  text-decoration: none;
+  transition: transform 0.15s ease;
+  display: inline-block;
+}
+
+.landing-hero-signin:hover {
+  transform: translateX(2px);
+  text-decoration: underline;
+}
+
+.landing-hero-photo-frame {
+  position: relative;
+  background: var(--landing-glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--landing-glass-border);
+  border-radius: 24px;
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.12);
+  padding: 14px;
+}
+
+.landing-hero-photo {
+  width: 100%;
+  height: 380px;
+  object-fit: cover;
+  border-radius: 16px;
+  display: block;
+}
+
+.landing-hero-badge {
+  position: absolute;
+  bottom: -16px;
+  left: 32px;
+  background: #ffffff;
+  color: var(--landing-blue);
+  font-size: 0.76rem;
+  font-weight: 700;
+  padding: 10px 18px;
+  border-radius: 999px;
+  box-shadow: 0 12px 26px rgba(15, 23, 42, 0.16);
+  border: 1px solid var(--landing-glass-border);
+  white-space: nowrap;
+}
+
+/* ============ Generic section ============ */
+
+.landing-section {
+  padding: 72px 0;
+}
+
+.landing-section--tint {
+  background: #f1f5f9;
+}
+
+.landing-section-title {
+  font-size: 1.9rem;
+  font-weight: 700;
+  color: var(--landing-text-main);
+  text-align: center;
+  margin: 0 0 44px;
+}
+
+.landing-section-title-accent {
+  color: var(--landing-blue);
+}
+
+/* ============ Services ============ */
+
+.landing-services-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+.landing-service-card {
+  position: relative;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.landing-service-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(29, 78, 216, 0.35);
+  box-shadow: 0 18px 40px rgba(29, 78, 216, 0.14);
+}
+
+.landing-service-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(29, 78, 216, 0.1);
+  color: var(--landing-blue);
+  margin-bottom: 16px;
+}
+
+.landing-service-card h3 {
+  margin: 0 0 10px;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--landing-text-main);
+}
+
+.landing-service-card p {
+  margin: 0;
+  color: var(--landing-text-muted);
+  line-height: 1.6;
+  font-size: 0.92rem;
+}
+
+/* ============ How it works ============ */
+
+.landing-steps {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 32px;
+}
+
+.landing-step {
+  position: relative;
+  text-align: center;
+  padding: 0 12px;
+}
+
+.landing-step-badge {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--landing-blue);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1.1rem;
+  margin: 0 auto 16px;
+  position: relative;
+  z-index: 1;
+  box-shadow: 0 0 0 6px rgba(29, 78, 216, 0.1), 0 10px 22px rgba(29, 78, 216, 0.3);
+}
+
+.landing-step h3 {
+  margin: 0 0 8px;
+  font-size: 1.02rem;
+  font-weight: 700;
+  color: var(--landing-text-main);
+}
+
+.landing-step p {
+  margin: 0;
+  color: var(--landing-text-muted);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.landing-step-connector {
+  position: absolute;
+  top: 24px;
+  left: calc(50% + 24px);
+  width: calc(100% - 48px);
+  height: 2px;
+  background: linear-gradient(90deg, rgba(29, 78, 216, 0.4), rgba(29, 78, 216, 0.05));
+}
+
+/* ============ Dentists ============ */
+
+.landing-dentists-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+.landing-dentist-card {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.landing-dentist-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(29, 78, 216, 0.35);
+  box-shadow: 0 18px 40px rgba(29, 78, 216, 0.14);
+}
+
+.landing-dentist-photo {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 3px solid rgba(29, 78, 216, 0.12);
+}
+
+.landing-dentist-info h3 {
+  margin: 0 0 6px;
+  font-size: 1.08rem;
+  font-weight: 700;
+  color: var(--landing-text-main);
+}
+
+.landing-dentist-degree {
+  margin: 0 0 4px;
+  font-size: 0.82rem;
+  color: #334155;
+  font-weight: 500;
+}
+
+.landing-dentist-licensed {
+  margin: 0 0 8px;
+  font-size: 0.78rem;
+  color: var(--landing-blue);
+  font-weight: 600;
+}
+
+.landing-dentist-specialty {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--landing-text-muted);
+  line-height: 1.55;
+}
+
+/* ============ HMO partners ============ */
+
+.landing-hmo-strip {
+  background: #ffffff;
+  border-top: 1px solid var(--landing-glass-border);
+  border-bottom: 1px solid var(--landing-glass-border);
+  padding: 36px 0;
+}
+
+.landing-hmo-inner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 48px;
+  flex-wrap: wrap;
+}
+
+.landing-hmo-heading {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--landing-text-muted);
+  flex-shrink: 0;
+}
+
+.landing-hmo-logos {
+  display: flex;
+  align-items: center;
+  gap: 40px;
+}
+
+.landing-hmo-logo {
+  height: 36px;
+  width: auto;
+  object-fit: contain;
+  filter: grayscale(1) opacity(0.55);
+  transition: filter 0.2s ease, transform 0.2s ease;
+}
+
+.landing-hmo-logo:hover {
+  filter: grayscale(0) opacity(1);
+  transform: scale(1.05);
+}
+
+/* ============ Location ============ */
+
+.landing-location-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  align-items: stretch;
+}
+
+.landing-location-card h3 {
+  margin: 0 0 10px;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--landing-text-main);
+}
+
+.landing-location-card > p {
+  margin: 0 0 24px;
+  color: var(--landing-text-muted);
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.landing-location-details {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin: 0;
+}
+
+.landing-location-details dt {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--landing-blue);
+  margin-bottom: 3px;
+}
+
+.landing-location-details dd {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--landing-text-body);
+  line-height: 1.5;
+}
+
+.landing-location-details a {
+  color: var(--landing-text-body);
+  text-decoration: none;
+}
+
+.landing-location-details a:hover {
+  color: var(--landing-blue);
+}
+
+.landing-map-card {
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid var(--landing-glass-border);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+  min-height: 280px;
+}
+
+.landing-map-iframe {
+  width: 100%;
+  height: 100%;
+  min-height: 280px;
+  border: 0;
+  display: block;
+}
+
+.landing-map-directions {
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  background: #ffffff;
+  color: var(--landing-blue);
+  font-weight: 600;
+  font-size: 0.82rem;
+  padding: 10px 16px;
+  border-radius: 8px;
+  text-decoration: none;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.18);
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.landing-map-directions:hover {
+  background: #f1f5f9;
+  transform: translateY(-1px);
+}
+
+/* ============ Footer — deep navy, high contrast ============ */
+
+.landing-footer {
+  background: var(--landing-navy-footer);
+  color: #cbd5e1;
+  padding: 56px 0 0;
+}
+
+.landing-footer-grid {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr 1fr;
+  gap: 32px;
+  padding-bottom: 40px;
+}
+
+.landing-footer-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+/* Same tighter, cohesive wordmark spacing as the navbar and the auth cards'
+   .login-card-brand. */
+.landing-footer-brand .sb-brand-logo .sb-text-block {
+  gap: 0;
+}
+
+.landing-footer-brand .sb-brand-logo .sb-subtitle {
+  margin-top: -2px;
+}
+
+.landing-footer-tagline {
+  font-size: 0.85rem;
+  color: #94a3b8;
+  line-height: 1.6;
+  margin: 0 0 18px;
+  max-width: 260px;
+}
+
+.landing-footer-social {
+  display: flex;
+  gap: 18px;
+}
+
+/* Bare glyphs, no circle/bubble container — muted by default, each icon
+   activates its own real brand color + glow on hover instead of a shared
+   generic hover treatment. */
+.landing-social-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8;
+  background: transparent;
+  border: none;
+  transition: color 0.2s ease, transform 0.2s ease, filter 0.2s ease;
+}
+
+.landing-social-icon--fb:hover {
+  color: #1877f2;
+  transform: translateY(-2px) scale(1.1);
+  filter: drop-shadow(0 4px 10px rgba(24, 119, 242, 0.5));
+}
+
+.landing-social-icon--ig:hover {
+  color: #e1306c;
+  transform: translateY(-2px) scale(1.1);
+  filter: drop-shadow(0 4px 10px rgba(225, 48, 108, 0.5));
+}
+
+.landing-footer-col h4 {
+  color: #ffffff;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  margin: 0 0 16px;
+}
+
+.landing-footer-col a,
+.landing-footer-col p {
+  display: block;
+  color: #cbd5e1;
+  text-decoration: none;
+  font-size: 0.86rem;
+  margin: 0 0 10px;
+  line-height: 1.5;
+}
+
+.landing-footer-col a:hover {
+  color: #60a5fa;
+}
+
+.landing-footer-bottom {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 20px 24px;
+  text-align: center;
+  font-size: 0.78rem;
+  color: #64748b;
+}
+
+/* ==================================================================
+   Responsive — 1024px, 768px, 375px. Base styles above are the 1280px+
+   desktop layout.
+   ================================================================== */
+
+@media (max-width: 1024px) {
+  .landing-hero-heading {
+    font-size: 2.2rem;
+  }
+
+  .landing-dentists-grid,
+  .landing-services-grid {
+    gap: 20px;
+  }
+
+  .landing-footer-grid {
+    grid-template-columns: 1fr 1fr;
+    row-gap: 32px;
+  }
+}
+
+@media (max-width: 900px) {
+  .landing-navbar-links,
+  .landing-navbar-actions {
+    display: none;
+  }
+
+  .landing-hamburger {
+    display: flex;
+  }
+
+  .landing-mobile-drawer.landing-mobile-drawer--open {
+    display: flex;
+  }
+}
+
+@media (max-width: 768px) {
+  .landing-hero {
+    padding: 44px 0 64px;
+  }
+
+  .landing-hero-inner {
+    grid-template-columns: 1fr;
+    gap: 40px;
+  }
+
+  .landing-hero-right {
+    order: -1;
+  }
+
+  .landing-hero-photo {
+    height: 240px;
+  }
+
+  .landing-hero-badge {
+    left: 50%;
+    transform: translateX(-50%);
+    white-space: nowrap;
+  }
+
+  .landing-hero-heading {
+    font-size: 1.9rem;
+  }
+
+  .landing-hero-subheading {
+    max-width: none;
+  }
+
+  .landing-section {
+    padding: 52px 0;
+  }
+
+  .landing-section-title {
+    font-size: 1.5rem;
+    margin-bottom: 32px;
+  }
+
+  .landing-services-grid,
+  .landing-dentists-grid,
+  .landing-location-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .landing-dentist-card {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .landing-steps {
+    grid-template-columns: 1fr;
+    gap: 28px;
+  }
+
+  .landing-step-connector {
+    display: none;
+  }
+
+  .landing-hmo-inner {
+    flex-direction: column;
+    gap: 20px;
+    text-align: center;
+  }
+
+  .landing-footer-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 375px) {
+  .landing-section-inner {
+    padding: 0 16px;
+  }
+
+  .landing-navbar-inner {
+    padding: 12px 16px;
+  }
+
+  .landing-hero-inner {
+    padding: 0 16px;
+  }
+
+  .landing-hero-heading {
+    font-size: 1.6rem;
+  }
+
+  .landing-hero-cta {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 14px;
+  }
+
+  .landing-hero-cta .landing-btn {
+    width: 100%;
+  }
+
+  .landing-hero-signin {
+    text-align: center;
+  }
+
+  .landing-hero-badge {
+    font-size: 0.68rem;
+    padding: 8px 14px;
+  }
+
+  .landing-glass-card {
+    padding: 20px;
+  }
+
+  .landing-hmo-logos {
+    gap: 28px;
+  }
+}

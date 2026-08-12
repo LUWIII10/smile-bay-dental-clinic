@@ -1,0 +1,39 @@
+/* Design tokens for the interior portal (dashboards, tables, everything
+   behind login). Auth pages keep their own glassmorphism treatment in
+   Login.css untouched — these are deliberately separate systems, matching
+   the spec's "glassmorphism stays on auth pages only" rule.
+
+   Color values are the same hex values already in use on the auth pages
+   (--color-royal-blue etc. equivalents), just re-expressed as tokens here
+   so every portal file can reference one source instead of repeating hex
+   literals. */
+
+:root {
+  --portal-blue: #2952e3;
+  --portal-blue-hover: #1e40c9;
+  --portal-blue-tint: rgba(41, 82, 227, 0.08);
+  --portal-navy: #0f2557;
+  --portal-slate: #334155;
+  --portal-muted: #64748b;
+  --portal-border: #cbd5e1;
+  --portal-border-light: #e2e8f0;
+  --portal-canvas: #f8fafc;
+  --portal-card: #ffffff;
+
+  --portal-green-bg: #dcfce7;
+  --portal-green-text: #15803d;
+  --portal-amber-bg: #fef3c7;
+  --portal-amber-text: #b45309;
+  --portal-red-bg: #fee2e2;
+  --portal-red-text: #b42318;
+  --portal-blue-bg: #dbeafe;
+  --portal-blue-text: #1d4ed8;
+
+  --portal-radius-sm: 8px;
+  --portal-radius-lg: 16px;
+  --portal-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+
+  --portal-sidebar-w: 260px;
+  --portal-sidebar-w-tablet: 72px;
+  --portal-topbar-h: 64px;
+}

@@ -1,0 +1,117 @@
+.verify-otp-card {
+  width: 400px;
+  text-align: center;
+}
+
+.verify-otp-digits {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin: 1.2rem 0 0.4rem 0;
+}
+
+.verify-otp-digit {
+  width: 44px;
+  height: 52px;
+  text-align: center;
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: #0f2557;
+  border: 1px solid rgba(203, 213, 225, 0.8);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.6);
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.verify-otp-digit:focus {
+  border-color: #2952e3;
+  box-shadow: 0 0 0 3px rgba(41, 82, 227, 0.15);
+}
+
+.verify-otp-card .login-button {
+  margin-top: 1.3rem;
+}
+
+.verify-otp-resend {
+  margin-top: 1rem;
+  font-size: 0.78rem;
+  color: #64748b;
+}
+
+.verify-otp-resend-message {
+  margin: 0 0 0.4rem 0;
+  color: #15803d;
+}
+
+.verify-otp-cooldown {
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.verify-otp-resend-link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #2952e3;
+  font-weight: 600;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.verify-otp-resend-link:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+.verify-otp-resend-link:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.verify-otp-success {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-top: 1.4rem;
+  color: #15803d;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.verify-otp-success-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(21, 128, 61, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+}
+
+/* Mobile */
+@media (max-width: 600px) {
+  .verify-otp-card {
+    width: 100%;
+  }
+
+  .verify-otp-digit {
+    width: 38px;
+    height: 46px;
+    font-size: 1.15rem;
+  }
+}
+
+/* Very small phones */
+@media (max-width: 360px) {
+  .verify-otp-digits {
+    gap: 6px;
+  }
+
+  .verify-otp-digit {
+    width: 34px;
+    height: 42px;
+    font-size: 1.05rem;
+  }
+}

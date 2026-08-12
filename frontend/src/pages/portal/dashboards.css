@@ -1,0 +1,644 @@
+/* Shared styles for every dashboard: greeting header, stat-card grid,
+   section cards, data table, skeleton shimmer, status badges. Per-role
+   dashboards only add the handful of rules specific to their own layout
+   (e.g. the dentist timeline, the admin chart grid). */
+
+.dash-greeting {
+  margin-bottom: 24px;
+}
+
+.dash-greeting h2 {
+  margin: 0 0 2px;
+  font-family: 'Poppins', sans-serif;
+  font-weight: 600;
+  font-size: 1.4rem;
+  color: var(--portal-navy);
+}
+
+.dash-greeting p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--portal-muted);
+}
+
+/* ============ Section card (generic white container) ============ */
+
+.section-card {
+  background: var(--portal-card);
+  border-radius: var(--portal-radius-lg);
+  box-shadow: var(--portal-shadow);
+  padding: 20px 24px;
+  margin-bottom: 24px;
+  /* min-width: 0 overrides the default min-width: auto that grid/flex
+     items get, which otherwise refuses to shrink below the intrinsic
+     content width (e.g. a Chart.js canvas) and forces the whole ancestor
+     chain wider than the viewport. Matters whenever .section-card sits
+     inside a row-direction flex/grid parent, like .chart-grid below —
+     harmless everywhere else since it's already full-width there. */
+  min-width: 0;
+}
+
+.section-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.section-card-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--portal-navy);
+}
+
+.section-card-link {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--portal-blue);
+  text-decoration: none;
+}
+
+.section-card-link:hover {
+  text-decoration: underline;
+}
+
+/* ============ Stat card grid ============ */
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.stat-grid--4 {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.stat-card {
+  background: var(--portal-card);
+  border-radius: var(--portal-radius-lg);
+  box-shadow: var(--portal-shadow);
+  padding: 18px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  /* Same bug class as the chart overflow: as a .stat-grid (CSS grid) item,
+     this defaults to min-width: auto, which floors it at its min-content
+     width. .stat-card-label is white-space: nowrap for ellipsis truncation,
+     so its min-content width is its FULL unwrapped text — "Appointments
+     This Month" is ~250px+ with the icon. Unlike .next-appt-card/
+     .priority-card (which use flex-wrap: wrap as their escape valve), grid
+     columns don't wrap, so at admin's 4-column layout this actually
+     overflows starting around 1100–1280px, before .stat-grid's own
+     breakpoints ever kick in. min-width: 0 here lets the card shrink to
+     its cell and the label ellipsize instead (chain already in place via
+     .stat-card-text/.stat-card-label below). */
+  min-width: 0;
+}
+
+.stat-card--highlight {
+  border: 1.5px solid var(--portal-amber-text);
+  background: linear-gradient(0deg, rgba(254, 243, 199, 0.35), rgba(254, 243, 199, 0.35)), var(--portal-card);
+}
+
+.stat-card-text {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.stat-card-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--portal-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stat-card-value {
+  font-size: 1.7rem;
+  font-weight: 600;
+  color: var(--portal-navy);
+  line-height: 1.1;
+}
+
+.stat-card-icon {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stat-card-icon--blue {
+  background: var(--portal-blue-bg);
+  color: var(--portal-blue-text);
+}
+
+.stat-card-icon--green {
+  background: var(--portal-green-bg);
+  color: var(--portal-green-text);
+}
+
+.stat-card-icon--amber {
+  background: var(--portal-amber-bg);
+  color: var(--portal-amber-text);
+}
+
+.stat-card-icon--red {
+  background: var(--portal-red-bg);
+  color: var(--portal-red-text);
+}
+
+/* ============ Status badges ============ */
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 12px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+  text-transform: capitalize;
+}
+
+.status-badge--green {
+  background: var(--portal-green-bg);
+  color: var(--portal-green-text);
+}
+
+.status-badge--amber {
+  background: var(--portal-amber-bg);
+  color: var(--portal-amber-text);
+}
+
+.status-badge--red {
+  background: var(--portal-red-bg);
+  color: var(--portal-red-text);
+}
+
+.status-badge--blue {
+  background: var(--portal-blue-bg);
+  color: var(--portal-blue-text);
+}
+
+/* ============ Data table ============ */
+
+.data-table-wrap {
+  overflow-x: auto;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.data-table thead th {
+  background: var(--portal-canvas);
+  color: var(--portal-muted);
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  text-align: left;
+  padding: 10px 14px;
+  white-space: nowrap;
+}
+
+.data-table thead th:first-child {
+  border-top-left-radius: var(--portal-radius-sm);
+  border-bottom-left-radius: var(--portal-radius-sm);
+}
+
+.data-table thead th:last-child {
+  border-top-right-radius: var(--portal-radius-sm);
+  border-bottom-right-radius: var(--portal-radius-sm);
+}
+
+/* Deliberately .data-table td, not .data-table tbody td — the old
+   selector's extra `tbody` was never needed to match correctly (a <td> is
+   always inside a tbody anyway) and its specificity (0,1,2) was silently
+   beating the mobile media query's white-space: normal override (0,1,1)
+   below, which never actually took effect at ≤767px because of it. */
+.data-table td {
+  padding: 12px 14px;
+  font-size: 0.85rem;
+  color: var(--portal-slate);
+  border-bottom: 1px solid var(--portal-border-light);
+  white-space: nowrap;
+}
+
+.data-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.data-table-empty {
+  padding: 32px 16px;
+  text-align: center;
+  color: var(--portal-muted);
+  font-size: 0.85rem;
+}
+
+@media (max-width: 767px) {
+  .data-table thead {
+    display: none;
+  }
+
+  /* .data-table-wrap's overflow-x: auto (below) is genuinely useful on the
+     real <table> layout (desktop) but is exactly what was masking this bug
+     here: the stacked variant doesn't need a scroll container at all, and
+     leaving it in place let a too-wide table quietly scroll sideways
+     inside a card instead of being visibly wrong. Neutralized below,
+     mobile-only — desktop keeps overflow-x: auto untouched. */
+  .data-table-wrap {
+    overflow-x: visible;
+  }
+
+  .data-table,
+  .data-table tbody,
+  .data-table tr,
+  .data-table td {
+    display: block;
+    width: 100%;
+    /* Explicit min-width: 0 on every level from the table itself down,
+       not just on the flex td — belt-and-suspenders now that we know
+       something in this chain was holding a wider intrinsic size than
+       width: 100% alone was overriding. */
+    min-width: 0;
+  }
+
+  .data-table tr {
+    margin-bottom: 12px;
+    border: 1px solid var(--portal-border-light);
+    border-radius: var(--portal-radius-sm);
+    overflow: hidden;
+  }
+
+  .data-table tr:last-child {
+    margin-bottom: 0;
+  }
+
+  .data-table td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    white-space: normal;
+    text-align: right;
+    /* Same bug class as the chart/stat-card: as a flex row this defaults
+       to min-width: auto, flooring it at its content's intrinsic width
+       and overflowing the card. .data-table tr has overflow: hidden for
+       its rounded corners, so the overflow wasn't a visible scrollbar —
+       it was silently clipping the value text instead. */
+    min-width: 0;
+  }
+
+  .data-table td::before {
+    content: attr(data-label);
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--portal-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    text-align: left;
+    /* Label stays at its full, short, fixed size — only the value beside
+       it shrinks/wraps. */
+    flex-shrink: 0;
+  }
+
+  /* Wraps each cell's actual content (DataTable.jsx), separate from the
+     ::before label, so it can be given its own shrink/wrap behavior. */
+  .data-table-value {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: 65%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    text-align: right;
+  }
+
+  /* The status pill is short and meant to stay pill-shaped — it should
+     never be the thing that shrinks or wraps. Long values wrap instead
+     (word-break/overflow-wrap above), since patient names and service
+     names stay meaningful when wrapped, unlike when truncated. */
+  .data-table-value .status-badge {
+    flex-shrink: 0;
+  }
+}
+
+/* ============ Skeleton shimmer ============ */
+
+.skeleton {
+  display: block;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #e2e8f0 25%, #edf2f7 37%, #e2e8f0 63%);
+  background-size: 400% 100%;
+  animation: skeleton-shimmer 1.4s ease infinite;
+}
+
+.skeleton--line {
+  height: 14px;
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.skeleton--stat-card {
+  height: 78px;
+  width: 100%;
+  border-radius: var(--portal-radius-lg);
+}
+
+.skeleton--row {
+  height: 48px;
+  width: 100%;
+  margin-bottom: 8px;
+  border-radius: var(--portal-radius-sm);
+}
+
+.skeleton--block {
+  height: 220px;
+  width: 100%;
+  border-radius: var(--portal-radius-lg);
+}
+
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0 50%;
+  }
+}
+
+/* ============ Next appointment (patient dashboard) ============ */
+
+.next-appt-card {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.next-appt-date {
+  flex-shrink: 0;
+  width: 64px;
+  height: 64px;
+  border-radius: var(--portal-radius-sm);
+  background: var(--portal-blue-tint);
+  color: var(--portal-blue);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.1;
+}
+
+.next-appt-day {
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+.next-appt-month {
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.next-appt-details {
+  flex: 1;
+  min-width: 160px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.next-appt-time {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: var(--portal-muted);
+}
+
+.next-appt-service {
+  font-size: 0.98rem;
+  font-weight: 600;
+  color: var(--portal-navy);
+}
+
+.next-appt-dentist {
+  font-size: 0.82rem;
+  color: var(--portal-slate);
+}
+
+/* ============ Activity list ============ */
+
+.activity-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.activity-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--portal-border-light);
+}
+
+.activity-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.activity-item-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.activity-item-desc {
+  font-size: 0.85rem;
+  color: var(--portal-slate);
+  font-weight: 500;
+}
+
+.activity-item-date {
+  font-size: 0.72rem;
+  color: var(--portal-muted);
+}
+
+
+/* ============ Priority card (dental assistant dashboard) ============ */
+
+.priority-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: var(--portal-card);
+  border: 1.5px solid var(--portal-amber-text);
+  border-radius: var(--portal-radius-lg);
+  box-shadow: var(--portal-shadow);
+  padding: 18px 22px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.priority-card-icon {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--portal-amber-bg);
+  color: var(--portal-amber-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.priority-card-text {
+  flex: 1;
+  min-width: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.priority-card-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--portal-navy);
+}
+
+.priority-card-desc {
+  font-size: 0.8rem;
+  color: var(--portal-muted);
+}
+
+/* ============ Charts (admin dashboard) ============ */
+
+.chart-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 20px;
+  align-items: stretch;
+  min-width: 0;
+}
+
+.chart-grid .section-card {
+  margin-bottom: 0;
+  display: flex;
+  flex-direction: column;
+  /* Redundant with the base .section-card rule today, kept explicit here
+     since this is the one place min-width: 0 is actually load-bearing —
+     these cards are grid items sized alongside a Chart.js canvas. */
+  min-width: 0;
+}
+
+.chart-container {
+  position: relative;
+  width: 100%;
+  height: 260px;
+  min-width: 0;
+}
+
+.chart-container canvas {
+  max-width: 100%;
+}
+
+@media (max-width: 900px) {
+  .chart-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .chart-grid .section-card {
+    margin-bottom: 24px;
+  }
+}
+
+/* ============ Empty state ============ */
+
+.dash-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 32px 20px;
+  color: var(--portal-muted);
+  gap: 12px;
+}
+
+.dash-empty-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--portal-navy);
+}
+
+.dash-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 9px 18px;
+  background: var(--portal-blue);
+  color: #fff;
+  border: none;
+  border-radius: var(--portal-radius-sm);
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.15s ease;
+}
+
+.dash-btn:hover {
+  background: var(--portal-blue-hover);
+}
+
+.dash-btn--amber {
+  background: var(--portal-amber-text);
+}
+
+.dash-btn--amber:hover {
+  background: #92400e;
+}
+
+/* ============ Responsive grid breakpoints ============ */
+
+@media (max-width: 1024px) {
+  .stat-grid,
+  .stat-grid--4 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 560px) {
+  .stat-grid,
+  .stat-grid--4 {
+    grid-template-columns: 1fr;
+  }
+
+  .section-card {
+    padding: 16px;
+  }
+}
