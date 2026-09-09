@@ -181,7 +181,7 @@ function RegisterWizard() {
       // register() intentionally does not authenticate the user — the account
       // stays pending until the OTP screen verifies the email address.
       navigate(`/verify-email?email=${encodeURIComponent(values.email.trim())}`, {
-        state: { retryAfter: result.retryAfter },
+        state: { retryAfter: result.retryAfter, emailSent: result.emailSent },
       });
       return;
     }

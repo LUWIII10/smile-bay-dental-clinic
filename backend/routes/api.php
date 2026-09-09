@@ -27,7 +27,10 @@ use Illuminate\Support\Facades\Route;
 Route::get('/hmo-providers', [HmoProviderController::class, 'index']);
 
 // Public — live email-uniqueness check for the registration wizard.
-Route::get('/check-email', [AuthController::class, 'checkEmail']);
+// Throttled per-IP: the wizard fires this a handful of times per sign-up
+// (onBlur of the email field), so 20/min is ample for real use while
+// blunting scripted account-enumeration against the endpoint.
+Route::get('/check-email', [AuthController::class, 'checkEmail'])->middleware('throttle:20,1');
 
 Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register']);

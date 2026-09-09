@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { getDentistSchedule, completeAppointment, cancelAppointmentAsDentist } from '../../api/appointments';
 import StatCard from './components/StatCard';
 import StatusBadge from './components/StatusBadge';
 import Skeleton from './components/Skeleton';
 import RescheduleModal from './components/RescheduleModal';
 import RejectionModal from './components/RejectionModal';
-import { CalendarIcon, CheckCircleIcon, ClockIcon, MoreIcon, CalendarXIcon, SwapIcon } from './icons';
+import { CalendarIcon, CheckCircleIcon, ClockIcon, MoreIcon, CalendarXIcon, SwapIcon, FileIcon } from './icons';
 import { formatTime12h, toLocalDate } from './dateTimeUtils';
 import './dashboards.css';
 import './DentistSchedule.css';
@@ -36,15 +37,19 @@ function dayHeading(dateStr, today) {
   return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
 }
 
-function ScheduleRow({ appointment, expanded, onToggle, completingId, onComplete, onReschedule, onCancel }) {
+function ScheduleRow({ appointment, expanded, onToggle, completingId, onComplete, onReschedule, onCancel, onAddRecord }) {
   const patientName = `${appointment.patient.first_name} ${appointment.patient.last_name}`.trim();
   const isCash = appointment.patient_type_snapshot === 'cash';
   const canAct = appointment.status === 'confirmed';
+  const isCompleted = appointment.status === 'completed';
+  // Completed rows also expand — the only action they offer is a jump to
+  // writing that visit's dental record.
+  const canExpand = canAct || isCompleted;
   const [timeValue, timePeriod] = formatTime12h(appointment.appointment_time).split(' ');
 
   return (
     <div className={`schedule-row${expanded ? ' schedule-row--expanded' : ''}`}>
-      <button type="button" className="schedule-row-main" onClick={() => canAct && onToggle(appointment.id)}>
+      <button type="button" className="schedule-row-main" onClick={() => canExpand && onToggle(appointment.id)}>
         <span className="schedule-row-time">
           <span className="schedule-row-time-value">{timeValue}</span>
           <span className="schedule-row-time-period">{timePeriod}</span>
@@ -55,7 +60,7 @@ function ScheduleRow({ appointment, expanded, onToggle, completingId, onComplete
           <span className="schedule-row-meta">{appointment.service.name} &middot; {isCash ? 'Cash' : 'HMO'}</span>
         </span>
         <StatusBadge status={appointment.status} />
-        {canAct && (
+        {canExpand && (
           <span
             className="schedule-row-more"
             role="button"
@@ -85,11 +90,24 @@ function ScheduleRow({ appointment, expanded, onToggle, completingId, onComplete
           </button>
         </div>
       )}
+
+      {expanded && isCompleted && (
+        <div className="schedule-row-actions">
+          <button
+            type="button"
+            className="schedule-action-btn schedule-action-btn--green"
+            onClick={() => onAddRecord(appointment)}
+          >
+            <FileIcon /> Add Visit Record
+          </button>
+        </div>
+      )}
     </div>
   );
 }
 
 function DentistSchedule() {
+  const navigate = useNavigate();
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -140,6 +158,19 @@ function DentistSchedule() {
     setError('');
     setCancelReason('');
     setCancelTarget(appointment);
+  };
+
+  // Jump straight to writing this completed visit's dental record: the
+  // patient is pre-selected on the records page and the note is tied to
+  // this appointment (see PatientRecords.jsx reading location.state).
+  const handleAddRecord = (appointment) => {
+    navigate('/dentist/patient-records', {
+      state: {
+        patientId: appointment.patient.id,
+        appointmentId: appointment.id,
+        visitLabel: `${appointment.appointment_date.slice(0, 10)} at ${formatTime12h(appointment.appointment_time)}`,
+      },
+    });
   };
 
   const handleCancel = async () => {
@@ -232,6 +263,7 @@ function DentistSchedule() {
                 onComplete={handleComplete}
                 onReschedule={setRescheduleTarget}
                 onCancel={openCancel}
+                onAddRecord={handleAddRecord}
               />
             ))}
           </div>

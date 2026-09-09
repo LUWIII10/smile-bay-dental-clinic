@@ -25,6 +25,9 @@ function VerifyOtp() {
   const [resending, setResending] = useState(false);
   const [resendMessage, setResendMessage] = useState('');
   const [cooldown, setCooldown] = useState(location.state?.retryAfter ?? DEFAULT_COOLDOWN);
+  // Registration succeeded but the verification email could not be sent
+  // (SMTP down). Cleared once a resend actually goes through.
+  const [emailFailed, setEmailFailed] = useState(location.state?.emailSent === false);
   const digitInputRef = useRef(null);
 
   useEffect(() => {
@@ -78,6 +81,7 @@ function VerifyOtp() {
 
     if (result.success) {
       setResendMessage('A new code has been sent to your email.');
+      setEmailFailed(false);
       setCooldown(result.retryAfter || DEFAULT_COOLDOWN);
       setDigits(Array(CODE_LENGTH).fill(''));
       digitInputRef.current?.focusFirst();
@@ -95,9 +99,25 @@ function VerifyOtp() {
         <BrandLogo variant="blue" size="md" className="login-card-brand" />
         <h1 className="login-heading">Verify Your Email</h1>
         <p className="login-subheading">
-          We've sent a 6-digit verification code to<br />
-          <strong>{email}</strong>
+          {emailFailed ? (
+            <>
+              Your account is ready, but we couldn&apos;t send the code to<br />
+              <strong>{email}</strong>
+            </>
+          ) : (
+            <>
+              We&apos;ve sent a 6-digit verification code to<br />
+              <strong>{email}</strong>
+            </>
+          )}
         </p>
+
+        {emailFailed && !verified && (
+          <div className="login-error">
+            We couldn&apos;t send your verification email just now. When the timer ends, tap
+            &nbsp;<strong>Resend Code</strong> to try again.
+          </div>
+        )}
 
         {verified ? (
           <div className="verify-otp-success">

@@ -23,6 +23,15 @@ class EnsureUserHasRole
             ], 403);
         }
 
+        // An account deactivated mid-session must lose access immediately,
+        // not only at next login (AuthController::login() has the same
+        // guard). Applies to every role-gated route.
+        if ($user->status !== 'active') {
+            return response()->json([
+                'message' => 'Your account has been deactivated. Please contact the clinic.',
+            ], 403);
+        }
+
         return $next($request);
     }
 }

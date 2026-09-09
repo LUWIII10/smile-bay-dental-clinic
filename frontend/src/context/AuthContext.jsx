@@ -52,7 +52,16 @@ export function AuthProvider({ children }) {
         try {
             await api.get('/sanctum/csrf-cookie');
             const response = await api.post('/api/auth/register', payload);
-            return { success: true, email: response.data.email, retryAfter: response.data.retry_after };
+            return {
+                success: true,
+                email: response.data.email,
+                retryAfter: response.data.retry_after,
+                // false when the account was created but the verification
+                // email could not be sent (SMTP down) — the verify screen
+                // uses this to tell the user to use "Resend code" instead of
+                // waiting for a code that never left.
+                emailSent: response.data.email_sent !== false,
+            };
         } catch (err) {
             const message = err.response?.data?.message || 'Registration failed. Please try again.';
             const errors = err.response?.data?.errors || null;

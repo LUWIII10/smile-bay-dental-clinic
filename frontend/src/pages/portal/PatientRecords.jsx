@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import {
   searchPatientRecords,
@@ -37,6 +38,10 @@ function getInitials(name) {
 
 function PatientRecords() {
   const { role } = useAuth();
+  const location = useLocation();
+  // Set when the dentist arrives here via "Add Visit Record" on their
+  // schedule — the completed appointment to open a note against.
+  const incoming = location.state || {};
   const isDentist = role === 'dentist';
   // Assistants get a read-only, front-desk-appropriate slice of the record —
   // no tooth chart (nothing to chart from a coordination role), no
@@ -56,7 +61,7 @@ function PatientRecords() {
   const debounceRef = useRef(null);
 
   // ---- Detail state ----
-  const [selectedPatientId, setSelectedPatientId] = useState(null);
+  const [selectedPatientId, setSelectedPatientId] = useState(incoming.patientId ?? null);
   const [detail, setDetail] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState('');
@@ -68,6 +73,10 @@ function PatientRecords() {
   const [noteModalOpen, setNoteModalOpen] = useState(false);
   const [noteText, setNoteText] = useState('');
   const [savingNote, setSavingNote] = useState(false);
+  // When arriving from the schedule's "Add Visit Record", the clinical note
+  // is tied to that completed appointment (appointment_id on storeClinicalNote).
+  const [linkedAppointmentId, setLinkedAppointmentId] = useState(incoming.appointmentId ?? null);
+  const [linkedVisitLabel, setLinkedVisitLabel] = useState(incoming.visitLabel ?? '');
 
   const [planModalOpen, setPlanModalOpen] = useState(false);
   const [planForm, setPlanForm] = useState({ title: '', description: '', target_date: '', items: [{ ...EMPTY_ITEM }] });
@@ -131,8 +140,25 @@ function PatientRecords() {
     }
   }, [selectedPatientId, loadDetail]);
 
-  const openPatient = (id) => setSelectedPatientId(id);
+  // Arrived from the schedule's "Add Visit Record" — open the note modal
+  // straight away so the dentist lands on writing the visit up. Runs once.
+  useEffect(() => {
+    if (incoming.appointmentId && incoming.patientId) {
+      setNoteModalOpen(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // A visit link only makes sense for the patient we were sent to; picking
+  // any other patient (or going back to the list) clears it.
+  const openPatient = (id) => {
+    setLinkedAppointmentId(null);
+    setLinkedVisitLabel('');
+    setSelectedPatientId(id);
+  };
   const backToList = () => {
+    setLinkedAppointmentId(null);
+    setLinkedVisitLabel('');
     setSelectedPatientId(null);
     setDetail(null);
   };
@@ -187,9 +213,11 @@ function PatientRecords() {
   const submitNote = async () => {
     setSavingNote(true);
     try {
-      await addClinicalNote(selectedPatientId, noteText.trim());
+      await addClinicalNote(selectedPatientId, noteText.trim(), linkedAppointmentId);
       setNoteText('');
       setNoteModalOpen(false);
+      setLinkedAppointmentId(null);
+      setLinkedVisitLabel('');
       await loadDetail(selectedPatientId);
       showSuccessToast('Clinical note added.');
     } catch {
@@ -691,6 +719,11 @@ function PatientRecords() {
         {isDentist && (
           <>
             <Modal open={noteModalOpen} onClose={() => setNoteModalOpen(false)} title="Add Clinical Note">
+              {linkedAppointmentId && (
+                <p style={{ margin: '0 0 10px', fontSize: '0.82rem', color: 'var(--portal-muted)' }}>
+                  Linked to the completed visit{linkedVisitLabel ? ` on ${linkedVisitLabel}` : ''}.
+                </p>
+              )}
               <label className="modal-field-label">Note</label>
               <textarea
                 className="form-textarea"

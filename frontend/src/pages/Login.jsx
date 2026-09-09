@@ -59,7 +59,7 @@ function Login() {
               <>
                 {' '}
                 <Link to={`/verify-email?email=${encodeURIComponent(unverifiedEmail)}`}>
-                  Resend verification code
+                  Go to verification page
                 </Link>
               </>
             )}
