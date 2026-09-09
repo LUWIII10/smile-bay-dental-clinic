@@ -1,19 +1,46 @@
+import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { useSimulatedLoad } from '../../hooks/useSimulatedLoad';
+import { getPatientDashboardSummary } from '../../api/appointments';
 import DashGreeting from './components/DashGreeting';
 import StatCard from './components/StatCard';
 import StatusBadge from './components/StatusBadge';
 import Skeleton from './components/Skeleton';
 import { CalendarIcon, ClockIcon, CheckCircleIcon, CalendarPlusIcon } from './icons';
-import { PATIENT_MOCK } from './mockData';
+import { formatDateLong, formatTime12h, toLocalDate } from './dateTimeUtils';
 import './dashboards.css';
+
+const MONTH_ABBR = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
 
 function PatientDashboard() {
   const { user } = useAuth();
-  const loading = useSimulatedLoad();
   const firstName = user?.name?.split(' ')[0] || 'there';
-  const { nextAppointment, stats, activity } = PATIENT_MOCK;
+
+  const [summary, setSummary] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const data = await getPatientDashboardSummary();
+      setSummary(data);
+    } catch {
+      setError('Could not load your dashboard. Please refresh the page.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const nextAppointment = summary?.nextAppointment;
+  const stats = summary?.stats;
+  const activity = summary?.recentActivity ?? [];
+  const nextDate = nextAppointment ? toLocalDate(nextAppointment.appointment_date) : null;
 
   return (
     <div>
@@ -26,18 +53,22 @@ function PatientDashboard() {
 
         {loading ? (
           <Skeleton variant="block" height="120px" />
+        ) : error ? (
+          <div className="dash-empty">
+            <span className="dash-empty-title">{error}</span>
+          </div>
         ) : nextAppointment ? (
           <div className="next-appt-card">
             <div className="next-appt-date">
-              <span className="next-appt-day">{nextAppointment.date.split(' ')[1]?.replace(',', '')}</span>
-              <span className="next-appt-month">{nextAppointment.date.split(' ')[0]}</span>
+              <span className="next-appt-day">{nextDate.getDate()}</span>
+              <span className="next-appt-month">{MONTH_ABBR[nextDate.getMonth()]}</span>
             </div>
             <div className="next-appt-details">
               <span className="next-appt-time">
-                <ClockIcon /> {nextAppointment.time}
+                <ClockIcon /> {formatDateLong(nextAppointment.appointment_date)} at {formatTime12h(nextAppointment.appointment_time)}
               </span>
-              <span className="next-appt-service">{nextAppointment.service}</span>
-              <span className="next-appt-dentist">with {nextAppointment.dentist}</span>
+              <span className="next-appt-service">{nextAppointment.service?.name}</span>
+              <span className="next-appt-dentist">with {nextAppointment.dentist?.name || 'Unassigned'}</span>
             </div>
             <StatusBadge status={nextAppointment.status} />
           </div>
@@ -58,9 +89,9 @@ function PatientDashboard() {
           <Skeleton variant="stat-card" count={3} />
         ) : (
           <>
-            <StatCard label="Total Visits" value={stats.totalVisits} icon={CheckCircleIcon} tint="blue" />
-            <StatCard label="Upcoming Appointments" value={stats.upcoming} icon={CalendarIcon} tint="green" />
-            <StatCard label="Last Visit Date" value={stats.lastVisit} icon={ClockIcon} tint="amber" />
+            <StatCard label="Total Visits" value={stats?.totalVisits ?? 0} icon={CheckCircleIcon} tint="blue" />
+            <StatCard label="Upcoming Appointments" value={stats?.upcoming ?? 0} icon={CalendarIcon} tint="green" />
+            <StatCard label="Last Visit Date" value={stats?.lastVisitDate || '—'} icon={ClockIcon} tint="amber" />
           </>
         )}
       </div>
@@ -72,15 +103,18 @@ function PatientDashboard() {
 
         {loading ? (
           <Skeleton variant="row" count={4} />
+        ) : activity.length === 0 ? (
+          <div className="dash-empty">
+            <span className="dash-empty-title">No activity yet.</span>
+          </div>
         ) : (
           <ul className="activity-list">
             {activity.map((entry) => (
               <li key={entry.id} className="activity-item">
                 <div className="activity-item-text">
                   <span className="activity-item-desc">{entry.description}</span>
-                  <span className="activity-item-date">{entry.date}</span>
                 </div>
-                <StatusBadge status={entry.status} />
+                <span className="activity-item-date">{entry.timestamp}</span>
               </li>
             ))}
           </ul>

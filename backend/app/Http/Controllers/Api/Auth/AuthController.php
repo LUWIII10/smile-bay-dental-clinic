@@ -46,26 +46,50 @@ class AuthController extends Controller
                 'status' => 'active',
             ]);
 
-            Patient::create([
+            $patient = Patient::create([
                 'user_id' => $user->id,
                 'first_name' => $validated['first_name'],
                 'middle_name' => $validated['middle_name'] ?? null,
                 'last_name' => $validated['last_name'],
                 'date_of_birth' => $validated['date_of_birth'],
                 'sex' => $validated['sex'],
+                'civil_status' => $validated['civil_status'] ?? null,
+                'nationality' => $validated['nationality'] ?? null,
+                'religion' => $validated['religion'] ?? null,
+                'occupation' => $validated['occupation'] ?? null,
                 'address_line' => $validated['complete_address'],
                 'emergency_contact_name' => $validated['emergency_contact_name'],
                 'emergency_contact_relationship' => $validated['emergency_contact_relationship'],
                 'emergency_contact_number' => $validated['emergency_contact_number'],
+                'guardian_name' => $validated['guardian_name'] ?? null,
+                'guardian_relationship' => $validated['guardian_relationship'] ?? null,
+                'guardian_contact_number' => $validated['guardian_contact_number'] ?? null,
+                'blood_type' => $validated['blood_type'] ?? null,
                 'allergies' => $validated['allergies'] ?? null,
                 'current_medications' => $validated['current_medications'] ?? null,
+                'medical_conditions' => $validated['medical_conditions'] ?? null,
                 'medical_conditions_other' => $validated['medical_conditions_notes'] ?? null,
+                'previous_surgeries' => $validated['previous_surgeries'] ?? null,
+                'last_physical_exam' => $validated['last_physical_exam'] ?? null,
+                'physician_name_specialty' => $validated['physician_name_specialty'] ?? null,
+                'last_dental_visit' => $validated['last_dental_visit'] ?? null,
+                'last_dental_treatment' => $validated['last_dental_treatment'] ?? null,
+                'brushing_frequency' => $validated['brushing_frequency'] ?? null,
+                'dental_procedures_history' => $validated['dental_procedures_history'] ?? null,
+                'current_dental_symptoms' => $validated['current_dental_symptoms'] ?? null,
+                'visit_reason' => $validated['visit_reason'] ?? null,
                 'patient_type' => $validated['patient_type'],
                 'hmo_provider_id' => $validated['patient_type'] === 'hmo' ? $validated['hmo_provider_id'] : null,
                 'hmo_number' => $validated['patient_type'] === 'hmo' ? $validated['hmo_number'] : null,
                 'hmo_company_name' => $validated['patient_type'] === 'hmo' ? $validated['hmo_company_name'] : null,
                 'consent_certified' => true,
             ]);
+
+            // Same transaction as the patient row itself — the id needed to
+            // format the number only exists once the row is actually
+            // inserted, so this has to be a second statement, not part of
+            // the create() above.
+            $patient->update(['patient_number' => Patient::formatPatientNumber($patient->id, $patient->created_at)]);
 
             return $user;
         });
@@ -424,7 +448,7 @@ class AuthController extends Controller
 
         return response()->json([
             'message' => 'Login successful.',
-            'user' => $user,
+            'user' => $this->serializeUser($user->load('patient.hmoProvider', 'dentistProfile')),
         ]);
     }
 
@@ -451,11 +475,33 @@ class AuthController extends Controller
     /**
      * Get the currently authenticated user's data.
      * Used by the React frontend to check login state and role on page load.
+     * Eager-loads the linked patient row (when the user is a patient) since
+     * the booking wizard's read-only "Payment Method" step needs
+     * patient_type without a second round-trip — also eager-loads the
+     * patient's hmoProvider so that step can show the real provider name
+     * ("Medicard", "Flexicare") instead of just the raw hmo_provider_id,
+     * without a second request. Purely additive: existing consumers of
+     * /auth/me are unaffected, this only adds a nested key.
      */
     public function me(Request $request)
     {
         return response()->json([
-            'user' => $request->user(),
+            // dentistProfile added alongside patient.hmoProvider so the
+            // sidebar/topbar avatar can resolve a dentist's photo_path —
+            // previously only My Profile's own /profile endpoint loaded it.
+            'user' => $this->serializeUser($request->user()->load('patient.hmoProvider', 'dentistProfile')),
         ]);
+    }
+
+    /**
+     * is_pediatric_dentist merged in as a plain extra key (not a model
+     * $append) — it's only ever needed on this auth payload, for the
+     * sidebar to decide whether to show "Pediatric Queue" at all, so
+     * computing it on every User serialization app-wide would be wasted
+     * queries everywhere else a User gets turned into JSON.
+     */
+    private function serializeUser(User $user): array
+    {
+        return [...$user->toArray(), 'is_pediatric_dentist' => $user->isPediatricDentist()];
     }
 }

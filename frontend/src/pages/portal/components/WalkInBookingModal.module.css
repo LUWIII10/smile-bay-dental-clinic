@@ -1,0 +1,313 @@
+/* Scoped to the walk-in booking modal only — same isolation approach as
+   Appointments.module.css (hardcoded values, no --portal-* tokens). Modal.jsx
+   itself (backdrop/card/esc-to-close/focus) is still the shared component
+   every other modal in the app uses — only the content rendered inside it
+   is styled from this module. */
+
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 18px;
+}
+
+.stepDot,
+.stepDotActive,
+.stepDotDone {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding-bottom: 8px;
+  border-bottom: 3px solid #e2e8f0;
+}
+
+.stepDotActive {
+  border-bottom-color: #2563eb;
+}
+
+.stepDotDone {
+  border-bottom-color: #93c5fd;
+}
+
+.stepNum {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #e2e8f0;
+  color: #64748b;
+  font-size: 0.7rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stepDotActive .stepNum {
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.stepDotDone .stepNum {
+  background: #93c5fd;
+  color: #ffffff;
+}
+
+.stepLabel {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.stepBody {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 120px;
+}
+
+.fieldLabel {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #64748b;
+}
+
+.summaryCard {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-size: 0.83rem;
+  color: #334155;
+  line-height: 1.9;
+}
+
+.summaryCard strong {
+  color: #0f172a;
+}
+
+.input {
+  width: 100%;
+  box-sizing: border-box;
+  height: 40px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  font-size: 0.85rem;
+  font-family: 'Poppins', sans-serif;
+  color-scheme: light;
+  background: #ffffff;
+  color: #1e293b;
+}
+
+.input::placeholder {
+  color: #94a3b8;
+}
+
+.input:focus {
+  outline: none;
+  border-color: #2563eb;
+}
+
+.resultsList {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  max-height: 180px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(41, 82, 227, 0.35) var(--portal-canvas);
+}
+.resultsList::-webkit-scrollbar { width: 8px; }
+.resultsList::-webkit-scrollbar-track { background: var(--portal-canvas); border-radius: 999px; }
+.resultsList::-webkit-scrollbar-thumb { background: rgba(41, 82, 227, 0.35); border-radius: 999px; transition: background-color 0.15s ease; }
+.resultsList::-webkit-scrollbar-thumb:hover { background: rgba(41, 82, 227, 0.55); }
+
+.resultRow {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  text-align: left;
+  padding: 8px 12px;
+  background: none;
+  border: none;
+  border-bottom: 1px solid #f1f5f9;
+  cursor: pointer;
+  font-family: 'Poppins', sans-serif;
+}
+
+.resultRow:last-child {
+  border-bottom: none;
+}
+
+.resultRow:hover {
+  background: #f8fafc;
+}
+
+.resultName {
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.resultMeta {
+  font-size: 0.74rem;
+  color: #64748b;
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.formGridFull {
+  grid-column: 1 / -1;
+}
+
+.selectedPatient {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  background: #eff6ff;
+  border: 1px solid #93c5fd;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  color: #1e293b;
+}
+
+.linkBtn {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #2563eb;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: 'Poppins', sans-serif;
+}
+
+.linkBtn:hover {
+  text-decoration: underline;
+}
+
+.serviceGroup {
+  margin-bottom: 6px;
+}
+
+.serviceGroupLabel {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #94a3b8;
+  margin-bottom: 6px;
+}
+
+.serviceGrid,
+.dentistList,
+.slotGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.serviceCard,
+.serviceCardSelected,
+.dentistCard,
+.dentistCardSelected,
+.slotBtn,
+.slotBtnSelected {
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.8rem;
+  font-weight: 500;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1.5px solid #e2e8f0;
+  background: #ffffff;
+  color: #334155;
+  cursor: pointer;
+  text-align: left;
+}
+
+.serviceCardSelected,
+.dentistCardSelected,
+.slotBtnSelected {
+  border-color: #2563eb;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-weight: 700;
+}
+
+.dentistCard,
+.dentistCardSelected {
+  flex: 1 1 auto;
+}
+
+.hint {
+  font-size: 0.82rem;
+  color: #64748b;
+  padding: 10px 0;
+}
+
+.errorNote {
+  font-size: 0.8rem;
+  color: #be123c;
+  background: #fff1f2;
+  border: 1px solid #fecdd3;
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-top: 12px;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.footerSpacer {
+  flex: 1;
+}
+
+.primaryBtn,
+.secondaryBtn {
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 9px 18px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.primaryBtn {
+  background-color: #2563eb;
+  color: #ffffff;
+  border: none;
+}
+
+.primaryBtn:hover {
+  background-color: #1d4ed8;
+}
+
+.primaryBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.secondaryBtn {
+  background: none;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+}
+
+.secondaryBtn:hover {
+  background: #f8fafc;
+}

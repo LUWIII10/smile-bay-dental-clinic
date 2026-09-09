@@ -1,0 +1,768 @@
+/* Page-specific styles for the patient Book Appointment wizard — plain CSS,
+   same pattern as dashboards.css / Appointments.css, not CSS Modules, not
+   Tailwind. dashboards.css (imported alongside this) supplies the shared
+   .section-card / .dash-btn primitives; everything here is specific to
+   this wizard.
+
+   All five wizard steps (Service, Doctor, Payment, Date & Time, Summary)
+   plus the shared step-progress bar/nav chrome are styled here. */
+
+/* ============ Step-progress bar ============ */
+
+.wizard-steps {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 28px;
+}
+
+.wizard-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.wizard-step-circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--portal-gray-bg);
+  color: var(--portal-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+
+.wizard-step-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--portal-muted);
+  white-space: nowrap;
+}
+
+.wizard-step--active .wizard-step-circle {
+  background: var(--portal-blue);
+  color: #ffffff;
+}
+
+.wizard-step--active .wizard-step-label {
+  color: var(--portal-navy);
+}
+
+.wizard-step--complete .wizard-step-circle {
+  background: var(--portal-green-bg);
+  color: var(--portal-green-text);
+}
+
+.wizard-step--complete .wizard-step-label {
+  color: var(--portal-slate);
+}
+
+.wizard-step-line {
+  flex: 1;
+  height: 2px;
+  background: var(--portal-border-light);
+  margin: 15px 8px 0;
+}
+
+/* ============ Category chips ============ */
+
+.service-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.service-chip {
+  padding: 8px 18px;
+  border-radius: 999px;
+  border: none;
+  background: var(--portal-gray-bg);
+  color: var(--portal-slate);
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.service-chip:hover {
+  background: var(--portal-border-light);
+}
+
+.service-chip--active {
+  background: var(--portal-blue);
+  color: #ffffff;
+}
+
+.service-chip--active:hover {
+  background: var(--portal-blue-hover);
+}
+
+/* ============ Service card grid ============ */
+
+.service-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+@media (max-width: 640px) {
+  .service-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.service-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 20px;
+  background: var(--portal-card);
+  border: 2px solid var(--portal-border-light);
+  border-radius: var(--portal-radius-lg);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.service-card:hover {
+  border-color: var(--portal-blue);
+}
+
+.service-card--selected {
+  border-color: var(--portal-blue);
+  background: var(--portal-blue-tint);
+}
+
+.service-card-check {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--portal-blue);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.service-card-check svg {
+  width: 15px;
+  height: 15px;
+}
+
+.service-card-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--portal-radius-sm);
+  background: var(--portal-blue-tint);
+  color: var(--portal-blue);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.service-card--selected .service-card-icon {
+  background: var(--portal-card);
+}
+
+.service-card-name {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--portal-navy);
+  line-height: 1.3;
+}
+
+.service-card-duration {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: var(--portal-muted);
+  margin-top: auto;
+}
+
+.service-card-duration svg {
+  width: 14px;
+  height: 14px;
+}
+
+.booking-empty-note {
+  padding: 20px;
+  text-align: center;
+  color: var(--portal-muted);
+  font-size: 0.85rem;
+}
+
+/* ============ Step heading pattern (Steps 2/3/5) ============
+   Step 1 still uses dashboards.css's smaller .section-card-title (16px) —
+   left as-is since it was explicitly out of scope for this pass. Flagged
+   as a known minor inconsistency rather than silently touching a step
+   marked "don't change" to fix it. */
+
+.wizard-step-heading {
+  margin: 0 0 4px;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--portal-navy);
+}
+
+.wizard-step-subtitle {
+  margin: 0 0 18px;
+  font-size: 0.85rem;
+  color: var(--portal-muted);
+}
+
+/* ============ Doctor cards (Step 2) ============ */
+
+.doctor-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+@media (max-width: 640px) {
+  .doctor-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.doctor-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 4px;
+  padding: 24px 18px;
+  background: var(--portal-card);
+  border: 2px solid var(--portal-border-light);
+  border-radius: var(--portal-radius-lg);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.doctor-card:hover {
+  border-color: var(--portal-blue);
+}
+
+.doctor-card--selected {
+  border-color: var(--portal-blue);
+  background: var(--portal-blue-tint);
+}
+
+.doctor-card-check {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--portal-blue);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.doctor-card-check svg {
+  width: 15px;
+  height: 15px;
+}
+
+.doctor-card-photo {
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--portal-blue-tint);
+  color: var(--portal-blue);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 3px solid rgba(29, 78, 216, 0.12);
+  margin-bottom: 6px;
+}
+
+.doctor-card-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.doctor-card-name {
+  margin: 0;
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: var(--portal-navy);
+}
+
+.doctor-card-specialty {
+  font-size: 0.8rem;
+  color: var(--portal-blue);
+  font-weight: 600;
+}
+
+.doctor-card-credentials {
+  margin: 2px 0 0;
+  font-size: 0.74rem;
+  color: var(--portal-muted);
+  line-height: 1.45;
+}
+
+/* ============ Payment info card (Step 3, read-only) ============ */
+
+.payment-card {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  padding: 22px;
+  background: var(--portal-blue-tint);
+  border: 1.5px solid var(--portal-border-light);
+  border-radius: var(--portal-radius-lg);
+}
+
+.payment-card-icon {
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--portal-card);
+  color: var(--portal-blue);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.payment-card-title {
+  margin: 0 0 4px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--portal-navy);
+}
+
+.payment-card-note {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--portal-slate);
+  line-height: 1.6;
+}
+
+.payment-card-subnote {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--portal-border-light);
+  font-size: 0.8rem;
+  color: var(--portal-amber-text);
+  line-height: 1.5;
+}
+
+.payment-card-subnote svg {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  margin-top: 1px;
+}
+
+/* ============ Summary / review card (Step 5) ============ */
+
+.summary-card {
+  border: 1px solid var(--portal-border-light);
+  border-radius: var(--portal-radius-lg);
+  overflow: hidden;
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--portal-border-light);
+}
+
+.summary-row:last-child {
+  border-bottom: none;
+}
+
+.summary-label {
+  font-size: 0.8rem;
+  color: var(--portal-muted);
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.summary-value {
+  font-size: 0.9rem;
+  color: var(--portal-navy);
+  font-weight: 600;
+  text-align: right;
+}
+
+.summary-note {
+  margin: 16px 0 0;
+  padding: 14px 16px;
+  background: var(--portal-canvas);
+  border-radius: var(--portal-radius-sm);
+  font-size: 0.78rem;
+  color: var(--portal-muted);
+  line-height: 1.6;
+}
+
+/* ============ Date & time (Step 4) ============ */
+
+.datetime-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+@media (max-width: 720px) {
+  .datetime-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.calendar-panel,
+.slots-panel {
+  padding: 18px;
+  background: var(--portal-card);
+  border: 1px solid var(--portal-border-light);
+  border-radius: var(--portal-radius-lg);
+}
+
+.calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.calendar-nav-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid var(--portal-border-light);
+  background: var(--portal-card);
+  color: var(--portal-navy);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.calendar-nav-btn:hover:not(:disabled) {
+  border-color: var(--portal-blue);
+  color: var(--portal-blue);
+}
+
+.calendar-nav-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.calendar-month-label {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--portal-navy);
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.calendar-weekday {
+  text-align: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--portal-muted);
+  padding-bottom: 6px;
+}
+
+.calendar-cell {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--portal-radius-sm);
+  border: 2px solid transparent;
+  background: transparent;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--portal-slate);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.calendar-cell--blank {
+  cursor: default;
+}
+
+.calendar-cell--available {
+  background: var(--portal-green-bg);
+  color: var(--portal-green-text);
+}
+
+.calendar-cell--limited {
+  background: var(--portal-amber-bg);
+  color: var(--portal-amber-text);
+}
+
+.calendar-cell--full {
+  background: var(--portal-red-bg);
+  color: var(--portal-red-text);
+  cursor: not-allowed;
+}
+
+.calendar-cell--unavailable {
+  background: transparent;
+  color: var(--portal-muted);
+  font-weight: 500;
+  cursor: not-allowed;
+}
+
+.calendar-cell--available:hover,
+.calendar-cell--limited:hover {
+  border-color: var(--portal-blue);
+}
+
+.calendar-cell--selected {
+  border-color: var(--portal-blue);
+  box-shadow: 0 0 0 2px var(--portal-blue-tint);
+}
+
+.calendar-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--portal-border-light);
+}
+
+.calendar-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.74rem;
+  color: var(--portal-muted);
+}
+
+.calendar-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.calendar-legend-dot--available {
+  background: var(--portal-green-text);
+}
+
+.calendar-legend-dot--limited {
+  background: var(--portal-amber-text);
+}
+
+.calendar-legend-dot--full {
+  background: var(--portal-red-text);
+}
+
+.calendar-legend-dot--unavailable {
+  background: var(--portal-border);
+}
+
+.slots-panel-label {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--portal-muted);
+}
+
+.slots-panel-date {
+  margin: 2px 0 14px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--portal-navy);
+}
+
+.slots-group {
+  margin-bottom: 16px;
+}
+
+.slots-group-label {
+  margin: 0 0 8px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--portal-muted);
+}
+
+/* A group whose selected dentist has zero real slots in it (but is still
+   shown, as disabled ghost slots, because a doctor-switch suggestion is
+   active) — muted red-ish instead of the normal muted-gray label. */
+.slots-group-label--reduced {
+  color: var(--portal-red-text);
+}
+
+.slots-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+@media (max-width: 480px) {
+  .slots-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.slot-card {
+  padding: 9px 6px;
+  text-align: center;
+  background: var(--portal-card);
+  border: 2px solid var(--portal-border-light);
+  border-radius: var(--portal-radius-sm);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--portal-slate);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.slot-card:hover {
+  border-color: var(--portal-blue);
+}
+
+.slot-card--selected {
+  border-color: var(--portal-blue);
+  background: var(--portal-blue-tint);
+  color: var(--portal-blue);
+}
+
+/* Outside the selected dentist's hours for this date (a ghost slot only
+   shown at all when a doctor-switch suggestion is active) — visibly present
+   so the patient can see what they're missing, but inert. */
+.slot-card--disabled {
+  background: var(--portal-canvas);
+  border-color: var(--portal-border-light);
+  color: var(--portal-muted);
+  cursor: not-allowed;
+}
+
+.slot-card--disabled:hover {
+  border-color: var(--portal-border-light);
+}
+
+.slots-tz-note {
+  margin: 4px 0 0;
+  font-size: 0.74rem;
+  color: var(--portal-muted);
+}
+
+/* ============ Smart doctor-switch suggestion banner ============
+   Same amber-warning language as the pediatric payment-card-subnote and the
+   shared status-badge--amber tokens — full amber-tint background here since
+   this is a standalone banner, not an inline note. */
+
+.suggestion-banner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  background: var(--portal-amber-bg);
+  border: 1.5px solid var(--portal-amber-border);
+  border-radius: var(--portal-radius-lg);
+  padding: 14px 16px;
+  margin-bottom: 16px;
+}
+
+.suggestion-banner-icon {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--portal-card);
+  color: var(--portal-amber-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.suggestion-banner-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.suggestion-banner-text {
+  flex: 1 1 200px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.suggestion-banner-title {
+  margin: 0;
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--portal-navy);
+}
+
+.suggestion-banner-subtitle {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--portal-slate);
+}
+
+.suggestion-banner-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 16px;
+  background: var(--portal-blue);
+  color: #ffffff;
+  border: none;
+  border-radius: var(--portal-radius-sm);
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.suggestion-banner-btn:hover {
+  background: var(--portal-blue-hover);
+}
+
+.suggestion-banner-btn svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* ============ Wizard nav (Back / Next) ============ */
+
+.wizard-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 28px;
+}

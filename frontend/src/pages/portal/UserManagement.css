@@ -1,0 +1,17 @@
+/* Page-specific styles for User Management (admin) — shared primitives
+   (.section-card, .modal-field-label, .profile-alert, .dash-btn,
+   .row-btn) live in dashboards.css; table/filter/cell classes are shared
+   with AllAppointments via Appointments.css. */
+
+.user-credentials-intro {
+  margin: 0 0 4px;
+  font-size: 0.85rem;
+  color: var(--portal-slate);
+  line-height: 1.5;
+}
+
+.user-credentials-password {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}

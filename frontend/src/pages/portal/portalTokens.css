@@ -22,12 +22,22 @@
 
   --portal-green-bg: #dcfce7;
   --portal-green-text: #15803d;
+  --portal-green-border: #a7f3d0;
   --portal-amber-bg: #fef3c7;
   --portal-amber-text: #b45309;
+  --portal-amber-border: #fde68a;
   --portal-red-bg: #fee2e2;
   --portal-red-text: #b42318;
+  --portal-red-border: #fecdd3;
   --portal-blue-bg: #dbeafe;
   --portal-blue-text: #1d4ed8;
+  --portal-blue-border: #bfdbfe;
+  --portal-gray-bg: #f1f5f9;
+  --portal-gray-text: #334155;
+  --portal-gray-border: #e2e8f0;
+  --portal-indigo-bg: #eef2ff;
+  --portal-indigo-text: #4338ca;
+  --portal-indigo-border: #c7d2fe;
 
   --portal-radius-sm: 8px;
   --portal-radius-lg: 16px;
@@ -35,5 +45,5 @@
 
   --portal-sidebar-w: 260px;
   --portal-sidebar-w-tablet: 72px;
-  --portal-topbar-h: 64px;
+  --portal-topbar-h: 58px;
 }

@@ -1,0 +1,679 @@
+/* Page-specific styles for the All Appointments master table (admin +
+   dental_assistant) — plain CSS, same pattern as dashboards.css /
+   PortalLayout.css / BookAppointment.css, not CSS Modules, not Tailwind.
+   Genuinely shared primitives (.dash-btn, .section-card, .form-textarea
+   used by RejectionModal elsewhere) stay in dashboards.css; everything
+   below is used only by this page and its child components (ActionMenu,
+   Pagination, AppointmentDetailModal, and the filter/table markup in
+   AllAppointments.jsx itself) — confirmed via a full-codebase grep before
+   moving anything out of dashboards.css.
+
+   Direction: premium, spacious healthcare-SaaS feel over raw density.
+   Column widths are percentage-based, not fixed px, so the table actually
+   uses the extra room a 1920px viewport has instead of leaving it idle. */
+
+/* ============ Page header ============ */
+
+.appt-page-title {
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: var(--portal-navy);
+  margin: 0 0 3px;
+  letter-spacing: -0.01em;
+}
+
+.appt-page-subtitle {
+  font-size: 0.85rem;
+  color: var(--portal-muted);
+  margin: 0;
+}
+
+.appt-page-header {
+  margin-bottom: 18px;
+}
+
+/* ============ Filter inputs ============ */
+
+.form-input,
+.form-select {
+  box-sizing: border-box;
+  width: 100%;
+  height: 40px;
+  padding: 0 14px;
+  border: 1px solid var(--portal-border);
+  border-radius: 10px;
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.85rem;
+  color-scheme: light;
+  background: var(--portal-card);
+  color: var(--portal-slate);
+}
+
+.form-input::placeholder {
+  color: var(--portal-muted);
+}
+
+.form-input:focus,
+.form-select:focus {
+  outline: none;
+  border-color: var(--portal-blue);
+  box-shadow: 0 0 0 3px var(--portal-blue-tint);
+}
+
+/* ============ Toolbar ============ */
+
+.appt-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.filter-field {
+  display: flex;
+  min-width: 140px;
+}
+
+.filter-field--grow {
+  flex: 1 1 280px;
+  max-width: 360px;
+  min-width: 220px;
+}
+
+.filter-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.filter-search svg {
+  position: absolute;
+  left: 14px;
+  width: 16px;
+  height: 16px;
+  color: var(--portal-muted);
+  pointer-events: none;
+}
+
+.filter-search .form-input {
+  padding-left: 38px;
+}
+
+.filter-date-range {
+  display: flex;
+  align-items: center;
+  height: 40px;
+  border: 1px solid var(--portal-border);
+  border-radius: 10px;
+  background: var(--portal-card);
+  overflow: hidden;
+}
+
+.filter-date-range input[type='date'] {
+  box-sizing: border-box;
+  height: 100%;
+  border: none;
+  border-radius: 0;
+  width: 124px;
+  padding: 0 10px;
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.85rem;
+  color-scheme: light;
+  background: var(--portal-card);
+  color: var(--portal-slate);
+}
+
+.filter-date-range-sep {
+  flex-shrink: 0;
+  width: 1px;
+  align-self: stretch;
+  background: var(--portal-border-light);
+}
+
+/* ============ Table shell ============ */
+
+/* min-width is the sum of every column's minWidthPx floor (200+130+150+
+   190+110+140+105 = 1025px) — on a wide viewport the table sizes to 100%
+   of its card (columns share that space proportionally, per their
+   percentage `minWidth`); once the card is narrower than 1025px, this
+   floor wins over `width: 100%` (per normal CSS box rules, min-width
+   always beats a smaller computed width) and the table itself becomes
+   wider than its wrapper. .data-table-wrap (dashboards.css) already has
+   overflow-x: auto, so that's what actually scrolls — the table's own
+   content is never clipped to force a fit.
+
+   Trimmed down from an earlier 1140px: Patient/Appointment/Dentist/Service
+   all had real slack (they already truncate-with-ellipsis or wrap onto 2
+   lines, so they don't need their previous room), and the "Pending
+   Verification" status label — the single widest thing any column ever
+   had to fit — is now just "Pending" (StatusBadge.jsx), which is what let
+   Status shrink too without any badge clipping or overflow-bleeding into
+   the Actions column next to it. */
+.appt-master-table .data-table {
+  table-layout: fixed;
+  width: 100%;
+  min-width: 1025px;
+}
+
+.appt-master-table .data-table thead th {
+  padding: 10px 16px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--portal-muted);
+  background-color: var(--portal-canvas);
+  border-bottom: 1px solid var(--portal-border-light);
+}
+
+/* No overflow: hidden here (deliberately) — that was clipping the
+   StatusBadge/action buttons whenever a column got squeezed. Individual
+   cells that genuinely want truncation opt in on their own: .cell-dentist-
+   name and .data-table-cell-clamp already carry their own overflow:hidden
+   + ellipsis/line-clamp, entirely independent of this rule. */
+.appt-master-table .data-table td {
+  box-sizing: border-box;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--portal-border-light);
+  vertical-align: middle;
+}
+
+/* ============ Cell content ============ */
+
+.cell-person {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.cell-avatar {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--portal-blue-tint);
+  color: var(--portal-blue);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.76rem;
+}
+
+.cell-person-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 2px;
+}
+
+.cell-person-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--portal-navy);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cell-person-sub {
+  font-size: 0.78rem;
+  color: var(--portal-muted);
+}
+
+.cell-dentist-name {
+  font-weight: 500;
+  font-size: 0.88rem;
+  color: var(--portal-slate);
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cell-appointment {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cell-appointment-ref {
+  font-size: 0.72rem;
+  color: var(--portal-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.cell-appointment-date {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 600;
+  font-size: 0.88rem;
+  color: var(--portal-slate);
+}
+
+.cell-appointment-date svg {
+  width: 13px;
+  height: 13px;
+  color: var(--portal-muted);
+  flex-shrink: 0;
+}
+
+.cell-appointment-time {
+  font-size: 0.78rem;
+  color: var(--portal-muted);
+}
+
+.cell-service {
+  font-size: 0.88rem;
+  color: var(--portal-slate);
+}
+
+.th-sort-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: 'Poppins', sans-serif;
+  font-size: inherit;
+  font-weight: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.th-sort-btn:hover {
+  color: var(--portal-slate);
+}
+
+.th-sort-arrow {
+  display: inline-block;
+  font-size: 0.62rem;
+  transition: transform 0.15s ease;
+}
+
+.th-sort-arrow--asc {
+  transform: rotate(180deg);
+}
+
+.row-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.row-action-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  border: none;
+  background: none;
+  color: var(--portal-muted);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.row-action-icon:hover {
+  background: var(--portal-canvas);
+  color: var(--portal-blue);
+}
+
+/* ============ Action overflow menu ============ */
+
+.action-menu {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.action-menu-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: none;
+  background: none;
+  color: var(--portal-muted);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.action-menu-trigger:hover {
+  background: var(--portal-canvas);
+  color: var(--portal-slate);
+}
+
+/* Rendered via a React portal into document.body (ActionMenu.jsx) — top/
+   right come from the trigger's own getBoundingClientRect() as inline
+   style, so `position: fixed` here just needs to honor those viewport
+   coordinates. This is what actually fixes the clipping: escaping the
+   table cell's DOM subtree entirely, not just z-index (z-index only
+   affects stacking order between visible elements — it cannot make an
+   ancestor's overflow: hidden/auto stop clipping a descendant). */
+.action-menu-dropdown {
+  position: fixed;
+  z-index: 1000;
+  min-width: 180px;
+  background: var(--portal-card);
+  border: 1px solid var(--portal-border-light);
+  border-radius: var(--portal-radius-sm);
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.14);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.action-menu-item {
+  text-align: left;
+  padding: 9px 12px;
+  border-radius: 7px;
+  border: none;
+  background: none;
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--portal-slate);
+  cursor: pointer;
+}
+
+.action-menu-item:hover {
+  background: var(--portal-canvas);
+}
+
+.action-menu-item--danger {
+  color: var(--portal-red-text);
+}
+
+/* ============ Pagination ============ */
+
+.pagination-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--portal-border-light);
+}
+
+.pagination-summary {
+  font-size: 0.85rem;
+  color: var(--portal-muted);
+}
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pagination-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--portal-border);
+  background: var(--portal-card);
+  color: var(--portal-slate);
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.pagination-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.pagination-btn:not(:disabled):hover {
+  border-color: var(--portal-blue);
+  color: var(--portal-blue);
+}
+
+.pagination-page {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--portal-slate);
+  min-width: 48px;
+  text-align: center;
+}
+
+.pagination-per-page {
+  width: auto;
+  height: 34px;
+  min-width: 0;
+  font-size: 0.8rem;
+}
+
+/* ============ Appointment detail modal ============ */
+
+.detail-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.detail-dentist-photo {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--portal-blue-tint);
+  color: var(--portal-blue);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1rem;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.detail-dentist-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px 24px;
+  margin-bottom: 24px;
+}
+
+.detail-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.detail-field--full {
+  grid-column: 1 / -1;
+}
+
+.detail-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--portal-muted);
+}
+
+.detail-value {
+  font-size: 0.9rem;
+  color: var(--portal-slate);
+}
+
+.detail-history-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--portal-navy);
+  margin: 0 0 12px;
+}
+
+.detail-history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-height: 220px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(41, 82, 227, 0.35) var(--portal-canvas);
+}
+.detail-history-list::-webkit-scrollbar { width: 8px; }
+.detail-history-list::-webkit-scrollbar-track { background: var(--portal-canvas); border-radius: 999px; }
+.detail-history-list::-webkit-scrollbar-thumb { background: rgba(41, 82, 227, 0.35); border-radius: 999px; transition: background-color 0.15s ease; }
+.detail-history-list::-webkit-scrollbar-thumb:hover { background: rgba(41, 82, 227, 0.55); }
+
+.detail-history-item {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.detail-history-dot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--portal-blue);
+  margin-top: 5px;
+}
+
+.detail-history-line {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--portal-slate);
+  text-transform: capitalize;
+}
+
+.detail-history-meta {
+  font-size: 0.76rem;
+  color: var(--portal-muted);
+  text-transform: none;
+}
+
+@media (max-width: 560px) {
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .pagination-bar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .appt-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .filter-field,
+  .filter-field--grow {
+    max-width: none;
+    width: 100%;
+  }
+}
+
+/* This table's own min-width (1025px, above) plus the sidebar + page/card
+   padding needs roughly 1373px of real viewport width to ever avoid
+   .data-table-wrap's horizontal scrollbar — comfortably true on a large
+   monitor, not true on a lot of actual laptop screens (1366×768 and
+   similar) at normal browser zoom. Rather than leave "make your browser
+   window/zoom bigger" as the only way to see every column, this table
+   switches to the same stacked key/value card layout dashboards.css
+   already uses below 768px — just at a wider threshold, since this
+   specific table is the one genuinely too wide for that gap. Every other
+   (narrower) table in the app keeps the normal compact layout all the way
+   down to 768px; this only widens the fallback for the one table that
+   needs it, via the .appt-master-table scope. */
+@media (max-width: 1400px) {
+  .appt-master-table .data-table {
+    min-width: 0;
+  }
+
+  .appt-master-table .data-table thead {
+    display: none;
+  }
+
+  .appt-master-table .data-table-wrap {
+    overflow-x: visible;
+  }
+
+  .appt-master-table .data-table,
+  .appt-master-table .data-table tbody,
+  .appt-master-table .data-table tr,
+  .appt-master-table .data-table td {
+    display: block;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .appt-master-table .data-table tr {
+    margin-bottom: 12px;
+    border: 1px solid var(--portal-border-light);
+    border-radius: var(--portal-radius-sm);
+    overflow: hidden;
+  }
+
+  .appt-master-table .data-table tr:last-child {
+    margin-bottom: 0;
+  }
+
+  .appt-master-table .data-table td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    white-space: normal;
+    text-align: right;
+    min-width: 0;
+  }
+
+  .appt-master-table .data-table td::before {
+    content: attr(data-label);
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--portal-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    text-align: left;
+    flex-shrink: 0;
+  }
+
+  .appt-master-table .data-table-value {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: 65%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    text-align: right;
+  }
+
+  .appt-master-table .data-table-value .status-badge {
+    flex-shrink: 0;
+  }
+}

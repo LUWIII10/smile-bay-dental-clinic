@@ -1,19 +1,63 @@
 // Pill-shaped status badge — the one semantic-color mapping shared by every
 // appointment/verification list across all four dashboards.
+//
+// "completed" was green until the appointment-scheduling module's spec
+// called for a neutral gray specifically (bg-slate-100/text-slate-700),
+// to visually separate "finished/archival" from "confirmed/upcoming" —
+// green now means only active/good-to-go states. This changes the color of
+// existing "Completed" entries on the patient/dentist activity lists too,
+// not just the new appointment screens, since it's the one shared mapping.
 const STATUS_TONE = {
   confirmed: 'green',
-  completed: 'green',
   active: 'green',
   pending: 'amber',
   'pending verification': 'amber',
+  pending_verification: 'amber',
+  completed: 'gray',
   cancelled: 'red',
+  rejected: 'red',
+  no_show: 'red',
   'in-progress': 'blue',
   'in progress': 'blue',
+  // Pediatric workflow queue indicators — not appointment.status values
+  // themselves (that stays 'pending_verification' for both), these are
+  // synthetic keys the not-yet-built Pediatric Queue / Staff HMO Queue
+  // screens can pass once they exist, to show which stage a pediatric
+  // booking is sitting at.
+  pediatric_review_required: 'amber',
+  pediatric_confirmed_pending_hmo: 'blue',
 };
 
-function StatusBadge({ status, tone }) {
-  const resolvedTone = tone || STATUS_TONE[String(status).toLowerCase()] || 'blue';
-  return <span className={`status-badge status-badge--${resolvedTone}`}>{status}</span>;
+// Full-phrase overrides for the two composite pediatric labels above —
+// the generic "replace underscores with spaces" transform below only
+// handles single-word-ish statuses like "pending_verification", not a
+// whole custom sentence with an emoji.
+//
+// pending_verification -> "Pending" (not the generic-transform's "pending
+// verification") matches the label the status filter dropdown already
+// uses (AllAppointments.jsx's STATUS_OPTIONS) — the two were inconsistent
+// before, and "Pending Verification" was also the single widest label any
+// status badge ever needed to render, forcing every table's Status column
+// wider than every other status actually requires.
+const CUSTOM_LABELS = {
+  pending_verification: 'Pending',
+  pediatric_review_required: '👶 Pediatric Slot Review Required',
+  pediatric_confirmed_pending_hmo: '👶 Pediatric Slot Confirmed — Pending HMO Verification',
+};
+
+// icon is optional (a component reference, e.g. CheckCircleIcon) — every
+// existing caller omits it and renders exactly as before; only All
+// Appointments' pills opt into the icon+pill treatment.
+function StatusBadge({ status, tone, icon: Icon }) {
+  const key = String(status).toLowerCase();
+  const resolvedTone = tone || STATUS_TONE[key] || 'blue';
+  const label = CUSTOM_LABELS[key] || String(status).replace(/_/g, ' ');
+  return (
+    <span className={`status-badge status-badge--${resolvedTone}`}>
+      {Icon && <span className="status-badge-icon"><Icon /></span>}
+      {label}
+    </span>
+  );
 }
 
 export default StatusBadge;

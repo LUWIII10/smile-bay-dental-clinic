@@ -21,6 +21,11 @@
   background: var(--landing-canvas);
   max-width: 100vw;
   overflow-x: hidden;
+  /* Explicit — without this, browsers auto-compute overflow-y: auto to
+     pair with overflow-x: hidden, which makes .landing-page its own scroll
+     container and breaks .landing-navbar's position: sticky (it sticks
+     relative to that container's scrollport instead of the viewport). */
+  overflow-y: visible;
   box-sizing: border-box;
 }
 
@@ -360,26 +365,68 @@
   color: var(--landing-blue);
 }
 
-/* ============ Services ============ */
+/* ============ Services — real dental-service categories ============ */
 
-.landing-services-grid {
+.landing-services-header {
+  max-width: 480px;
+  margin: 0 auto 44px;
+  text-align: center;
+}
+
+.landing-services-eyebrow {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: var(--landing-blue);
+  margin-bottom: 6px;
+}
+
+.landing-services-heading {
+  margin: 0 0 10px;
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--landing-text-main);
+}
+
+.landing-services-subheading {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--landing-text-muted);
+}
+
+.landing-category-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 24px;
+  gap: 20px;
 }
 
-.landing-service-card {
-  position: relative;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+.landing-category-card {
+  background: var(--landing-card);
+  border: 1px solid var(--landing-glass-border);
+  border-radius: 16px;
+  padding: 24px 28px;
+  transition: border-color 0.2s ease, transform 0.2s ease;
 }
 
-.landing-service-card:hover {
-  transform: translateY(-4px);
-  border-color: rgba(29, 78, 216, 0.35);
-  box-shadow: 0 18px 40px rgba(29, 78, 216, 0.14);
+.landing-category-card:hover {
+  border-color: var(--landing-blue);
+  transform: translateY(-3px);
 }
 
-.landing-service-check {
+.landing-category-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+/* Same icon-circle treatment the old .landing-service-check used
+   (rgba(29, 78, 216, 0.1) bg, solid blue glyph) — reused here rather than
+   introducing a new tint. */
+.landing-category-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -388,21 +435,89 @@
   border-radius: 50%;
   background: rgba(29, 78, 216, 0.1);
   color: var(--landing-blue);
-  margin-bottom: 16px;
+  flex-shrink: 0;
 }
 
-.landing-service-card h3 {
-  margin: 0 0 10px;
-  font-size: 1.15rem;
-  font-weight: 700;
+.landing-category-card h3 {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
   color: var(--landing-text-main);
 }
 
-.landing-service-card p {
-  margin: 0;
+.landing-service-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.landing-service-chip {
+  background: var(--landing-canvas);
   color: var(--landing-text-muted);
+  font-size: 0.875rem;
+  font-weight: 400;
+  padding: 6px 12px;
+  border-radius: 8px;
+}
+
+.landing-services-cta {
+  margin-top: 24px;
+  background: var(--landing-canvas);
+  border-radius: 16px;
+  padding: 20px 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.landing-services-cta p {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--landing-text-muted);
+}
+
+/* ============ Why book online — relocated feature band ============
+   Same copy that used to live in the two Services cards; now a slim band
+   right before How It Works instead of a third row of cards, so it reads
+   as a lead-in ("why book online") to the steps that follow ("how"). */
+
+.landing-features-band {
+  margin: 64px auto;
+  background: rgba(29, 78, 216, 0.08);
+  border-radius: 16px;
+  padding: 32px 36px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+}
+
+.landing-features-band-item {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.landing-features-band-item svg {
+  color: var(--landing-blue);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.landing-features-band-item h4 {
+  margin: 0 0 5px;
+  font-size: 1.0625rem;
+  font-weight: 600;
+  color: var(--landing-blue-hover);
+}
+
+.landing-features-band-item p {
+  margin: 0;
+  font-size: 0.906rem;
   line-height: 1.6;
-  font-size: 0.92rem;
+  color: var(--landing-text-body);
+  opacity: 0.85;
 }
 
 /* ============ How it works ============ */
@@ -461,60 +576,209 @@
 
 /* ============ Dentists ============ */
 
-.landing-dentists-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 24px;
+.landing-dentists-section {
+  position: relative;
+  overflow: hidden;
 }
 
-.landing-dentist-card {
+/* Purely decorative, clipped by the section's own overflow: hidden so
+   neither ever causes horizontal scroll — hidden below 768px. */
+.landing-dentists-bg-blob {
+  position: absolute;
+  top: -70px;
+  left: -70px;
+  width: 260px;
+  height: 260px;
+  background: rgba(29, 78, 216, 0.08);
+  border-radius: 60% 40% 55% 45% / 45% 55% 40% 60%;
+  opacity: 0.5;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.landing-dentists-bg-tooth {
+  position: absolute;
+  top: 50%;
+  right: -30px;
+  transform: translateY(-50%);
+  height: 380px;
+  width: auto;
+  color: var(--landing-blue);
+  opacity: 0.06;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.landing-dentists-header {
+  position: relative;
+  z-index: 1;
+  max-width: 560px;
+  margin: 0 auto 56px;
+  text-align: center;
+}
+
+.landing-eyebrow-row {
   display: flex;
-  gap: 20px;
-  align-items: flex-start;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
 }
 
-.landing-dentist-card:hover {
-  transform: translateY(-4px);
-  border-color: rgba(29, 78, 216, 0.35);
-  box-shadow: 0 18px 40px rgba(29, 78, 216, 0.14);
+.landing-eyebrow-rule {
+  width: 48px;
+  height: 1px;
+  background: var(--landing-glass-border);
 }
 
-.landing-dentist-photo {
-  width: 96px;
-  height: 96px;
-  border-radius: 50%;
-  object-fit: cover;
-  flex-shrink: 0;
-  border: 3px solid rgba(29, 78, 216, 0.12);
+.landing-eyebrow-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--landing-text-muted);
+  white-space: nowrap;
 }
 
-.landing-dentist-info h3 {
-  margin: 0 0 6px;
-  font-size: 1.08rem;
+.landing-dentists-heading {
+  margin: 14px 0 12px;
+  font-size: 2.25rem;
   font-weight: 700;
   color: var(--landing-text-main);
 }
 
-.landing-dentist-degree {
-  margin: 0 0 4px;
-  font-size: 0.82rem;
-  color: #334155;
-  font-weight: 500;
-}
-
-.landing-dentist-licensed {
-  margin: 0 0 8px;
-  font-size: 0.78rem;
-  color: var(--landing-blue);
-  font-weight: 600;
-}
-
-.landing-dentist-specialty {
+.landing-dentists-subheading {
   margin: 0;
-  font-size: 0.8rem;
+  font-size: 1rem;
+  line-height: 1.6;
   color: var(--landing-text-muted);
+}
+
+.landing-dentists-grid {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 28px;
+}
+
+.landing-dentist-card {
+  background: var(--landing-card);
+  border-radius: 20px;
+  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.06);
+  padding: 32px;
+  transition: box-shadow 0.25s ease, transform 0.25s ease;
+}
+
+.landing-dentist-card:hover {
+  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.1);
+  transform: translateY(-4px);
+}
+
+.landing-dentist-upper {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+}
+
+/* 4px white ring, then a translucent blue ring — reuses the same
+   rgba(29, 78, 216, 0.35) already used elsewhere in this file (the old
+   card hover border) so the ring isn't a brand-new color. */
+.landing-dentist-photo {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 4px solid #ffffff;
+  box-shadow: 0 0 0 2px rgba(29, 78, 216, 0.35);
+}
+
+.landing-dentist-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.landing-dentist-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(29, 78, 216, 0.08);
+  color: var(--landing-blue);
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 999px;
+  margin-bottom: 10px;
+}
+
+.landing-dentist-name {
+  margin: 0 0 10px;
+  font-size: 1.4375rem;
+  font-weight: 700;
+  color: var(--landing-text-main);
+}
+
+.landing-dentist-degree,
+.landing-dentist-university {
+  margin: 0;
+  font-size: 0.9375rem;
   line-height: 1.55;
+  color: var(--landing-text-muted);
+}
+
+.landing-dentist-license {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.landing-dentist-license svg {
+  width: 16px;
+  height: 16px;
+  color: var(--landing-blue);
+  flex-shrink: 0;
+}
+
+.landing-dentist-license span {
+  font-size: 0.906rem;
+  color: var(--landing-text-muted);
+}
+
+.landing-dentist-license strong {
+  font-weight: 600;
+  color: var(--landing-blue);
+}
+
+.landing-dentist-divider {
+  border: none;
+  border-top: 1px solid var(--landing-glass-border);
+  margin: 24px 0 18px;
+}
+
+.landing-dentist-spec-label {
+  display: block;
+  font-size: 0.71875rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #94a3b8;
+  margin-bottom: 12px;
+}
+
+.landing-dentist-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.landing-dentist-chip {
+  background: rgba(29, 78, 216, 0.08);
+  color: var(--landing-blue);
+  font-size: 0.84375rem;
+  font-weight: 500;
+  padding: 8px 16px;
+  border-radius: 999px;
 }
 
 /* ============ HMO partners ============ */
@@ -766,9 +1030,25 @@
     font-size: 2.2rem;
   }
 
-  .landing-dentists-grid,
-  .landing-services-grid {
-    gap: 20px;
+  .landing-dentist-card {
+    padding: 24px;
+  }
+
+  .landing-dentist-photo {
+    width: 100px;
+    height: 100px;
+  }
+
+  .landing-dentist-name {
+    font-size: 1.3125rem;
+  }
+
+  .landing-category-card {
+    padding: 20px 22px;
+  }
+
+  .landing-features-band {
+    padding: 28px;
   }
 
   .landing-footer-grid {
@@ -833,16 +1113,24 @@
     margin-bottom: 32px;
   }
 
-  .landing-services-grid,
+  .landing-category-grid,
   .landing-dentists-grid,
   .landing-location-grid {
     grid-template-columns: 1fr;
   }
 
-  .landing-dentist-card {
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
+  .landing-features-band {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  .landing-dentists-bg-blob,
+  .landing-dentists-bg-tooth {
+    display: none;
+  }
+
+  .landing-dentists-heading {
+    font-size: 1.75rem;
   }
 
   .landing-steps {
@@ -862,6 +1150,43 @@
 
   .landing-footer-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .landing-services-cta {
+    flex-direction: column;
+    align-items: stretch;
+    text-align: center;
+  }
+
+  .landing-services-cta .landing-btn {
+    width: 100%;
+  }
+}
+
+@media (max-width: 560px) {
+  .landing-dentist-upper {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .landing-dentist-info {
+    width: 100%;
+  }
+
+  .landing-dentist-license {
+    justify-content: center;
+  }
+
+  .landing-dentist-photo {
+    width: 96px;
+    height: 96px;
+  }
+
+  .landing-dentist-spec-label {
+    text-align: center;
   }
 }
 
@@ -902,6 +1227,22 @@
   }
 
   .landing-glass-card {
+    padding: 20px;
+  }
+
+  .landing-services-heading {
+    font-size: 1.5rem;
+  }
+
+  .landing-features-band {
+    padding: 24px 20px;
+  }
+
+  .landing-dentists-heading {
+    font-size: 1.625rem;
+  }
+
+  .landing-dentist-card {
     padding: 20px;
   }
 

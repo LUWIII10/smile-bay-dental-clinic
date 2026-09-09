@@ -1,0 +1,264 @@
+/* Page-specific styles for the dentist "My Availability" page — plain CSS,
+   same pattern as dashboards.css / Appointments.css / BookAppointment.css,
+   not CSS Modules, not Tailwind. Genuinely shared primitives (.section-card,
+   .dash-btn, .modal-actions, .form-input) come from dashboards.css/
+   Appointments.css already imported alongside this; everything below is
+   specific to this page's weekly-hours toggle rows, day-off list, and the
+   small labeled-input form pattern its "Add day off" modal needed (the
+   first modal form in the app to need a visible <label>, hence new here
+   rather than duplicated from an existing page). */
+
+/* ============ Toggle switch ============ */
+
+.toggle-switch {
+  position: relative;
+  flex-shrink: 0;
+  width: 42px;
+  height: 24px;
+  border-radius: 999px;
+  border: none;
+  background: var(--portal-border);
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.toggle-switch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.25);
+  transition: transform 0.15s ease;
+}
+
+.toggle-switch--on {
+  background: var(--portal-blue);
+}
+
+.toggle-switch--on::after {
+  transform: translateX(18px);
+}
+
+/* ============ Weekly hours rows ============ */
+
+.avail-day-row {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--portal-border-light);
+}
+
+.avail-day-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.avail-day-row:first-child {
+  padding-top: 0;
+}
+
+.avail-day-name {
+  width: 100px;
+  flex-shrink: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--portal-navy);
+}
+
+.avail-time-inputs {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* .form-input already supplies the white background + visible border (not
+   the browser's dark color-scheme default) that the spec calls for — this
+   just narrows its width: 100% down to what a native time input needs,
+   since two of them share a row instead of each filling it. */
+.avail-time-input {
+  width: 128px;
+  flex-shrink: 0;
+}
+
+.avail-time-sep {
+  font-size: 0.82rem;
+  color: var(--portal-muted);
+}
+
+.avail-not-working {
+  font-size: 0.85rem;
+  font-style: italic;
+  color: var(--portal-muted);
+}
+
+/* ============ Days off list ============ */
+
+.dayoff-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--portal-border-light);
+}
+
+.dayoff-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.dayoff-icon {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--portal-radius-sm);
+  background: var(--portal-amber-bg);
+  color: var(--portal-amber-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dayoff-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.dayoff-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dayoff-date {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--portal-navy);
+}
+
+.dayoff-reason {
+  font-size: 0.78rem;
+  color: var(--portal-muted);
+}
+
+.dayoff-delete {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  border: none;
+  background: none;
+  color: var(--portal-muted);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.dayoff-delete svg {
+  width: 16px;
+  height: 16px;
+}
+
+.dayoff-delete:hover {
+  background: var(--portal-red-bg);
+  color: var(--portal-red-text);
+}
+
+.dayoff-delete:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ============ Save bar ============ */
+
+.avail-save-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+  margin-top: 8px;
+}
+
+.avail-save-error {
+  font-size: 0.82rem;
+  color: var(--portal-red-text);
+}
+
+.avail-save-success {
+  font-size: 0.82rem;
+  color: var(--portal-green-text);
+}
+
+/* ============ Conflict-warning list (shared by both conflict flows) ============ */
+
+.conflict-list {
+  list-style: none;
+  margin: 0 0 4px;
+  padding: 0;
+  max-height: 240px;
+  overflow-y: auto;
+  border: 1px solid var(--portal-border-light);
+  border-radius: var(--portal-radius-sm);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(41, 82, 227, 0.35) var(--portal-canvas);
+}
+.conflict-list::-webkit-scrollbar { width: 8px; }
+.conflict-list::-webkit-scrollbar-track { background: var(--portal-canvas); border-radius: 999px; }
+.conflict-list::-webkit-scrollbar-thumb { background: rgba(41, 82, 227, 0.35); border-radius: 999px; transition: background-color 0.15s ease; }
+.conflict-list::-webkit-scrollbar-thumb:hover { background: rgba(41, 82, 227, 0.55); }
+
+.conflict-list-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--portal-border-light);
+}
+
+.conflict-list-item:last-child {
+  border-bottom: none;
+}
+
+.conflict-list-date {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--portal-navy);
+}
+
+.conflict-list-meta {
+  font-size: 0.78rem;
+  color: var(--portal-muted);
+}
+
+/* ============ Labeled form field (Add day off modal) ============ */
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--portal-slate);
+}
+
+@media (max-width: 560px) {
+  .avail-day-row {
+    flex-wrap: wrap;
+  }
+
+  .avail-time-inputs {
+    width: 100%;
+    padding-left: 118px;
+  }
+}

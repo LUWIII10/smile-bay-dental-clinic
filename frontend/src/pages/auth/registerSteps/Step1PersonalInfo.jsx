@@ -1,9 +1,16 @@
 import FormField from './FormField';
-import { UserIcon, PhoneIcon, CalendarIcon } from './icons';
+import { UserIcon, PhoneIcon, CalendarIcon, PeopleIcon, BriefcaseIcon } from './icons';
 
 const SEX_OPTIONS = [
   { value: 'male', label: 'Male' },
   { value: 'female', label: 'Female' },
+];
+
+const CIVIL_STATUS_OPTIONS = [
+  { value: 'single', label: 'Single' },
+  { value: 'married', label: 'Married' },
+  { value: 'widowed', label: 'Widowed' },
+  { value: 'separated', label: 'Separated' },
 ];
 
 function Step1PersonalInfo({ values, onChange, errors, onFieldError }) {
@@ -88,6 +95,49 @@ function Step1PersonalInfo({ values, onChange, errors, onFieldError }) {
         placeholder="09XXXXXXXXX"
         autoComplete="tel"
         required
+      />
+
+      <FormField
+        label="Civil Status"
+        name="civil_status"
+        type="select"
+        value={values.civil_status}
+        onChange={onChange}
+        error={errors.civil_status}
+        icon={<PeopleIcon />}
+        options={CIVIL_STATUS_OPTIONS}
+        placeholder="Select civil status"
+      />
+
+      <FormField
+        label="Nationality"
+        name="nationality"
+        value={values.nationality}
+        onChange={onChange}
+        error={errors.nationality}
+        icon={<UserIcon />}
+        placeholder="e.g. Filipino"
+        autoComplete="off"
+      />
+
+      <FormField
+        label="Religion"
+        name="religion"
+        value={values.religion}
+        onChange={onChange}
+        error={errors.religion}
+        icon={<UserIcon />}
+        placeholder="Optional"
+      />
+
+      <FormField
+        label="Occupation"
+        name="occupation"
+        value={values.occupation}
+        onChange={onChange}
+        error={errors.occupation}
+        icon={<BriefcaseIcon />}
+        placeholder="Optional"
       />
     </div>
   );

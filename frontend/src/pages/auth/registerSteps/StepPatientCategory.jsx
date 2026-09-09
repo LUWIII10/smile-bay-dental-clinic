@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import api from '../../../api';
 import FormField from './FormField';
 import { CashIcon, ShieldIcon, CardIcon, BuildingIcon } from './icons';
-import { ALLOWED_HMO_PROVIDERS } from './validation';
 
 function StepPatientCategory({ values, onChange, errors }) {
   const [hmoProviders, setHmoProviders] = useState([]);
@@ -25,13 +24,10 @@ function StepPatientCategory({ values, onChange, errors }) {
     };
   }, []);
 
-  // Smile Bay currently only verifies coverage for Medicard and Flexicare —
-  // any other provider row (e.g. a DB-seeded "Other") is deliberately kept
-  // out of the dropdown so it can never be selected through the UI. The
-  // server enforces the same allowlist independently (RegisterRequest).
-  const providerOptions = hmoProviders
-    .filter((provider) => ALLOWED_HMO_PROVIDERS.includes(provider.name))
-    .map((provider) => ({ value: String(provider.id), label: provider.name }));
+  // GET /api/hmo-providers already only returns is_active rows — the admin
+  // manages that list from Settings, so whatever's active there is exactly
+  // what should be selectable here. No separate name allowlist anymore.
+  const providerOptions = hmoProviders.map((provider) => ({ value: String(provider.id), label: provider.name }));
 
   // FormField's generic select only reports (name, id) — also stash the
   // provider's display name so Step5Review can show it without needing to

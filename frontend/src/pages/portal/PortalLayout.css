@@ -5,6 +5,12 @@
   font-family: 'Poppins', sans-serif;
   box-sizing: border-box;
   overflow-x: hidden;
+  /* Explicit — without this, browsers auto-compute overflow-y: auto to
+     pair with overflow-x: hidden (same bug already found on .landing-page),
+     turning .portal-shell into its own scroll container. .portal-topbar's
+     position: sticky sits inside it, and sticky positioning is scoped to
+     the nearest actual scroll-container ancestor, not always the viewport. */
+  overflow-y: visible;
 }
 
 .portal-shell *,
@@ -56,7 +62,13 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(41, 82, 227, 0.35) transparent;
 }
+.portal-nav::-webkit-scrollbar { width: 6px; }
+.portal-nav::-webkit-scrollbar-track { background: transparent; }
+.portal-nav::-webkit-scrollbar-thumb { background: rgba(41, 82, 227, 0.35); border-radius: 999px; transition: background-color 0.15s ease; }
+.portal-nav::-webkit-scrollbar-thumb:hover { background: rgba(41, 82, 227, 0.55); }
 
 .portal-nav-item {
   position: relative;
@@ -119,6 +131,13 @@
   justify-content: center;
   font-weight: 600;
   font-size: 0.82rem;
+  overflow: hidden;
+}
+
+.portal-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .portal-avatar--sm {
@@ -259,7 +278,13 @@
   color: var(--portal-slate);
 }
 
-.portal-bell-dot {
+/* ============ Notification bell + dropdown ============ */
+
+.notif-bell {
+  display: contents;
+}
+
+.notif-bell-dot {
   position: absolute;
   top: 7px;
   right: 8px;
@@ -270,10 +295,168 @@
   border: 1.5px solid var(--portal-card);
 }
 
+@keyframes notif-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.notif-panel {
+  position: fixed;
+  width: 360px;
+  max-width: calc(100vw - 24px);
+  background: var(--portal-card);
+  border: 1px solid var(--portal-border-light);
+  border-radius: var(--portal-radius-lg);
+  box-shadow: 0 20px 48px -12px rgba(15, 37, 87, 0.28);
+  z-index: 1000;
+  overflow: hidden;
+  animation: notif-panel-in 0.16s ease;
+}
+
+.notif-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--portal-border-light);
+}
+
+.notif-panel-title {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--portal-navy);
+}
+
+.notif-mark-all {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--portal-blue);
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: 'Poppins', sans-serif;
+}
+
+.notif-mark-all:hover {
+  text-decoration: underline;
+}
+
+.notif-panel-list {
+  max-height: 380px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(41, 82, 227, 0.35) var(--portal-canvas);
+}
+
+.notif-panel-list::-webkit-scrollbar { width: 8px; }
+.notif-panel-list::-webkit-scrollbar-track { background: var(--portal-canvas); }
+.notif-panel-list::-webkit-scrollbar-thumb { background: rgba(41, 82, 227, 0.35); border-radius: 999px; }
+.notif-panel-list::-webkit-scrollbar-thumb:hover { background: rgba(41, 82, 227, 0.55); }
+
+.notif-panel-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 40px 20px;
+  color: var(--portal-muted);
+  font-size: 0.84rem;
+}
+
+.notif-panel-empty svg {
+  width: 26px;
+  height: 26px;
+  color: var(--portal-green-text);
+}
+
+.notif-item {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 18px;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--portal-border-light);
+  text-align: left;
+  cursor: pointer;
+  font-family: 'Poppins', sans-serif;
+  transition: background-color 0.15s ease;
+}
+
+.notif-item:last-child {
+  border-bottom: none;
+}
+
+.notif-item:hover {
+  background: var(--portal-canvas);
+}
+
+.notif-item--unread {
+  background: var(--portal-blue-tint);
+}
+
+.notif-item--unread:hover {
+  background: var(--portal-blue-bg);
+}
+
+.notif-item-dot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-top: 6px;
+  background: var(--portal-blue);
+  visibility: hidden;
+}
+
+.notif-item--unread .notif-item-dot {
+  visibility: visible;
+}
+
+.notif-item-text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.notif-item-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--portal-navy);
+}
+
+.notif-item-body {
+  font-size: 0.8rem;
+  color: var(--portal-slate);
+  line-height: 1.4;
+}
+
+.notif-item-time {
+  font-size: 0.72rem;
+  color: var(--portal-muted);
+  margin-top: 2px;
+}
+
+@media (max-width: 480px) {
+  .notif-panel {
+    width: calc(100vw - 24px);
+  }
+}
+
 .portal-content {
   flex: 1;
   max-width: 100%;
-  padding: 32px;
+  padding: 24px;
   box-sizing: border-box;
   overflow-x: hidden;
 }

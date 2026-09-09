@@ -1,0 +1,174 @@
+/* Page-specific styles for Reports (admin) — .chart-grid/.chart-container
+   already live in dashboards.css (shared with AdminDashboard.jsx);
+   .filter-date-range-sep is shared with AllAppointments via
+   Appointments.css. */
+
+.reports-date-range {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.reports-date-range .form-input {
+  width: 150px;
+}
+
+.reports-bar-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.reports-bar-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 2fr auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.reports-bar-label {
+  font-size: 0.82rem;
+  color: var(--portal-slate);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reports-bar-track {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--portal-canvas);
+  overflow: hidden;
+}
+
+.reports-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 300ms ease;
+}
+
+.reports-bar-fill--blue { background: var(--portal-blue); }
+.reports-bar-fill--green { background: var(--portal-green-text); }
+
+.reports-bar-count {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--portal-navy);
+  text-align: right;
+  min-width: 20px;
+}
+
+@media (max-width: 600px) {
+  .reports-bar-row {
+    grid-template-columns: 1fr auto;
+    grid-template-areas: "label count" "track track";
+    row-gap: 4px;
+  }
+
+  .reports-bar-label { grid-area: label; }
+  .reports-bar-count { grid-area: count; }
+  .reports-bar-track { grid-area: track; }
+}
+
+/* ============ Print ============ */
+
+/* Screen: invisible — this is the letterhead that only exists for the
+   printed page (see the @media print block below, which reveals it and
+   hides the on-screen date-range controls it replaces). */
+.reports-print-header {
+  display: none;
+}
+
+/* The Line/Doughnut numeric summaries — same visibility flip as the
+   letterhead: invisible on screen (the actual Chart.js canvas is what
+   renders there), shown only in print (where the canvas is hidden instead;
+   see @media print below). */
+.reports-print-summary {
+  display: none;
+}
+
+@media print {
+  /* Interactive controls (date pickers, the print button itself) mean
+     nothing on paper — the letterhead below already states the exact
+     period in plain text. */
+  .reports-date-range {
+    display: none !important;
+  }
+
+  /* A canvas chart is the one thing that genuinely doesn't belong on a
+     printed report — no hover/tooltip, color is the only encoding, and it
+     often prints faint or oddly cropped depending on the browser. The
+     .reports-print-summary right below each one carries the same numbers
+     as plain text instead. */
+  .chart-container {
+    display: none !important;
+  }
+
+  .reports-print-summary {
+    display: block;
+    font-size: 13px;
+    color: #334155;
+    margin: 4px 0 0;
+  }
+
+  .reports-print-summary--list {
+    list-style: none;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .reports-print-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 2px solid #111827;
+  }
+
+  .reports-print-meta h2 {
+    margin: 0 0 4px;
+    font-size: 18px;
+    font-weight: 700;
+    color: #111827;
+  }
+
+  .reports-print-meta p {
+    margin: 0;
+    font-size: 12px;
+    color: #475569;
+  }
+
+  /* Two-column charts squeeze illegibly on a portrait page — one per row
+     instead, same as the existing <900px screen breakpoint already does. */
+  .chart-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* A card sliced across a page boundary (half a chart on page 1, half on
+     page 2) is the single most common "printable report" complaint — this
+     is the actual fix for it. */
+  .section-card,
+  .stat-card {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    box-shadow: none !important;
+    border: 1px solid #e2e8f0;
+  }
+
+  /* Stat-card icon tints and the bar-fill colors are plain CSS
+     background-colors — browsers drop those by default when printing
+     unless explicitly told to keep them. (Chart.js's own canvas colors
+     aren't CSS backgrounds, so they always print as drawn regardless.) */
+  .stat-card,
+  .reports-bar-track,
+  .reports-bar-fill {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

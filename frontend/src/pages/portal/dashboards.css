@@ -4,14 +4,14 @@
    (e.g. the dentist timeline, the admin chart grid). */
 
 .dash-greeting {
-  margin-bottom: 24px;
+  margin-bottom: 18px;
 }
 
 .dash-greeting h2 {
   margin: 0 0 2px;
   font-family: 'Poppins', sans-serif;
   font-weight: 600;
-  font-size: 1.4rem;
+  font-size: 1.3rem;
   color: var(--portal-navy);
 }
 
@@ -27,8 +27,8 @@
   background: var(--portal-card);
   border-radius: var(--portal-radius-lg);
   box-shadow: var(--portal-shadow);
-  padding: 20px 24px;
-  margin-bottom: 24px;
+  padding: 16px 20px;
+  margin-bottom: 18px;
   /* min-width: 0 overrides the default min-width: auto that grid/flex
      items get, which otherwise refuses to shrink below the intrinsic
      content width (e.g. a Chart.js canvas) and forces the whole ancestor
@@ -43,7 +43,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .section-card-title {
@@ -51,6 +51,32 @@
   font-size: 1rem;
   font-weight: 600;
   color: var(--portal-navy);
+}
+
+/* Self-contained icon+text composition for a .section-card-title that
+   wants a leading icon — an inline-flex wrapper *inside* the title rather
+   than changing .section-card-title's own display, so every other page's
+   plain-text header (the vast majority) is completely unaffected. */
+.section-card-title-with-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.section-card-title-icon {
+  display: flex;
+  color: var(--portal-blue);
+}
+
+.section-card-title-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.section-card-title-note {
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--portal-muted);
 }
 
 .section-card-link {
@@ -69,23 +95,32 @@
 .stat-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-  margin-bottom: 24px;
+  gap: 12px;
+  margin-bottom: 18px;
 }
 
+/* minmax(0, 1fr), not plain 1fr — a bare 1fr track still has an implicit
+   min-width: auto, which refuses to shrink a track below its content's
+   intrinsic width. .stat-card already carries its own min-width: 0 (see
+   below) as the primary fix for this same class of overflow; minmax(0, ..)
+   here is the track-level half of that same fix, belt-and-suspenders. */
 .stat-grid--4 {
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.stat-grid--2 {
+  grid-template-columns: repeat(2, 1fr);
 }
 
 .stat-card {
   background: var(--portal-card);
   border-radius: var(--portal-radius-lg);
   box-shadow: var(--portal-shadow);
-  padding: 18px 20px;
+  padding: 14px 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
   /* Same bug class as the chart overflow: as a .stat-grid (CSS grid) item,
      this defaults to min-width: auto, which floors it at its min-content
      width. .stat-card-label is white-space: nowrap for ellipsis truncation,
@@ -105,10 +140,21 @@
   background: linear-gradient(0deg, rgba(254, 243, 199, 0.35), rgba(254, 243, 199, 0.35)), var(--portal-card);
 }
 
+.stat-card--clickable {
+  cursor: pointer;
+  text-decoration: none;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.stat-card--clickable:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.1);
+}
+
 .stat-card-text {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   min-width: 0;
 }
 
@@ -122,16 +168,26 @@
 }
 
 .stat-card-value {
-  font-size: 1.7rem;
+  font-size: 1.45rem;
   font-weight: 600;
   color: var(--portal-navy);
   line-height: 1.1;
 }
 
+.stat-card-subtitle {
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.stat-card-subtitle--blue { color: var(--portal-blue-text); }
+.stat-card-subtitle--green { color: var(--portal-green-text); }
+.stat-card-subtitle--amber { color: var(--portal-amber-text); }
+.stat-card-subtitle--red { color: var(--portal-red-text); }
+
 .stat-card-icon {
   flex-shrink: 0;
-  width: 44px;
-  height: 44px;
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -163,38 +219,96 @@
 .status-badge {
   display: inline-flex;
   align-items: center;
-  padding: 3px 12px;
+  gap: 5px;
+  padding: 2px 11px;
   border-radius: 999px;
+  border: 1px solid transparent;
   font-size: 0.72rem;
   font-weight: 600;
   white-space: nowrap;
   text-transform: capitalize;
 }
 
+.status-badge-icon {
+  display: inline-flex;
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+}
+
+.status-badge-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
 .status-badge--green {
   background: var(--portal-green-bg);
   color: var(--portal-green-text);
+  border-color: var(--portal-green-border);
 }
 
 .status-badge--amber {
   background: var(--portal-amber-bg);
   color: var(--portal-amber-text);
+  border-color: var(--portal-amber-border);
 }
 
 .status-badge--red {
   background: var(--portal-red-bg);
   color: var(--portal-red-text);
+  border-color: var(--portal-red-border);
+}
+
+.status-badge--indigo {
+  background: var(--portal-indigo-bg);
+  color: var(--portal-indigo-text);
+  border-color: var(--portal-indigo-border);
 }
 
 .status-badge--blue {
   background: var(--portal-blue-bg);
   color: var(--portal-blue-text);
+  border-color: var(--portal-blue-border);
+}
+
+.status-badge--gray {
+  background: var(--portal-gray-bg);
+  color: var(--portal-gray-text);
+  border-color: var(--portal-gray-border);
 }
 
 /* ============ Data table ============ */
 
+/* The one genuinely horizontally-scrollable element in the whole app —
+   shared by every data table (Appointments, Patient Records, Settings,
+   User Management). A slim, rounded, brand-blue scrollbar instead of the
+   OS-default chunky gray bar — same "modern blue scrollbar" treatment
+   already used for the registration wizard's vertical scroll
+   (auth/Login.css's .form-content-scrollable), just on the horizontal
+   axis and using the portal's own tokens instead of the auth pages'. */
 .data-table-wrap {
   overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(41, 82, 227, 0.35) var(--portal-canvas);
+}
+
+.data-table-wrap::-webkit-scrollbar {
+  height: 8px;
+}
+
+.data-table-wrap::-webkit-scrollbar-track {
+  background: var(--portal-canvas);
+  border-radius: 999px;
+}
+
+.data-table-wrap::-webkit-scrollbar-thumb {
+  background: rgba(41, 82, 227, 0.35);
+  border-radius: 999px;
+  transition: background-color 0.15s ease;
+}
+
+.data-table-wrap::-webkit-scrollbar-thumb:hover {
+  background: rgba(41, 82, 227, 0.55);
 }
 
 .data-table {
@@ -206,9 +320,9 @@
   background: var(--portal-canvas);
   color: var(--portal-muted);
   font-size: 0.68rem;
-  font-weight: 600;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
   text-align: left;
   padding: 10px 14px;
   white-space: nowrap;
@@ -228,17 +342,65 @@
    selector's extra `tbody` was never needed to match correctly (a <td> is
    always inside a tbody anyway) and its specificity (0,1,2) was silently
    beating the mobile media query's white-space: normal override (0,1,1)
-   below, which never actually took effect at ≤767px because of it. */
+   below, which never actually took effect at ≤767px because of it.
+   white-space is deliberately NOT nowrap here (unlike the header row) —
+   forcing every cell onto one line was what made wider tables (6+ columns,
+   e.g. the dentist schedule) overflow their card and fall back to
+   .data-table-wrap's horizontal scrollbar instead of just wrapping long
+   values like patient/service names. */
 .data-table td {
-  padding: 12px 14px;
+  padding: 11px 16px;
   font-size: 0.85rem;
   color: var(--portal-slate);
   border-bottom: 1px solid var(--portal-border-light);
-  white-space: nowrap;
+  white-space: normal;
+  word-break: break-word;
 }
 
 .data-table tbody tr:last-child td {
   border-bottom: none;
+}
+
+.data-table tbody tr:hover td {
+  background: rgba(248, 250, 252, 0.8);
+  transition: background-color 0.15s ease;
+}
+
+/* Caps a cell's text to N lines (column.clampLines) instead of wrapping
+   indefinitely or truncating to one line — safe on both the desktop table
+   and the mobile stacked layout, unlike the fixed-width/nowrap rules below
+   which only make sense once the table has real columns to size. */
+.data-table-cell-clamp .data-table-value {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.4;
+}
+
+@media (min-width: 768px) {
+  /* table-layout: fixed makes <colgroup>'s widths (column.minWidth) actually
+     take effect — without it the browser keeps auto-sizing columns to
+     content regardless of what the <col> widths say, which is exactly the
+     "text gets squashed into narrow columns" bug this exists to fix. Only
+     applied when a page's columns opt into minWidth (see DataTable.jsx). */
+  .data-table--fixed {
+    table-layout: fixed;
+  }
+
+  /* Single-line + ellipsis for short identifiers/names (column.noWrap) —
+     desktop only. The mobile stacked layout below (≤767px) still wraps
+     these normally; a truncated name with no room to expand would be worse
+     there than on a wide desktop table with room to scroll. */
+  .data-table-cell-nowrap {
+    overflow: hidden;
+  }
+
+  .data-table-cell-nowrap .data-table-value {
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 }
 
 .data-table-empty {
@@ -574,6 +736,233 @@
   }
 }
 
+/* ============ Modal ============ */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  /* Same tint as .portal-backdrop (drawer overlay) — one dim-background
+     color for every overlay in the portal. */
+  background: rgba(15, 37, 87, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 100;
+}
+
+.modal-card {
+  width: 100%;
+  max-width: 440px;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: var(--portal-card);
+  border-radius: var(--portal-radius-lg);
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.25);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(41, 82, 227, 0.35) var(--portal-canvas);
+}
+.modal-card::-webkit-scrollbar { width: 8px; }
+.modal-card::-webkit-scrollbar-track { background: var(--portal-canvas); border-radius: 999px; }
+.modal-card::-webkit-scrollbar-thumb { background: rgba(41, 82, 227, 0.35); border-radius: 999px; transition: background-color 0.15s ease; }
+.modal-card::-webkit-scrollbar-thumb:hover { background: rgba(41, 82, 227, 0.55); }
+
+.modal-card--lg {
+  max-width: 640px;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--portal-border-light);
+}
+
+.modal-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--portal-navy);
+}
+
+.modal-close {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  background: none;
+  color: var(--portal-muted);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.modal-close:hover {
+  background: var(--portal-canvas);
+  color: var(--portal-slate);
+}
+
+.modal-body {
+  padding: 24px 20px;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+/* Field label used inside modal forms (Add Note, New Treatment Plan,
+   Create Staff Account, etc.) — a plain-text label, distinct from
+   .form-input/.form-select/.form-textarea which own their own spacing. */
+.modal-field-label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--portal-slate);
+  margin: 14px 0 6px;
+}
+
+.modal-field-label:first-child {
+  margin-top: 0;
+}
+
+/* Inline success/error banner used by editable-form pages (My Profile,
+   User Management create/edit) — same red/green tones as .status-badge but
+   a full-width block instead of a pill. */
+.profile-alert {
+  border-radius: var(--portal-radius-sm);
+  padding: 10px 14px;
+  font-size: 0.85rem;
+  margin-bottom: 16px;
+}
+
+.profile-alert--error {
+  background: var(--portal-red-bg);
+  color: var(--portal-red-text);
+}
+
+.profile-alert--success {
+  background: var(--portal-green-bg);
+  color: var(--portal-green-text);
+}
+
+/* Editable-form field grid shared by My Profile and Settings — a plain
+   label + input/select/textarea, two columns above 600px. */
+.profile-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px 20px;
+}
+
+@media (max-width: 600px) {
+  .profile-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.profile-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.profile-field-full {
+  grid-column: 1 / -1;
+}
+
+.profile-field-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--portal-slate);
+}
+
+.profile-save-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.profile-save-row .dash-btn {
+  margin: 0;
+}
+
+/* Compact .dash-btn variant for sitting inline inside a table row's action
+   cell (User Management, Settings' service list) — the default .dash-btn
+   padding/margin is sized for a page-level action, too large there. */
+.row-btn {
+  padding: 6px 12px;
+  font-size: 0.78rem;
+  margin: 0;
+}
+
+/* Centered icon + heading + message layout for the booking result modals
+   (cash-confirmed / hmo-pending) — reusable for any future "here's what
+   just happened" confirmation dialog. */
+.modal-feedback {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 4px;
+}
+
+.modal-feedback-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+.modal-feedback-icon--success {
+  background: var(--portal-green-bg);
+  color: var(--portal-green-text);
+}
+
+.modal-feedback-icon--warning {
+  background: var(--portal-amber-bg);
+  color: var(--portal-amber-text);
+}
+
+.modal-feedback-title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--portal-navy);
+}
+
+.modal-feedback-text {
+  margin: 6px 0 0;
+  font-size: 0.85rem;
+  color: var(--portal-muted);
+  line-height: 1.5;
+}
+
+.modal-feedback-details {
+  width: 100%;
+  margin-top: 18px;
+  padding: 14px 16px;
+  background: var(--portal-canvas);
+  border-radius: var(--portal-radius-sm);
+  text-align: left;
+  font-size: 0.82rem;
+  color: var(--portal-slate);
+  line-height: 1.9;
+}
+
+.modal-feedback-details strong {
+  color: var(--portal-navy);
+}
+
 /* ============ Empty state ============ */
 
 .dash-empty {
@@ -593,6 +982,11 @@
   color: var(--portal-navy);
 }
 
+.dash-empty-desc {
+  margin: 0;
+  font-size: 0.82rem;
+}
+
 .dash-btn {
   display: inline-flex;
   align-items: center;
@@ -608,6 +1002,10 @@
   font-weight: 600;
   cursor: pointer;
   text-decoration: none;
+  /* Table cells now allow their content to wrap (see .data-table td) —
+     white-space is inherited, so without this a button's own label (e.g.
+     "Mark as Completed") could wrap mid-label inside a table cell. */
+  white-space: nowrap;
   transition: background 0.15s ease;
 }
 
@@ -623,6 +1021,357 @@
   background: #92400e;
 }
 
+.dash-btn--danger {
+  background: var(--portal-red-text);
+}
+
+.dash-btn--danger:hover {
+  background: #8f1c12;
+}
+
+.dash-btn--outline {
+  background: none;
+  color: var(--portal-slate);
+  border: 1px solid var(--portal-border);
+}
+
+.dash-btn--outline:hover {
+  background: var(--portal-canvas);
+}
+
+.dash-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.dash-btn-row {
+  display: flex;
+  gap: 8px;
+}
+
+.form-textarea {
+  width: 100%;
+  min-height: 90px;
+  padding: 10px 12px;
+  border: 1px solid var(--portal-border);
+  border-radius: var(--portal-radius-sm);
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.85rem;
+  /* index.css sets color-scheme: light dark on :root for the app shell,
+     so without an override here browsers in OS dark mode render this
+     textarea with a dark native background while our --portal-slate text
+     color stays dark too — invisible while typing. Login.css's inputs hit
+     the same thing and fix it the same way: pin color-scheme to light
+     plus explicit background/color, rather than relying on the UA default. */
+  color-scheme: light;
+  background: var(--portal-card);
+  color: var(--portal-slate);
+  resize: vertical;
+}
+
+.form-textarea::placeholder {
+  color: var(--portal-muted);
+}
+
+.form-textarea:focus {
+  outline: none;
+  border-color: var(--portal-blue);
+}
+
+/* ============ Tab bar with count badges ============
+   Same blue-500 family as BookAppointment.css's .service-tab (not the
+   --portal-blue button/nav blue) — kept here instead since this is a
+   generic tab pattern any portal list page can reuse, not something tied
+   to the booking wizard specifically. */
+
+.portal-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.portal-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 16px;
+  background: var(--portal-card);
+  border: 1.5px solid var(--portal-border-light);
+  border-radius: var(--portal-radius-sm);
+  color: var(--portal-slate);
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.portal-tab:hover {
+  border-color: #3b82f6;
+}
+
+.portal-tab--active {
+  background: #eff6ff;
+  border-color: #3b82f6;
+  color: #1d4ed8;
+  font-weight: 700;
+}
+
+.portal-tab-count {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--portal-gray-bg);
+  color: var(--portal-muted);
+}
+
+.portal-tab--active .portal-tab-count {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+/* ============ Appointment cards (My Appointments) ============ */
+
+.appt-card {
+  display: flex;
+  gap: 16px;
+  padding: 18px 20px;
+  background: var(--portal-card);
+  border: 1.5px solid var(--portal-border-light);
+  border-radius: var(--portal-radius-lg);
+  box-shadow: var(--portal-shadow);
+  margin-bottom: 14px;
+}
+
+/* Same day+month "chip" language as the Patient Dashboard's .next-appt-date,
+   extended with per-status tone modifiers (that widget only ever shows one
+   always-upcoming appointment, so it never needed more than one color). */
+.appt-card-date-chip {
+  width: 60px;
+  height: 60px;
+  border-radius: var(--portal-radius-sm);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.appt-card-date-day {
+  font-size: 1.2rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.appt-card-date-month {
+  font-size: 0.66rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.appt-card-date-chip--blue {
+  background: var(--portal-blue-bg);
+  color: var(--portal-blue-text);
+}
+
+.appt-card-date-chip--amber {
+  background: var(--portal-amber-bg);
+  color: var(--portal-amber-text);
+}
+
+.appt-card-date-chip--gray {
+  background: var(--portal-gray-bg);
+  color: var(--portal-gray-text);
+}
+
+.appt-card-date-chip--red {
+  background: var(--portal-red-bg);
+  color: var(--portal-red-text);
+}
+
+.appt-card-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.appt-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.appt-card-title {
+  font-weight: 700;
+  color: var(--portal-navy);
+  font-size: 0.95rem;
+}
+
+.appt-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 0.82rem;
+  color: var(--portal-muted);
+  flex-wrap: wrap;
+}
+
+.appt-card-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.appt-card-meta svg {
+  width: 15px;
+  height: 15px;
+}
+
+.appt-card-actions {
+  margin-top: 4px;
+  display: flex;
+  gap: 8px;
+}
+
+.appt-reason-toggle {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--portal-blue);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: 'Poppins', sans-serif;
+}
+
+.appt-reason-toggle:hover {
+  text-decoration: underline;
+}
+
+.appt-reason-note {
+  font-size: 0.8rem;
+  color: var(--portal-red-text);
+  background: var(--portal-red-bg);
+  border: 1px solid var(--portal-red-border);
+  border-radius: var(--portal-radius-sm);
+  padding: 8px 12px;
+  margin-top: 2px;
+  line-height: 1.5;
+}
+
+/* Staff's HMO status update (StaffVerificationController::sendStatusUpdate())
+   surfaced on the patient's own appointment card — same box shape as
+   .appt-reason-note, amber instead of red since this is a normal in-progress
+   update, not something gone wrong. */
+.appt-hmo-status {
+  background: var(--portal-amber-bg);
+  border: 1px solid var(--portal-amber-border);
+  border-radius: var(--portal-radius-sm);
+  padding: 8px 12px;
+  margin-top: 6px;
+}
+
+.appt-hmo-status-label {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--portal-amber-text);
+  margin-bottom: 2px;
+}
+
+.appt-hmo-status-note {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--portal-slate);
+  line-height: 1.5;
+}
+
+.appt-hmo-status-time {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--portal-muted);
+  margin-top: 4px;
+}
+
+/* ============ Review-queue cards (Pediatric Queue, HMO Queue) ============
+   "Priority Inbox" look shared by both review queues — one appointment per
+   card instead of a table row, since these are action-oriented (approve/
+   reject) rather than a browse/scan list like All Appointments. */
+
+.queue-card {
+  background: var(--portal-card);
+  border: 1.5px solid var(--portal-border-light);
+  border-left: 4px solid var(--portal-amber-text);
+  border-radius: var(--portal-radius-lg);
+  box-shadow: var(--portal-shadow);
+  padding: 18px 20px;
+  margin-bottom: 14px;
+}
+
+.queue-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.queue-card-patient {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--portal-navy);
+}
+
+.queue-card-badges {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.queue-card-submitted {
+  font-size: 0.72rem;
+  color: var(--portal-muted);
+}
+
+.queue-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px 20px;
+  margin-bottom: 14px;
+}
+
+.queue-card-field-label {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--portal-muted);
+  margin-bottom: 2px;
+}
+
+.queue-card-field-value {
+  font-size: 0.85rem;
+  color: var(--portal-slate);
+  font-weight: 500;
+}
+
+.queue-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 /* ============ Responsive grid breakpoints ============ */
 
 @media (max-width: 1024px) {
@@ -634,11 +1383,47 @@
 
 @media (max-width: 560px) {
   .stat-grid,
-  .stat-grid--4 {
+  .stat-grid--4,
+  .stat-grid--2 {
     grid-template-columns: 1fr;
   }
 
   .section-card {
     padding: 16px;
+  }
+
+  .appt-card {
+    flex-direction: column;
+  }
+
+  .appt-card-date-chip {
+    width: 48px;
+    height: 48px;
+  }
+
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .pagination-bar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+/* ============ Shared print-chrome reset ============
+   Every printable page (Patient Records' treatment history, Reports) needs
+   the exact same thing — the sidebar/topbar/action buttons are useless on
+   paper and just push real content off the printed page, so they're hidden
+   globally here rather than re-declared per page. */
+@media print {
+  .portal-sidebar,
+  .portal-topbar,
+  .dash-btn {
+    display: none !important;
+  }
+
+  .portal-content {
+    padding: 0 !important;
   }
 }

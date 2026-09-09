@@ -16,16 +16,113 @@ const NAV_LINKS = [
   { href: '#location', label: 'Location' },
 ];
 
+const ShieldCheckIcon = () => (
+  <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 3l7 3v5c0 5-3.2 8.5-7 10-3.8-1.5-7-5-7-10V6l7-3z" />
+    <path d="M8.7 12.2l2.2 2.2 4.2-4.6" />
+  </svg>
+);
+
+const SparklesIcon = () => (
+  <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 3c.4 3 1.6 4.6 4.6 5-3 .4-4.6 1.6-5 5-.4-3.4-2-4.6-5-5 3-.4 4.6-1.6 5-5z" />
+    <path d="M18.3 14c.2 1.3.7 1.8 1.9 2-1.2.2-1.7.7-1.9 2-.2-1.3-.7-1.8-1.9-2 1.2-.2 1.7-.7 1.9-2z" />
+  </svg>
+);
+
+const WrenchIcon = () => (
+  <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M14.6 6.3a4 4 0 00-5.2 5l-5 5V19h2.8l5-5a4 4 0 005-5.2l-2.5 2.5-1.9-1.9 2.5-2.5z" />
+  </svg>
+);
+
+const ToothIcon = () => (
+  <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 4.2c-1.3 0-2.2.8-3.1.8-.9 0-1.7-.7-2.7-.4-1.4.4-1.9 2.1-1.6 3.9.3 1.8 1.1 3.9 1.8 5.8.5 1.3.9 2.5 1.7 2.6.8.1 1-1.1 1.3-2.2.3-1.1.5-2.1.9-2.1s.6 1 .9 2.1c.3 1.1.5 2.3 1.3 2.2.8-.1 1.2-1.3 1.7-2.6.7-1.9 1.5-4 1.8-5.8.3-1.8-.2-3.5-1.6-3.9-1-.3-1.8.4-2.7.4-.9 0-1.8-.8-3.1-.8z" />
+  </svg>
+);
+
+const CalendarIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="4" y="5" width="16" height="15" rx="2" />
+    <path d="M4 9.5h16M8 3v4M16 3v4" />
+  </svg>
+);
+
+const FolderIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4 6.5A1.5 1.5 0 015.5 5h4l1.6 2H18.5A1.5 1.5 0 0120 8.5v9A1.5 1.5 0 0118.5 19h-13A1.5 1.5 0 014 17.5v-11z" />
+  </svg>
+);
+
+// Filled, unlike every other icon in this file — the "Licensed Dentist"
+// badge is the one deliberate exception (outline everywhere else).
+const FilledCheckCircleIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor">
+    <path
+      fillRule="evenodd"
+      clipRule="evenodd"
+      d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.7-9.7a1 1 0 00-1.4-1.4L9 10.17 7.7 8.88a1 1 0 10-1.4 1.42l2 2a1 1 0 001.4 0l4-4z"
+    />
+  </svg>
+);
+
+// Large, low-opacity decorative tooth silhouette behind the Dentists
+// section — reuses ToothIcon's exact outline at a much bigger scale, drawn
+// separately so ToothIcon itself stays a normal small 21px glyph.
+const DentistsBgTooth = () => (
+  <svg
+    className="landing-dentists-bg-tooth"
+    aria-hidden="true"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="0.6"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M12 4.2c-1.3 0-2.2.8-3.1.8-.9 0-1.7-.7-2.7-.4-1.4.4-1.9 2.1-1.6 3.9.3 1.8 1.1 3.9 1.8 5.8.5 1.3.9 2.5 1.7 2.6.8.1 1-1.1 1.3-2.2.3-1.1.5-2.1.9-2.1s.6 1 .9 2.1c.3 1.1.5 2.3 1.3 2.2.8-.1 1.2-1.3 1.7-2.6.7-1.9 1.5-4 1.8-5.8.3-1.8-.2-3.5-1.6-3.9-1-.3-1.8.4-2.7.4-.9 0-1.8-.8-3.1-.8z" />
+  </svg>
+);
+
 const SERVICES = [
   {
     title: 'Online Appointment Scheduling',
     description:
       'Book an appointment online in minutes. Cash appointments are confirmed instantly, and HMO coverage is verified by our staff before your visit.',
+    icon: CalendarIcon,
   },
   {
     title: 'Digital Dental Records',
     description:
       'Get 24/7 secure access to your dental history, completed procedures, and past records — right from your patient portal.',
+    icon: FolderIcon,
+  },
+];
+
+// The clinic's actual treatments, grouped the way patients think about
+// them — replaces the old two-card grid that described the booking system
+// itself rather than what's treated. Chips are display-only (no links).
+const SERVICE_CATEGORIES = [
+  {
+    title: 'General & preventive',
+    icon: ShieldCheckIcon,
+    services: ['Cleaning', 'Fillings', 'Extractions', 'Root canal'],
+  },
+  {
+    title: 'Cosmetic dentistry',
+    icon: SparklesIcon,
+    services: ['Teeth whitening', 'Veneers', 'Gum recontouring'],
+  },
+  {
+    title: 'Restorative dentistry',
+    icon: WrenchIcon,
+    services: ['Crowns', 'Dentures', 'Implants'],
+  },
+  {
+    title: 'Orthodontics & specialty',
+    icon: ToothIcon,
+    services: ['Braces', 'Aligners', 'Retainers', 'TMJ disorders', 'Pediatric dentistry', 'Sedation'],
   },
 ];
 
@@ -52,18 +149,19 @@ const DENTISTS = [
     name: 'Dr. Richelle Ramirez',
     photo: drRamirezPhoto,
     alt: 'Dr. Richelle Ramirez, General Dentist at Smile Bay Dental Clinic',
-    degree: 'Doctor of Dental Medicine, University of the Philippines - Manila',
-    licensed: 'Licensed to practice since June 2014',
-    specialty:
-      'General Dentistry, with further preceptorship in Orthodontics, Cosmetic and Restorative Dentistry',
+    degree: 'Doctor of Dental Medicine',
+    university: 'University of the Philippines – Manila',
+    licenseDate: 'June 2014',
+    specializations: ['General Dentistry', 'Orthodontics', 'Cosmetic Dentistry', 'Restorative Dentistry'],
   },
   {
     name: 'Dr. Rizael Castro',
     photo: drCastroPhoto,
     alt: 'Dr. Rizael Castro, General Dentist at Smile Bay Dental Clinic',
-    degree: 'Doctor of Dental Medicine, University of the Philippines - Manila',
-    licensed: 'Licensed to practice since December 2013',
-    specialty: 'General Dentistry, with further preceptorship in Orthodontics, Endodontics, and Cosmetic Dentistry',
+    degree: 'Doctor of Dental Medicine',
+    university: 'University of the Philippines – Manila',
+    licenseDate: 'December 2013',
+    specializations: ['General Dentistry', 'Orthodontics', 'Endodontics', 'Cosmetic Dentistry'],
   },
 ];
 
@@ -90,12 +188,6 @@ const CloseIcon = () => (
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
     <line x1="6" y1="6" x2="18" y2="18" />
     <line x1="18" y1="6" x2="6" y2="18" />
-  </svg>
-);
-
-const CheckIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-    <polyline points="20 6 9 17 4 12" />
   </svg>
 );
 
@@ -192,23 +284,53 @@ function LandingPage() {
       {/* ============ Services ============ */}
       <section id="services" className="landing-section">
         <div className="landing-section-inner">
-          <h2 className="landing-section-title">
-            Everything you need, <span className="landing-section-title-accent">online</span>
-          </h2>
+          <div className="landing-services-header">
+            <span className="landing-services-eyebrow">Our services</span>
+            <h2 className="landing-services-heading">Complete dental care for the whole family</h2>
+            <p className="landing-services-subheading">
+              From routine cleaning to orthodontics, our licensed dentists handle it all here in Landayan, San Pedro.
+            </p>
+          </div>
 
-          <div className="landing-services-grid">
-            {SERVICES.map((service) => (
-              <div key={service.title} className="landing-glass-card landing-service-card">
-                <span className="landing-service-check">
-                  <CheckIcon />
-                </span>
-                <h3>{service.title}</h3>
-                <p>{service.description}</p>
+          <div className="landing-category-grid">
+            {SERVICE_CATEGORIES.map((category) => (
+              <div key={category.title} className="landing-category-card">
+                <div className="landing-category-top">
+                  <span className="landing-category-icon">
+                    <category.icon />
+                  </span>
+                  <h3>{category.title}</h3>
+                </div>
+                <div className="landing-service-chips">
+                  {category.services.map((service) => (
+                    <span key={service} className="landing-service-chip">{service}</span>
+                  ))}
+                </div>
               </div>
             ))}
           </div>
+
+          <div className="landing-services-cta">
+            <p>Not sure which service you need? Book a consultation first.</p>
+            <Link to="/register" className="landing-btn landing-btn--solid">Book an appointment</Link>
+          </div>
         </div>
       </section>
+
+      {/* ============ Why book online (relocated from the old Services cards) ============ */}
+      <div className="landing-section-inner">
+        <div className="landing-features-band">
+          {SERVICES.map((service) => (
+            <div key={service.title} className="landing-features-band-item">
+              <service.icon />
+              <div>
+                <h4>{service.title}</h4>
+                <p>{service.description}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
 
       {/* ============ How It Works ============ */}
       <section id="how-it-works" className="landing-section landing-section--tint">
@@ -229,26 +351,61 @@ function LandingPage() {
       </section>
 
       {/* ============ Dentists ============ */}
-      <section id="dentists" className="landing-section">
+      <section id="dentists" className="landing-section landing-dentists-section">
+        <span className="landing-dentists-bg-blob" aria-hidden="true" />
+        <DentistsBgTooth />
+
         <div className="landing-section-inner">
-          <h2 className="landing-section-title">Meet Our Dentists</h2>
+          <div className="landing-dentists-header">
+            <div className="landing-eyebrow-row">
+              <span className="landing-eyebrow-rule" aria-hidden="true" />
+              <span className="landing-eyebrow-label">Our dental team</span>
+              <span className="landing-eyebrow-rule" aria-hidden="true" />
+            </div>
+            <h2 className="landing-dentists-heading">Meet Our Dentists</h2>
+            <p className="landing-dentists-subheading">
+              Experienced dental professionals dedicated to providing personalized care for every smile.
+            </p>
+          </div>
 
           <div className="landing-dentists-grid">
             {DENTISTS.map((dentist) => (
-              <div key={dentist.name} className="landing-glass-card landing-dentist-card">
-                <img
-                  src={dentist.photo}
-                  alt={dentist.alt}
-                  width={96}
-                  height={96}
-                  loading="lazy"
-                  className="landing-dentist-photo"
-                />
-                <div className="landing-dentist-info">
-                  <h3>{dentist.name}</h3>
-                  <p className="landing-dentist-degree">{dentist.degree}</p>
-                  <p className="landing-dentist-licensed">{dentist.licensed}</p>
-                  <p className="landing-dentist-specialty">{dentist.specialty}</p>
+              <div key={dentist.name} className="landing-dentist-card">
+                <div className="landing-dentist-upper">
+                  <img
+                    src={dentist.photo}
+                    alt={dentist.alt}
+                    width={120}
+                    height={120}
+                    loading="lazy"
+                    className="landing-dentist-photo"
+                  />
+                  <div className="landing-dentist-info">
+                    <span className="landing-dentist-badge">
+                      <FilledCheckCircleIcon />
+                      Licensed Dentist
+                    </span>
+                    <h3 className="landing-dentist-name">{dentist.name}</h3>
+                    <p className="landing-dentist-degree">{dentist.degree}</p>
+                    <p className="landing-dentist-university">{dentist.university}</p>
+                    <div className="landing-dentist-license">
+                      <CalendarIcon />
+                      <span>
+                        Licensed to practice since <strong>{dentist.licenseDate}</strong>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <hr className="landing-dentist-divider" />
+
+                <div className="landing-dentist-lower">
+                  <span className="landing-dentist-spec-label">Specializations</span>
+                  <div className="landing-dentist-chips">
+                    {dentist.specializations.map((spec) => (
+                      <span key={spec} className="landing-dentist-chip">{spec}</span>
+                    ))}
+                  </div>
                 </div>
               </div>
             ))}

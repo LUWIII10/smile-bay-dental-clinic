@@ -1,0 +1,683 @@
+/* Page-specific styles for My Dental Records (patient) — same pattern as
+   Appointments.css: plain CSS, genuinely shared primitives stay in
+   dashboards.css, everything below is used only by this page. */
+
+/* Grid, not flex-wrap — flex items size to their own content, so a long
+   value ("blk 18 lot 32 southville 3a") shoves everything after it to a
+   new line while a short one leaves a wide gap, and neither row lines up
+   with the next. A shared column grid keeps every field aligned regardless
+   of how long its value is. */
+.record-info-card {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 18px 24px;
+}
+
+/* Patient-facing summary bar only (PatientDentalRecords.jsx) — unlike
+   PatientRecords.jsx's plain .record-info-card (which sits inside its own
+   .section-card wrapper), this one IS the card. Patients have no
+   print/export action here (staff-only capability), so this is just a
+   plain info bar, no action-button layout needed. */
+.record-summary-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 24px;
+  background: var(--portal-card);
+  border-radius: var(--portal-radius-lg);
+  box-shadow: var(--portal-shadow);
+  padding: 16px 20px;
+  margin-bottom: 18px;
+}
+
+.record-info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  /* Grid items don't shrink below their content's intrinsic width by
+     default — without this, a long email/address pushes its column wider
+     than its share instead of wrapping. */
+  min-width: 0;
+}
+
+/* Forces a flex-wrap line break so the item spans the full row — e.g. a
+   complete address or medical-history note too long for the compact
+   label/value column pattern the rest of .record-info-card uses. */
+.record-info-item--full {
+  grid-column: 1 / -1;
+}
+
+.record-info-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--portal-muted);
+}
+
+.record-info-value {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--portal-navy);
+  overflow-wrap: break-word;
+}
+
+/* ============ Tooth chart ============ */
+
+.tooth-chart-note {
+  font-size: 0.82rem;
+  color: var(--portal-muted);
+  margin: 0 0 16px;
+}
+
+.tooth-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.tooth-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.tooth {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  border: 1.5px solid var(--portal-border);
+  background: var(--portal-card);
+  color: var(--portal-slate);
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.74rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.1s ease, box-shadow 0.15s ease;
+}
+
+.tooth:hover {
+  transform: translateY(-2px);
+}
+
+.tooth--selected {
+  box-shadow: 0 0 0 3px var(--portal-blue-tint);
+  border-color: var(--portal-blue);
+}
+
+.tooth--green { background: var(--portal-green-bg); color: var(--portal-green-text); border-color: var(--portal-green-border); }
+.tooth--red { background: var(--portal-red-bg); color: var(--portal-red-text); border-color: var(--portal-red-border); }
+.tooth--blue { background: var(--portal-blue-bg); color: var(--portal-blue-text); border-color: var(--portal-blue-border); }
+.tooth--amber { background: var(--portal-amber-bg); color: var(--portal-amber-text); border-color: var(--portal-amber-border); }
+.tooth--gray { background: var(--portal-gray-bg); color: var(--portal-gray-text); border-color: var(--portal-gray-border); }
+.tooth--indigo { background: var(--portal-indigo-bg); color: var(--portal-indigo-text); border-color: var(--portal-indigo-border); }
+
+.tooth-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--portal-border-light);
+}
+
+.tooth-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: var(--portal-slate);
+}
+
+.tooth-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.tooth-legend-dot--green { background: var(--portal-green-text); }
+.tooth-legend-dot--red { background: var(--portal-red-text); }
+.tooth-legend-dot--blue { background: var(--portal-blue-text); }
+.tooth-legend-dot--amber { background: var(--portal-amber-text); }
+.tooth-legend-dot--gray { background: var(--portal-gray-text); }
+.tooth-legend-dot--indigo { background: var(--portal-indigo-text); }
+
+.tooth-detail-panel {
+  margin-top: 16px;
+  padding: 16px;
+  border-radius: var(--portal-radius-sm);
+  background: var(--portal-canvas);
+  border: 1px solid var(--portal-border-light);
+}
+
+.tooth-detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.tooth-detail-title {
+  font-weight: 700;
+  color: var(--portal-navy);
+  font-size: 0.9rem;
+}
+
+.tooth-detail-notes {
+  margin: 0 0 6px;
+  font-size: 0.85rem;
+  color: var(--portal-slate);
+}
+
+.tooth-detail-meta {
+  font-size: 0.76rem;
+  color: var(--portal-muted);
+}
+
+/* ============ Treatment plans ============ */
+
+.plan-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.plan-card {
+  padding: 16px;
+  border-radius: var(--portal-radius-sm);
+  border: 1px solid var(--portal-border-light);
+  background: var(--portal-canvas);
+}
+
+.plan-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.plan-card-title {
+  display: block;
+  font-weight: 700;
+  color: var(--portal-navy);
+  font-size: 0.92rem;
+}
+
+.plan-card-dentist {
+  display: block;
+  font-size: 0.76rem;
+  color: var(--portal-muted);
+  margin-top: 2px;
+}
+
+.plan-card-desc {
+  margin: 0 0 8px;
+  font-size: 0.85rem;
+  color: var(--portal-slate);
+  line-height: 1.5;
+}
+
+.plan-card-target {
+  display: inline-block;
+  font-size: 0.76rem;
+  color: var(--portal-muted);
+  margin-bottom: 10px;
+}
+
+.plan-item-list {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 10px 0 0;
+  border-top: 1px solid var(--portal-border-light);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.plan-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 0.84rem;
+}
+
+.plan-item-name {
+  color: var(--portal-slate);
+}
+
+/* ============ Treatment history ============ */
+
+.history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.history-item {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.history-dot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--portal-blue);
+  margin-top: 6px;
+}
+
+.history-item-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.history-item-title {
+  font-weight: 600;
+  font-size: 0.88rem;
+  color: var(--portal-slate);
+}
+
+.history-item-meta {
+  font-size: 0.76rem;
+  color: var(--portal-muted);
+}
+
+.history-item-notes {
+  font-size: 0.82rem;
+  color: var(--portal-slate);
+  margin-top: 2px;
+}
+
+/* ============ Treatment history timeline (assistant's read-only view) ============ */
+
+.history-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.history-timeline {
+  position: relative;
+  padding-left: 26px;
+}
+
+.history-timeline::before {
+  content: '';
+  position: absolute;
+  left: 8px;
+  top: 6px;
+  bottom: 6px;
+  width: 1.5px;
+  background: var(--portal-border-light);
+}
+
+.timeline-entry {
+  position: relative;
+  margin-bottom: 16px;
+}
+
+.timeline-entry:last-child {
+  margin-bottom: 0;
+}
+
+.timeline-dot {
+  position: absolute;
+  left: -26px;
+  top: 3px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--portal-card);
+  border: 2px solid var(--portal-blue);
+}
+
+.timeline-dot--active {
+  background: var(--portal-blue);
+  border-width: 3px;
+  border-color: var(--portal-card);
+  box-shadow: 0 0 0 1.5px var(--portal-blue);
+}
+
+.timeline-card {
+  border: 1px solid var(--portal-border-light);
+  border-radius: var(--portal-radius-sm);
+  padding: 13px 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.timeline-card-title {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--portal-navy);
+}
+
+.timeline-card-meta {
+  font-size: 0.76rem;
+  color: var(--portal-muted);
+}
+
+.timeline-card-notes {
+  margin: 6px 0 0;
+  font-size: 0.82rem;
+  color: var(--portal-slate);
+  line-height: 1.5;
+}
+
+/* Print-chrome reset (sidebar/topbar/buttons hidden, content padding
+   cleared) now lives in dashboards.css — shared with Reports.css, which
+   needs the exact same thing. */
+
+/* ============ Clinical notes ============ */
+
+.notes-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.note-item {
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--portal-border-light);
+}
+
+.note-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.note-item-text {
+  margin: 0 0 4px;
+  font-size: 0.87rem;
+  color: var(--portal-slate);
+  line-height: 1.5;
+}
+
+.note-item-meta {
+  font-size: 0.76rem;
+  color: var(--portal-muted);
+}
+
+/* ============ Dentist edit affordances (PatientRecords.jsx only) ============ */
+
+.tooth-edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.plan-status-select {
+  width: auto;
+  height: 30px;
+  font-size: 0.76rem;
+  padding: 0 10px;
+}
+
+.plan-item-toggle {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.plan-item-form-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.plan-item-form-tooth {
+  width: 90px;
+  flex-shrink: 0;
+}
+
+.plan-item-add-btn {
+  margin-bottom: 4px;
+}
+
+@media (max-width: 480px) {
+  .tooth {
+    width: 26px;
+    height: 26px;
+    font-size: 0.66rem;
+    border-radius: 8px;
+  }
+}
+
+/* ============ Patient-facing Treatment History timeline (PatientDentalRecords.jsx only) ============ */
+
+.section-card-subtitle {
+  margin: 2px 0 0;
+  font-size: 0.8rem;
+  color: var(--portal-muted);
+}
+
+.record-history-filter {
+  width: auto;
+  height: 36px;
+  flex-shrink: 0;
+}
+
+.record-history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.record-history-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px 4px;
+  border-bottom: 1px solid var(--portal-border-light);
+}
+
+.record-history-row:last-child {
+  border-bottom: none;
+}
+
+.record-history-date {
+  flex-shrink: 0;
+  width: 52px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding-top: 2px;
+}
+
+.record-history-date-month {
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--portal-blue);
+}
+
+.record-history-date-day {
+  font-size: 1.1rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--portal-navy);
+}
+
+.record-history-date-year {
+  font-size: 0.68rem;
+  color: var(--portal-muted);
+}
+
+.record-history-dot {
+  flex-shrink: 0;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 2px solid var(--portal-blue);
+  background: var(--portal-card);
+  margin-top: 8px;
+}
+
+.record-history-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.record-history-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--portal-navy);
+}
+
+.record-history-desc {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--portal-muted);
+}
+
+.record-history-meta {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-top: 2px;
+}
+
+.record-history-dentist {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.8rem;
+  color: var(--portal-slate);
+  white-space: nowrap;
+}
+
+.record-history-dentist svg {
+  width: 14px;
+  height: 14px;
+  color: var(--portal-muted);
+}
+
+.record-history-load-more {
+  display: flex;
+  justify-content: center;
+  padding-top: 16px;
+}
+
+@media (max-width: 720px) {
+  .record-history-row {
+    flex-wrap: wrap;
+  }
+
+  .record-history-meta {
+    flex-wrap: wrap;
+    padding-left: 66px;
+  }
+}
+
+/* ============ Patient-facing Clinical Notes cards (PatientDentalRecords.jsx only) ============ */
+
+.record-note-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.record-note-card {
+  display: flex;
+  gap: 12px;
+  padding: 14px;
+  border-radius: var(--portal-radius-sm);
+  background: var(--portal-canvas);
+  border: 1px solid var(--portal-border-light);
+}
+
+.record-note-icon {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: var(--portal-blue-bg);
+  color: var(--portal-blue);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.record-note-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.record-note-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.record-note-title {
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--portal-navy);
+}
+
+.record-note-meta {
+  font-size: 0.74rem;
+  color: var(--portal-muted);
+}
+
+.record-note-text {
+  margin: 4px 0 0;
+  font-size: 0.84rem;
+  color: var(--portal-slate);
+  line-height: 1.5;
+}
+
+/* ============ Treatment-detail modal (PatientDentalRecords.jsx only) ============ */
+
+.record-history-detail-badges {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.record-history-detail-title {
+  margin: 0 0 14px;
+  font-size: 1rem;
+  color: var(--portal-navy);
+}
+
+.record-history-detail-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 24px;
+  margin-bottom: 14px;
+}

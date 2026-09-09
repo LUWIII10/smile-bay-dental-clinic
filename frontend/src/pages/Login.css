@@ -39,8 +39,6 @@
   opacity: 0;
   transform: translateY(10px);
   animation: login-card-in 450ms ease forwards;
-  max-height: calc(100vh - 48px);
-  overflow-y: auto;
 }
 
 @keyframes login-card-in {
@@ -463,6 +461,37 @@
 
 .login-password-checklist li.met {
   color: #15803d;
+}
+
+/* Checklist grids (medical conditions, dental procedures history, current
+   symptoms) — CheckboxGroup.jsx. Same 2-column layout at wizard width,
+   single column once the field grid itself drops to one column (see
+   .login-field-grid's own breakpoint below). */
+.login-checkbox-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px 14px;
+  margin-top: 4px;
+}
+
+@media (min-width: 600px) {
+  .login-checkbox-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.login-checkbox-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  color: #334155;
+  cursor: pointer;
+}
+
+.login-checkbox-item input {
+  accent-color: #2952e3;
+  flex-shrink: 0;
 }
 
 /* Back/Next step navigation row */

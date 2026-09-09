@@ -13,20 +13,32 @@ import PatientDashboard from '../pages/portal/PatientDashboard';
 import DentistDashboard from '../pages/portal/DentistDashboard';
 import AssistantDashboard from '../pages/portal/AssistantDashboard';
 import AdminDashboard from '../pages/portal/AdminDashboard';
+import BookAppointment from '../pages/portal/BookAppointment';
+import PatientAppointments from '../pages/portal/PatientAppointments';
+import PatientDentalRecords from '../pages/portal/PatientDentalRecords';
+import PatientRecords from '../pages/portal/PatientRecords';
+import MyProfile from '../pages/portal/MyProfile';
+import UserManagement from '../pages/portal/UserManagement';
+import Settings from '../pages/portal/Settings';
+import Reports from '../pages/portal/Reports';
+import DentistSchedule from '../pages/portal/DentistSchedule';
+import MyAvailability from '../pages/portal/MyAvailability';
+import PediatricQueue from '../pages/portal/PediatricQueue';
+import HmoVerificationQueue from '../pages/portal/HmoVerificationQueue';
+import AllAppointments from '../pages/portal/AllAppointments';
 import ComingSoon from '../pages/portal/ComingSoon';
 import { NAV_CONFIG } from '../pages/portal/navConfig';
 
-// Renders one <Route> per nav item for a role, pointing every entry other
-// than the dashboard itself at the ComingSoon placeholder — keeps the
-// sidebar fully clickable without hand-listing each path here.
-function roleRoutes(role, dashboardPath, DashboardComponent) {
-    return NAV_CONFIG[role].map((item) =>
-        item.path === dashboardPath ? (
-            <Route key={item.path} path={item.path} element={<DashboardComponent />} />
-        ) : (
-            <Route key={item.path} path={item.path} element={<ComingSoon />} />
-        )
-    );
+// Renders one <Route> per nav item for a role. componentsByPath maps a
+// handful of paths to their real component (dashboard always included,
+// plus whichever other pages exist so far); every other nav item still
+// falls back to the ComingSoon placeholder — keeps the sidebar fully
+// clickable without hand-listing every path here.
+function roleRoutes(role, componentsByPath) {
+    return NAV_CONFIG[role].map((item) => {
+        const Component = componentsByPath[item.path] || ComingSoon;
+        return <Route key={item.path} path={item.path} element={<Component />} />;
+    });
 }
 
 function AppRoutes() {
@@ -48,7 +60,13 @@ function AppRoutes() {
                     </ProtectedRoute>
                 }
             >
-                {roleRoutes('patient', '/patient/dashboard', PatientDashboard)}
+                {roleRoutes('patient', {
+                    '/patient/dashboard': PatientDashboard,
+                    '/patient/book-appointment': BookAppointment,
+                    '/patient/appointments': PatientAppointments,
+                    '/patient/dental-records': PatientDentalRecords,
+                    '/patient/profile': MyProfile,
+                })}
             </Route>
 
             <Route
@@ -58,7 +76,14 @@ function AppRoutes() {
                     </ProtectedRoute>
                 }
             >
-                {roleRoutes('dentist', '/dentist/dashboard', DentistDashboard)}
+                {roleRoutes('dentist', {
+                    '/dentist/dashboard': DentistDashboard,
+                    '/dentist/schedule': DentistSchedule,
+                    '/dentist/availability': MyAvailability,
+                    '/dentist/pediatric-queue': PediatricQueue,
+                    '/dentist/patient-records': PatientRecords,
+                    '/dentist/profile': MyProfile,
+                })}
             </Route>
 
             <Route
@@ -68,7 +93,13 @@ function AppRoutes() {
                     </ProtectedRoute>
                 }
             >
-                {roleRoutes('dental_assistant', '/assistant/dashboard', AssistantDashboard)}
+                {roleRoutes('dental_assistant', {
+                    '/assistant/dashboard': AssistantDashboard,
+                    '/assistant/appointments': AllAppointments,
+                    '/assistant/hmo-verification': HmoVerificationQueue,
+                    '/assistant/patient-records': PatientRecords,
+                    '/assistant/profile': MyProfile,
+                })}
             </Route>
 
             <Route
@@ -78,7 +109,15 @@ function AppRoutes() {
                     </ProtectedRoute>
                 }
             >
-                {roleRoutes('admin', '/admin/dashboard', AdminDashboard)}
+                {roleRoutes('admin', {
+                    '/admin/dashboard': AdminDashboard,
+                    '/admin/appointments': AllAppointments,
+                    '/admin/hmo-verification': HmoVerificationQueue,
+                    '/admin/patient-records': PatientRecords,
+                    '/admin/users': UserManagement,
+                    '/admin/settings': Settings,
+                    '/admin/reports': Reports,
+                })}
             </Route>
 
             <Route path="*" element={<Navigate to="/login" replace />} />

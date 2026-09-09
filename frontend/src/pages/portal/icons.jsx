@@ -32,6 +32,13 @@ export const CalendarIcon = () => (
   </svg>
 );
 
+export const PlusIcon = () => (
+  <svg {...base}>
+    <line x1="12" y1="5" x2="12" y2="19" />
+    <line x1="5" y1="12" x2="19" y2="12" />
+  </svg>
+);
+
 export const CalendarPlusIcon = () => (
   <svg {...base}>
     <rect x="3" y="4" width="18" height="18" rx="2" />
@@ -49,6 +56,21 @@ export const FileIcon = () => (
     <path d="M14 3v5h5" />
     <line x1="9" y1="13" x2="15" y2="13" />
     <line x1="9" y1="17" x2="15" y2="17" />
+  </svg>
+);
+
+export const MailIcon = () => (
+  <svg {...base}>
+    <rect x="3" y="5" width="18" height="14" rx="2" />
+    <path d="m3 7 9 6 9-6" />
+  </svg>
+);
+
+export const PrinterIcon = () => (
+  <svg {...base}>
+    <path d="M6 9V3h12v6" />
+    <rect x="4" y="9" width="16" height="8" rx="2" />
+    <path d="M6 17v4h12v-4" />
   </svg>
 );
 
@@ -120,6 +142,13 @@ export const CloseIcon = () => (
   </svg>
 );
 
+export const SearchIcon = () => (
+  <svg {...base}>
+    <circle cx="11" cy="11" r="7" />
+    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+  </svg>
+);
+
 export const ClockIcon = () => (
   <svg {...base}>
     <circle cx="12" cy="12" r="9" />
@@ -131,6 +160,38 @@ export const CheckCircleIcon = () => (
   <svg {...base}>
     <circle cx="12" cy="12" r="9" />
     <polyline points="8.5 12.5 11 15 15.5 9.5" />
+  </svg>
+);
+
+export const XCircleIcon = () => (
+  <svg {...base}>
+    <circle cx="12" cy="12" r="9" />
+    <line x1="9.5" y1="9.5" x2="14.5" y2="14.5" />
+    <line x1="14.5" y1="9.5" x2="9.5" y2="14.5" />
+  </svg>
+);
+
+export const CashIcon = () => (
+  <svg {...base}>
+    <rect x="2" y="6" width="20" height="12" rx="2" />
+    <circle cx="12" cy="12" r="3" />
+    <line x1="6" y1="9" x2="6" y2="9.01" />
+    <line x1="18" y1="15" x2="18" y2="15.01" />
+  </svg>
+);
+
+export const EyeIcon = () => (
+  <svg {...base}>
+    <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z" />
+    <circle cx="12" cy="12" r="3" />
+  </svg>
+);
+
+export const MoreIcon = () => (
+  <svg {...base}>
+    <circle cx="12" cy="5" r="1.5" fill="currentColor" stroke="none" />
+    <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none" />
+    <circle cx="12" cy="19" r="1.5" fill="currentColor" stroke="none" />
   </svg>
 );
 
@@ -149,11 +210,124 @@ export const TrendingUpIcon = () => (
   </svg>
 );
 
+export const SunIcon = () => (
+  <svg {...base}>
+    <circle cx="12" cy="12" r="4" />
+    <line x1="12" y1="2" x2="12" y2="4" />
+    <line x1="12" y1="20" x2="12" y2="22" />
+    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+    <line x1="2" y1="12" x2="4" y2="12" />
+    <line x1="20" y1="12" x2="22" y2="12" />
+    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+  </svg>
+);
+
+export const SunsetIcon = () => (
+  <svg {...base}>
+    <path d="M17 18a5 5 0 0 0-10 0" />
+    <line x1="12" y1="9" x2="12" y2="2" />
+    <line x1="4.22" y1="10.22" x2="5.64" y2="11.64" />
+    <line x1="1" y1="18" x2="3" y2="18" />
+    <line x1="21" y1="18" x2="23" y2="18" />
+    <line x1="18.36" y1="11.64" x2="19.78" y2="10.22" />
+    <line x1="9" y1="6" x2="15" y2="6" />
+  </svg>
+);
+
+// ---- Service-selection icons (Book Appointment, Step 1) ----
+// Matched to services by keyword, not a hardcoded per-service map — see
+// SERVICE_ICON_MATCHERS in ServiceSelector.jsx — so a renamed or newly
+// added service still gets a sensible icon without a code change here.
+
+export const ToothIcon = () => (
+  <svg {...base}>
+    <path d="M12 21c-1.1 0-1.5-2.2-2-4.5-.2-1-.5-2-1-2s-.6 1.3-1 2.7C7.5 19 7 21 6 21c-1.4 0-2-2.7-2.3-5C3.3 13.5 3 10.8 3 8.5 3 5.5 5 3 8 3c1 0 1.7.6 2 .6s1-.6 2-.6c3 0 5 2.5 5 5.5 0 2.3-.3 5-.7 7.5-.3 2.3-.9 5-2.3 5Z" />
+  </svg>
+);
+
+export const SparkleIcon = () => (
+  <svg {...base}>
+    <path d="M12 3l1.8 5.4L19 10l-5.2 1.6L12 17l-1.8-5.4L5 10l5.2-1.6L12 3Z" />
+  </svg>
+);
+
+export const BracesIcon = () => (
+  <svg {...base}>
+    <path d="M4 8c2 4 3 6 8 6s6-2 8-6" />
+    <circle cx="7" cy="10" r="1.3" fill="currentColor" stroke="none" />
+    <circle cx="12" cy="14" r="1.3" fill="currentColor" stroke="none" />
+    <circle cx="17" cy="10" r="1.3" fill="currentColor" stroke="none" />
+  </svg>
+);
+
+export const SyringeIcon = () => (
+  <svg {...base}>
+    <line x1="18" y1="2" x2="22" y2="6" />
+    <line x1="17" y1="7" x2="21" y2="3" />
+    <path d="M17 7 7 17l-1 4 4-1L20 10Z" />
+    <line x1="12" y1="6" x2="15" y2="9" />
+    <line x1="9" y1="9" x2="12" y2="12" />
+  </svg>
+);
+
+export const BabyIcon = () => (
+  <svg {...base}>
+    <circle cx="12" cy="8" r="4" />
+    <path d="M9 8.5c.5 1 1.5 1.5 3 1.5s2.5-.5 3-1.5" />
+    <path d="M6 21c0-4 2.5-6 6-6s6 2 6 6" />
+  </svg>
+);
+
+export const SmileIcon = () => (
+  <svg {...base}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M8 14c1 1.5 2.5 2 4 2s3-.5 4-2" />
+    <line x1="9" y1="9" x2="9.01" y2="9" />
+    <line x1="15" y1="9" x2="15.01" y2="9" />
+  </svg>
+);
+
+// ---- My Availability icons ----
+
+export const TrashIcon = () => (
+  <svg {...base}>
+    <polyline points="3 6 5 6 21 6" />
+    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+    <line x1="10" y1="11" x2="10" y2="17" />
+    <line x1="14" y1="11" x2="14" y2="17" />
+  </svg>
+);
+
+export const CalendarXIcon = () => (
+  <svg {...base}>
+    <rect x="3" y="4" width="18" height="18" rx="2" />
+    <line x1="16" y1="2" x2="16" y2="6" />
+    <line x1="8" y1="2" x2="8" y2="6" />
+    <line x1="3" y1="10" x2="21" y2="10" />
+    <line x1="9.5" y1="14.5" x2="14.5" y2="19.5" />
+    <line x1="14.5" y1="14.5" x2="9.5" y2="19.5" />
+  </svg>
+);
+
+// ---- Booking wizard: doctor-switch suggestion ----
+
+export const SwapIcon = () => (
+  <svg {...base}>
+    <polyline points="17 3 21 7 17 11" />
+    <path d="M21 7H9a4 4 0 0 0-4 4v1" />
+    <polyline points="7 21 3 17 7 13" />
+    <path d="M3 17h12a4 4 0 0 0 4-4v-1" />
+  </svg>
+);
+
 export const ICONS = {
   dashboard: DashboardIcon,
   calendar: CalendarIcon,
   calendarPlus: CalendarPlusIcon,
   file: FileIcon,
+  tooth: ToothIcon,
   user: UserIcon,
   users: UsersIcon,
   shield: ShieldIcon,

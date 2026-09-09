@@ -3,7 +3,9 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import BrandLogo from '../../components/common/BrandLogo';
 import { NAV_CONFIG, ROLE_LABELS } from './navConfig';
-import { ICONS, BellIcon, LogoutIcon, MenuIcon, CloseIcon } from './icons';
+import { ICONS, LogoutIcon, MenuIcon, CloseIcon } from './icons';
+import { getAvatarUrl } from './avatarUtils';
+import NotificationBell from './components/NotificationBell';
 import './portalTokens.css';
 import './PortalLayout.css';
 
@@ -15,13 +17,28 @@ function getInitials(name) {
   return (first + last).toUpperCase();
 }
 
+function Avatar({ user, small }) {
+  const photoUrl = getAvatarUrl(user);
+  return (
+    <span className={`portal-avatar${small ? ' portal-avatar--sm' : ''}`}>
+      {photoUrl ? <img src={photoUrl} alt="" className="portal-avatar-img" /> : getInitials(user?.name)}
+    </span>
+  );
+}
+
 function PortalLayout() {
   const { user, role, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  const navItems = NAV_CONFIG[role] || [];
+  // "Pediatric Queue" only makes sense for the one dentist account actually
+  // credentialed for pediatric bookings — Ramirez/Castro are role=dentist
+  // too but aren't pediatric dentists, so the raw role alone can't gate this
+  // the way it gates every other nav item.
+  const navItems = (NAV_CONFIG[role] || []).filter(
+    (item) => item.path !== '/dentist/pediatric-queue' || user?.is_pediatric_dentist
+  );
   const activeItem = navItems.find((item) => item.path === location.pathname);
   const pageTitle = activeItem ? activeItem.label : 'Dashboard';
 
@@ -60,7 +77,7 @@ function PortalLayout() {
 
         <div className="portal-sidebar-footer">
           <div className="portal-user-summary">
-            <span className="portal-avatar">{getInitials(user?.name)}</span>
+            <Avatar user={user} />
             <span className="portal-user-info">
               <span className="portal-user-name">{user?.name}</span>
               <span className="portal-user-role">{ROLE_LABELS[role] || role}</span>
@@ -90,11 +107,8 @@ function PortalLayout() {
           </div>
 
           <div className="portal-topbar-right">
-            <button type="button" className="portal-bell" aria-label="Notifications">
-              <BellIcon />
-              <span className="portal-bell-dot" />
-            </button>
-            <span className="portal-avatar portal-avatar--sm">{getInitials(user?.name)}</span>
+            <NotificationBell />
+            <Avatar user={user} small />
           </div>
         </header>
 

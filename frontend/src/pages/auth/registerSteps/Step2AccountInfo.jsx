@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import api from '../../../api';
 import FormField from './FormField';
 import { MailIcon, LockIcon, LocationIcon, UserIcon, PeopleIcon, PhoneIcon } from './icons';
-import { passwordChecklist, EMAIL_REGEX } from './validation';
+import { passwordChecklist, EMAIL_REGEX, isMinor as computeIsMinor } from './validation';
 import { useDebounce } from '../../../hooks/useDebounce';
 
 const CHECKLIST_ITEMS = [
@@ -20,6 +20,7 @@ const EMAIL_CHECK_DEBOUNCE_MS = 500;
 
 function Step2AccountInfo({ values, onChange, errors, onFieldError, emailStatus, setEmailStatus }) {
   const pw = passwordChecklist(values.password);
+  const isMinor = computeIsMinor(values.date_of_birth);
   const trimmedEmail = values.email.trim();
   const debouncedEmail = useDebounce(trimmedEmail, EMAIL_CHECK_DEBOUNCE_MS);
 
@@ -194,6 +195,46 @@ function Step2AccountInfo({ values, onChange, errors, onFieldError, emailStatus,
         placeholder="09XXXXXXXXX"
         required
       />
+
+      {isMinor && (
+        <>
+          <p className="login-step-note login-field-grid-full">
+            Since the patient is under 18, please also provide a parent or guardian's details.
+          </p>
+
+          <FormField
+            label="Parent / Guardian Full Name"
+            name="guardian_name"
+            fullWidth
+            value={values.guardian_name}
+            onChange={onChange}
+            error={errors.guardian_name}
+            icon={<UserIcon />}
+            placeholder="Enter their full name"
+          />
+
+          <FormField
+            label="Relationship to Patient"
+            name="guardian_relationship"
+            value={values.guardian_relationship}
+            onChange={onChange}
+            error={errors.guardian_relationship}
+            icon={<PeopleIcon />}
+            placeholder="e.g. Mother, Father"
+          />
+
+          <FormField
+            label="Guardian Contact Number"
+            name="guardian_contact_number"
+            type="tel"
+            value={values.guardian_contact_number}
+            onChange={onChange}
+            error={errors.guardian_contact_number}
+            icon={<PhoneIcon />}
+            placeholder="09XXXXXXXXX"
+          />
+        </>
+      )}
     </div>
   );
 }

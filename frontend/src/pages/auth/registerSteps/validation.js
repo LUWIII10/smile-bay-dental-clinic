@@ -3,10 +3,25 @@ export const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_REGEX = /^[0-9+\-\s]{7,20}$/;
 const NAME_REGEX = /^[a-zA-ZÀ-ſ .'-]{1,100}$/;
 
-// Smile Bay currently only verifies coverage for these two HMOs — kept in
-// sync with the dropdown in StepPatientCategory.jsx and the server-side
-// allowlist in RegisterRequest.
-export const ALLOWED_HMO_PROVIDERS = ['Medicard', 'Flexicare'];
+
+// Whole-years-only age check (no need-for-precision here — this only
+// gates whether the guardian section shows up, not anything server-side
+// enforces). Returns false for an empty/invalid date rather than
+// throwing, since this runs on every keystroke of Step 1 before the field
+// is necessarily valid yet.
+export function isMinor(dateOfBirth) {
+  if (!dateOfBirth) return false;
+  const dob = new Date(dateOfBirth);
+  if (Number.isNaN(dob.getTime())) return false;
+
+  const today = new Date();
+  let age = today.getFullYear() - dob.getFullYear();
+  const hasHadBirthdayThisYear =
+    today.getMonth() > dob.getMonth() || (today.getMonth() === dob.getMonth() && today.getDate() >= dob.getDate());
+  if (!hasHadBirthdayThisYear) age -= 1;
+
+  return age < 18;
+}
 
 export function passwordChecklist(password) {
   return {
@@ -26,6 +41,10 @@ export const STEP_OF_FIELD = {
   date_of_birth: 1,
   sex: 1,
   mobile_number: 1,
+  civil_status: 1,
+  nationality: 1,
+  religion: 1,
+  occupation: 1,
   email: 2,
   password: 2,
   password_confirmation: 2,
@@ -33,6 +52,9 @@ export const STEP_OF_FIELD = {
   emergency_contact_name: 2,
   emergency_contact_relationship: 2,
   emergency_contact_number: 2,
+  guardian_name: 2,
+  guardian_relationship: 2,
+  guardian_contact_number: 2,
   patient_type: 3,
   hmo_provider_id: 3,
   hmo_number: 3,
@@ -40,7 +62,18 @@ export const STEP_OF_FIELD = {
   allergies: 4,
   current_medications: 4,
   medical_conditions_notes: 4,
-  agree_terms: 5,
+  blood_type: 4,
+  medical_conditions: 4,
+  previous_surgeries: 4,
+  last_physical_exam: 4,
+  physician_name_specialty: 4,
+  last_dental_visit: 5,
+  last_dental_treatment: 5,
+  brushing_frequency: 5,
+  dental_procedures_history: 5,
+  current_dental_symptoms: 5,
+  visit_reason: 5,
+  agree_terms: 6,
 };
 
 export function validateStep1(values) {
@@ -120,6 +153,22 @@ export function validateStep2(values, context = {}) {
     errors.emergency_contact_number = 'Enter a valid contact number.';
   }
 
+  // patients.guardian_* columns were added "conditionally required for
+  // minors, enforced at app layer" (see the patients table migration) —
+  // this is that enforcement; the backend itself leaves them nullable
+  // since re-deriving "is this patient a minor" from date_of_birth
+  // server-side isn't worth it for what's ultimately a front-desk
+  // follow-up, not a security boundary.
+  if (isMinor(values.date_of_birth)) {
+    if (!values.guardian_name.trim()) errors.guardian_name = "Parent/guardian's name is required for a minor patient.";
+    if (!values.guardian_relationship.trim()) errors.guardian_relationship = 'Relationship to patient is required.';
+    if (!values.guardian_contact_number.trim()) {
+      errors.guardian_contact_number = "Parent/guardian's contact number is required.";
+    } else if (!PHONE_REGEX.test(values.guardian_contact_number.trim())) {
+      errors.guardian_contact_number = 'Enter a valid contact number.';
+    }
+  }
+
   return errors;
 }
 
@@ -132,7 +181,7 @@ export function validateStep3(values) {
   }
 
   if (values.patient_type === 'hmo') {
-    if (!values.hmo_provider_id || !ALLOWED_HMO_PROVIDERS.includes(values.hmo_provider_name)) {
+    if (!values.hmo_provider_id) {
       errors.hmo_provider_id = 'Please select a valid HMO provider.';
     }
     if (!values.hmo_number.trim()) errors.hmo_number = 'HMO card / member ID number is required.';
@@ -147,7 +196,12 @@ export function validateStep4() {
   return {};
 }
 
-export function validateStep5(values) {
+// Step 5 (dental history) is entirely optional — nothing to validate.
+export function validateStep5() {
+  return {};
+}
+
+export function validateStep6(values) {
   const errors = {};
   if (!values.agree_terms) errors.agree_terms = 'Please accept the Terms & Conditions to continue.';
   return errors;
