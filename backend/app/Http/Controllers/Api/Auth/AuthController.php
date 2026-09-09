@@ -13,6 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
 class AuthController extends Controller
@@ -20,6 +21,13 @@ class AuthController extends Controller
     private const OTP_TTL_MINUTES = 10;
     private const OTP_RESEND_COOLDOWN_SECONDS = 60;
     private const OTP_MAX_ATTEMPTS = 5;
+
+    // Set by issueOtp() on every call: true if the OTP email actually went
+    // out, false if the mail send threw (SMTP down, etc). Callers read this
+    // to tell the user the truth instead of "check your email" for a code
+    // that will never arrive. Per-request controller instance, issueOtp()
+    // runs at most once per request, so this is safe to hold as state.
+    private bool $otpEmailDelivered = true;
 
     /**
      * Register a new patient account (creates users + patients rows) and
@@ -97,8 +105,14 @@ class AuthController extends Controller
         $otp = $this->issueOtp($user);
 
         return response()->json([
-            'message' => 'Registration successful. Please check your email for a verification code.',
+            // The account row is committed either way; only the email delivery
+            // differs. Tell the user which actually happened so a failed send
+            // doesn't leave them waiting on the verify screen for nothing.
+            'message' => $this->otpEmailDelivered
+                ? 'Registration successful. Please check your email for a verification code.'
+                : 'Your account was created, but we could not send the verification email right now. On the next screen, tap "Resend code" in a moment to try again.',
             'email' => $user->email,
+            'email_sent' => $this->otpEmailDelivered,
             'retry_after' => self::OTP_RESEND_COOLDOWN_SECONDS,
             ...$this->devOtpPayload($otp),
         ], 201);
@@ -210,8 +224,17 @@ class AuthController extends Controller
 
         $otp = $this->issueOtp($user, 'email_verification');
 
+        if (! $this->otpEmailDelivered) {
+            return response()->json([
+                'message' => 'We could not send the verification email right now. Please wait a moment and try again.',
+                'email_sent' => false,
+                'retry_after' => self::OTP_RESEND_COOLDOWN_SECONDS,
+            ], 502);
+        }
+
         return response()->json([
             'message' => 'A new verification code has been sent to your email.',
+            'email_sent' => true,
             'retry_after' => self::OTP_RESEND_COOLDOWN_SECONDS,
             ...$this->devOtpPayload($otp),
         ]);
@@ -374,6 +397,9 @@ class AuthController extends Controller
 
     /**
      * Create (or replace) the OTP for a user, email it, and return the plain code.
+     * A failed email send is caught and logged (never a 500) — the OTP row is
+     * already persisted, so the code is valid; $this->otpEmailDelivered is set
+     * to false so the caller can tell the user to use "Resend code".
      */
     private function issueOtp(User $user, string $purpose = 'email_verification'): string
     {
@@ -391,7 +417,17 @@ class AuthController extends Controller
             ]
         );
 
-        Mail::to($user->email)->send(new OtpMail($user, $plainOtp, self::OTP_TTL_MINUTES, $purpose));
+        try {
+            Mail::to($user->email)->send(new OtpMail($user, $plainOtp, self::OTP_TTL_MINUTES, $purpose));
+            $this->otpEmailDelivered = true;
+        } catch (\Throwable $e) {
+            $this->otpEmailDelivered = false;
+            Log::warning('OTP email failed to send', [
+                'user_id' => $user->id,
+                'purpose' => $purpose,
+                'error' => $e->getMessage(),
+            ]);
+        }
 
         return $plainOtp;
     }

@@ -17,6 +17,7 @@ use App\Models\User;
 use App\Services\AppointmentSlotService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
 class AppointmentController extends Controller
@@ -114,7 +115,15 @@ class AppointmentController extends Controller
             // Regardless of cash/HMO — pediatric bookings always need the
             // pediatric dentist's review first, so neither the instant-cash
             // nor the HMO-submitted copy is accurate here.
-            Mail::to($request->user()->email)->send(new PediatricBookingSubmittedMail($appointment));
+            try {
+                Mail::to($request->user()->email)->send(new PediatricBookingSubmittedMail($appointment));
+            } catch (\Throwable $e) {
+                Log::warning('Appointment email failed to send', [
+                    'mailable' => PediatricBookingSubmittedMail::class,
+                    'appointment_id' => $appointment->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
             Notification::notifyUser(
                 $request->user()->id,
                 'Booking submitted',
@@ -128,7 +137,15 @@ class AppointmentController extends Controller
                 '/dentist/pediatric-queue'
             );
         } elseif ($appointment->patient_type_snapshot === 'hmo') {
-            Mail::to($request->user()->email)->send(new HmoBookingSubmittedMail($appointment));
+            try {
+                Mail::to($request->user()->email)->send(new HmoBookingSubmittedMail($appointment));
+            } catch (\Throwable $e) {
+                Log::warning('Appointment email failed to send', [
+                    'mailable' => HmoBookingSubmittedMail::class,
+                    'appointment_id' => $appointment->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
             Notification::notifyUser(
                 $request->user()->id,
                 'Booking submitted',
@@ -142,7 +159,15 @@ class AppointmentController extends Controller
                 "New HMO booking from {$patient->first_name} {$patient->last_name} needs verification."
             );
         } else {
-            Mail::to($request->user()->email)->send(new AppointmentConfirmedMail($appointment));
+            try {
+                Mail::to($request->user()->email)->send(new AppointmentConfirmedMail($appointment));
+            } catch (\Throwable $e) {
+                Log::warning('Appointment email failed to send', [
+                    'mailable' => AppointmentConfirmedMail::class,
+                    'appointment_id' => $appointment->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
             Notification::notifyUser(
                 $request->user()->id,
                 'Appointment confirmed',
@@ -262,7 +287,15 @@ class AppointmentController extends Controller
         ]);
 
         $appointment->load(['service:id,name,duration_minutes', 'patient.user', 'dentist:id,name']);
-        Mail::to($appointment->patient->user->email)->send(new AppointmentRescheduledMail($appointment, $oldDate, $oldTime));
+        try {
+            Mail::to($appointment->patient->user->email)->send(new AppointmentRescheduledMail($appointment, $oldDate, $oldTime));
+        } catch (\Throwable $e) {
+            Log::warning('Appointment email failed to send', [
+                'mailable' => AppointmentRescheduledMail::class,
+                'appointment_id' => $appointment->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
         Notification::notifyUser(
             $appointment->patient->user_id,
             'Appointment rescheduled',
@@ -314,7 +347,15 @@ class AppointmentController extends Controller
         });
 
         $appointment->load(['patient.user', 'dentist:id,name', 'service:id,name']);
-        Mail::to($appointment->patient->user->email)->send(new AppointmentRejectedMail($appointment, $validated['reason'] ?? null));
+        try {
+            Mail::to($appointment->patient->user->email)->send(new AppointmentRejectedMail($appointment, $validated['reason'] ?? null));
+        } catch (\Throwable $e) {
+            Log::warning('Appointment email failed to send', [
+                'mailable' => AppointmentRejectedMail::class,
+                'appointment_id' => $appointment->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
         Notification::notifyUser(
             $appointment->patient->user_id,
             'Appointment cancelled',

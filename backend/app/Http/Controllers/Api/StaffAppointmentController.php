@@ -17,6 +17,7 @@ use App\Services\AppointmentSlotService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -210,7 +211,15 @@ class StaffAppointmentController extends Controller
         });
 
         $appointment->load(['patient.user', 'dentist:id,name', 'service:id,name']);
-        Mail::to($appointment->patient->user->email)->send(new AppointmentRejectedMail($appointment, $validated['reason'] ?? null));
+        try {
+            Mail::to($appointment->patient->user->email)->send(new AppointmentRejectedMail($appointment, $validated['reason'] ?? null));
+        } catch (\Throwable $e) {
+            Log::warning('Appointment email failed to send', [
+                'mailable' => AppointmentRejectedMail::class,
+                'appointment_id' => $appointment->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
         Notification::notifyUser(
             $appointment->patient->user_id,
             'Appointment cancelled',
@@ -418,7 +427,15 @@ class StaffAppointmentController extends Controller
         $patientEmail = $appointment->patient->user->email;
 
         if ($isPediatric) {
-            Mail::to($patientEmail)->send(new PediatricBookingSubmittedMail($appointment));
+            try {
+                Mail::to($patientEmail)->send(new PediatricBookingSubmittedMail($appointment));
+            } catch (\Throwable $e) {
+                Log::warning('Appointment email failed to send', [
+                    'mailable' => PediatricBookingSubmittedMail::class,
+                    'appointment_id' => $appointment->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
             Notification::notifyUser(
                 $validated['dentist_id'],
                 'Pediatric review needed',
@@ -426,7 +443,15 @@ class StaffAppointmentController extends Controller
                 '/dentist/pediatric-queue'
             );
         } elseif ($appointment->patient_type_snapshot === 'hmo') {
-            Mail::to($patientEmail)->send(new HmoBookingSubmittedMail($appointment));
+            try {
+                Mail::to($patientEmail)->send(new HmoBookingSubmittedMail($appointment));
+            } catch (\Throwable $e) {
+                Log::warning('Appointment email failed to send', [
+                    'mailable' => HmoBookingSubmittedMail::class,
+                    'appointment_id' => $appointment->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
             Notification::notifyRolesOnce(
                 ['dental_assistant', 'admin'],
                 $appointment->id,
@@ -434,7 +459,15 @@ class StaffAppointmentController extends Controller
                 "New HMO booking from {$appointment->patient->first_name} {$appointment->patient->last_name} needs verification."
             );
         } else {
-            Mail::to($patientEmail)->send(new AppointmentConfirmedMail($appointment));
+            try {
+                Mail::to($patientEmail)->send(new AppointmentConfirmedMail($appointment));
+            } catch (\Throwable $e) {
+                Log::warning('Appointment email failed to send', [
+                    'mailable' => AppointmentConfirmedMail::class,
+                    'appointment_id' => $appointment->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
         }
 
         return response()->json([

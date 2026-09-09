@@ -10,6 +10,7 @@ use App\Models\AppointmentStatusLog;
 use App\Models\Notification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
 /**
@@ -118,7 +119,15 @@ class PediatricVerificationController extends Controller
             // AppointmentConfirmedMail when staff approve next, same as
             // every other HMO booking today.
             if ($isCash) {
-                Mail::to($patientEmail)->send(new AppointmentConfirmedMail($appointment));
+                try {
+                    Mail::to($patientEmail)->send(new AppointmentConfirmedMail($appointment));
+                } catch (\Throwable $e) {
+                    Log::warning('Appointment email failed to send', [
+                        'mailable' => AppointmentConfirmedMail::class,
+                        'appointment_id' => $appointment->id,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
                 Notification::notifyUser(
                     $appointment->patient->user_id,
                     'Appointment confirmed',
@@ -134,7 +143,15 @@ class PediatricVerificationController extends Controller
                 );
             }
         } else {
-            Mail::to($patientEmail)->send(new AppointmentRejectedMail($appointment, $reason));
+            try {
+                Mail::to($patientEmail)->send(new AppointmentRejectedMail($appointment, $reason));
+            } catch (\Throwable $e) {
+                Log::warning('Appointment email failed to send', [
+                    'mailable' => AppointmentRejectedMail::class,
+                    'appointment_id' => $appointment->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
             Notification::notifyUser(
                 $appointment->patient->user_id,
                 'Appointment rejected',

@@ -11,6 +11,7 @@ use App\Models\AppointmentStatusLog;
 use App\Models\Notification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\Rule;
 
@@ -110,7 +111,15 @@ class StaffVerificationController extends Controller
         $patientEmail = $appointment->patient->user->email;
 
         if ($newStatus === 'confirmed') {
-            Mail::to($patientEmail)->send(new AppointmentConfirmedMail($appointment));
+            try {
+                Mail::to($patientEmail)->send(new AppointmentConfirmedMail($appointment));
+            } catch (\Throwable $e) {
+                Log::warning('Appointment email failed to send', [
+                    'mailable' => AppointmentConfirmedMail::class,
+                    'appointment_id' => $appointment->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
             Notification::notifyUser(
                 $appointment->patient->user_id,
                 'Appointment confirmed',
@@ -118,7 +127,15 @@ class StaffVerificationController extends Controller
                 '/patient/appointments'
             );
         } else {
-            Mail::to($patientEmail)->send(new AppointmentRejectedMail($appointment, $reason));
+            try {
+                Mail::to($patientEmail)->send(new AppointmentRejectedMail($appointment, $reason));
+            } catch (\Throwable $e) {
+                Log::warning('Appointment email failed to send', [
+                    'mailable' => AppointmentRejectedMail::class,
+                    'appointment_id' => $appointment->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
             Notification::notifyUser(
                 $appointment->patient->user_id,
                 'Appointment rejected',
@@ -193,7 +210,15 @@ class StaffVerificationController extends Controller
             'hmo_status_updated_at' => now(),
         ]);
 
-        Mail::to($patientEmail)->send(new HmoStatusUpdateMail($appointment, $validated['status_label'], $validated['note'] ?? null));
+        try {
+            Mail::to($patientEmail)->send(new HmoStatusUpdateMail($appointment, $validated['status_label'], $validated['note'] ?? null));
+        } catch (\Throwable $e) {
+            Log::warning('Appointment email failed to send', [
+                'mailable' => HmoStatusUpdateMail::class,
+                'appointment_id' => $appointment->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
 
         Notification::notifyUser(
             $appointment->patient->user_id,

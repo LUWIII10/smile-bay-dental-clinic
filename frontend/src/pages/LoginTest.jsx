@@ -40,16 +40,6 @@ function LoginTest() {
         }
     };
 
-    const checkAdminOnly = async () => {
-    setError(null);
-    try {
-        const response = await api.get('/api/auth/admin-only-test');
-        setResult(response.data);
-    } catch (err) {
-        setError(err.response?.data || { message: 'Request failed.' });
-    }
-    };
-
     return (
         <div style={{ padding: '2rem', fontFamily: 'sans-serif' }}>
             <h2>Login Test</h2>
@@ -79,9 +69,6 @@ function LoginTest() {
 
             <button onClick={checkCurrentUser} style={{ marginTop: '1rem' }}>
                 Check Current User (/api/auth/me)
-            </button>
-            <button onClick={checkAdminOnly} style={{ marginTop: '1rem', marginLeft: '1rem' }}>
-                Test Admin-Only Route
             </button>
             <button onClick={auth.logout} style={{ marginTop: '1rem', marginLeft: '1rem' }}>
                 Logout (via AuthContext)
