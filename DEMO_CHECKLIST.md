@@ -38,7 +38,7 @@ Each appointment email shows up as one line:
 
 ## 3. Test accounts
 
-All five roles share one password: **`ChangeMe123!`**
+Staff/dentist accounts and the fallback patient all share one password: **`ChangeMe123!`**
 
 | Role | Email | Password |
 |---|---|---|
@@ -47,9 +47,12 @@ All five roles share one password: **`ChangeMe123!`**
 | Dentist — Dr. Ramirez | `dentist@test.com` | `ChangeMe123!` |
 | Dentist — Dr. Castro | `castro@smilebaydental.com` | `ChangeMe123!` |
 | Dentist — Pediatric (Dr. Santos) | `pediatric@smilebaydental.com` | `ChangeMe123!` |
-| Patient | `christianlouiemundoy011@gmail.com` | _(your own)_ |
+| Patient — **fallback** (pre-verified) | `bea.alcantara@gmail.com` | `ChangeMe123!` |
+| Patient — live OTP demo | `christianlouiemundoy011@gmail.com` | _(your own — not written here)_ |
 
-All five logins above were verified working (HTTP 200, correct role) on 2026-09-09.
+All logins in the table (except the last row) were verified working against the real login endpoint (HTTP 200, correct role) on 2026-09-09.
+
+**The fallback patient `bea.alcantara@gmail.com`** is already `email_verified_at` + `active`, so it skips OTP entirely. It has one **completed** visit (Aug 19, Dr. Castro — Cleaning) and one **upcoming confirmed** appointment (Sep 11, Dr. Castro — Consultation), so the patient dashboard and every My Appointments tab have content. Use it if the live registration in step 2 fails.
 
 - `luwi11@gmail.com` ("LUWI") is a **deactivated** dentist account — left inactive on purpose. Don't use it; if you try to log in it returns *"Your account has been deactivated."*
 - For a live registration demo, use a real Gmail address with a `+alias` (e.g. `yourname+demo1@gmail.com`) so the OTP actually lands in an inbox you can open.
@@ -60,6 +63,7 @@ All five logins above were verified working (HTTP 200, correct role) on 2026-09-
 
 1. **Landing page** → `http://localhost:5173` → **Sign Up**.
 2. **Register** a new patient with a real `+alias` email. You land on the verify screen → open the inbox → enter the 6-digit code → verified → log in.
+   > **If the OTP email doesn't arrive** (weak venue wifi / school network blocking SMTP): don't wait it out. Go to the login page and sign in with the fallback account **`bea.alcantara@gmail.com` / `ChangeMe123!`**, then continue from step 3. Mention that registration + OTP was shown to work earlier / in the video if you have one.
 3. **Patient portal**
    - Dashboard (upcoming appointment, recent activity).
    - **Book Appointment**: service → dentist → date → time slot → Confirm. A **cash** patient is auto-confirmed — watch MAILMAN show `AppointmentConfirmedMail ... DONE`, then show the email in the inbox.
@@ -130,5 +134,7 @@ Log in as **each dentist** → sidebar **My Profile** (`/dentist/profile`). Ever
 | #137 | Gwaine Rosche Matuba | Dr. Ramirez | Simple Tooth Extraction | Sat 09-12 11:00 | pending (HMO) | **HMO Verification Queue** approve/decline (step 4) |
 | #117 | (pre-existing) | Dr. Castro | Comprehensive Consultation | Fri 09-11 09:30 | pending (HMO) | second item in the HMO queue |
 | #135 | (pre-existing) | Dr. Santos | Pediatric Consultation | Thu 09-10 09:00 | pending | **Pediatric Queue** approve/decline (step 6) |
+| #141 | **Bea Alcantara** (fallback acct) | Dr. Castro | Cleaning (Oral Prophylaxis) | Wed 08-19 11:00 | completed | fallback patient's past-visit tab |
+| #142 | **Bea Alcantara** (fallback acct) | Dr. Castro | Comprehensive Consultation | Fri 09-11 11:00 | confirmed | fallback patient's dashboard + upcoming tab |
 
 Existing history also present: 2 completed visits (Aug), 4 cancelled, 1 rejected, ~11 confirmed across August–September, plus populated dental records (tooth charts, treatment plans, treatment history) and unread notifications on several accounts.
