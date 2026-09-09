@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { getDentistDashboardSummary } from '../../api/appointments';
 import DashGreeting from './components/DashGreeting';
+import { greetingName } from './greetingName';
 import StatCard from './components/StatCard';
 import StatusBadge from './components/StatusBadge';
 import DataTable from './components/DataTable';
@@ -35,7 +36,7 @@ const UPCOMING_COLUMNS = [
 
 function DentistDashboard() {
   const { user } = useAuth();
-  const firstName = user?.name?.split(' ')[0] || 'Doctor';
+  const firstName = greetingName(user);
 
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);

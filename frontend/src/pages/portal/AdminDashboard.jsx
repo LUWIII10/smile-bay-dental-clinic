@@ -16,6 +16,7 @@ import { useAuth } from '../../context/AuthContext';
 import { getStaffDashboardSummary, getRecentActivity } from '../../api/appointments';
 import { getReportsOverview } from '../../api/reports';
 import DashGreeting from './components/DashGreeting';
+import { greetingName } from './greetingName';
 import StatCard from './components/StatCard';
 import Skeleton from './components/Skeleton';
 import { UsersIcon, CalendarIcon, UserIcon, ShieldIcon, CheckCircleIcon } from './icons';
@@ -57,7 +58,7 @@ function formatDayLabel(dateStr) {
 
 function AdminDashboard() {
   const { user } = useAuth();
-  const firstName = user?.name?.split(' ')[0] || 'Admin';
+  const firstName = greetingName(user);
 
   const [summary, setSummary] = useState(null);
   const [reportsOverview, setReportsOverview] = useState(null);

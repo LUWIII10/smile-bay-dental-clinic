@@ -18,7 +18,7 @@ class DentalRecord extends Model
     protected function casts(): array
     {
         return [
-            'opened_at' => 'date',
+            'opened_at' => 'date:Y-m-d',
         ];
     }
 

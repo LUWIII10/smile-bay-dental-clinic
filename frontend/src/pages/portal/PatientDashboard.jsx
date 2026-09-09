@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { getPatientDashboardSummary } from '../../api/appointments';
 import DashGreeting from './components/DashGreeting';
+import { greetingName } from './greetingName';
 import StatCard from './components/StatCard';
 import StatusBadge from './components/StatusBadge';
 import Skeleton from './components/Skeleton';
@@ -14,7 +15,7 @@ const MONTH_ABBR = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP
 
 function PatientDashboard() {
   const { user } = useAuth();
-  const firstName = user?.name?.split(' ')[0] || 'there';
+  const firstName = greetingName(user);
 
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);

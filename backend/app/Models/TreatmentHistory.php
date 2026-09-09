@@ -25,7 +25,7 @@ class TreatmentHistory extends Model
     protected function casts(): array
     {
         return [
-            'performed_at' => 'date',
+            'performed_at' => 'date:Y-m-d',
         ];
     }
 

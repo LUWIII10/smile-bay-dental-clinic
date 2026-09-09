@@ -29,7 +29,7 @@ class Appointment extends Model
     protected function casts(): array
     {
         return [
-            'appointment_date' => 'date',
+            'appointment_date' => 'date:Y-m-d',
             'verified_at' => 'datetime',
             'pediatric_confirmed_at' => 'datetime',
             'hmo_status_updated_at' => 'datetime',

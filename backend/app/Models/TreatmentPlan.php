@@ -20,7 +20,7 @@ class TreatmentPlan extends Model
     protected function casts(): array
     {
         return [
-            'target_date' => 'date',
+            'target_date' => 'date:Y-m-d',
         ];
     }
 
