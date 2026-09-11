@@ -1,6 +1,6 @@
 # Smile Bay — Defense Demo Checklist
 
-Last updated: 2026-09-09. Keep this open on a second screen during the defense.
+Last updated: 2026-09-12. Keep this open on a second screen during the defense.
 
 ---
 
@@ -18,6 +18,14 @@ Three console windows open. Do **not** close any of them while demoing:
 | **FRONTEND** | `npm run dev` | React app (Vite) on **`http://localhost:5173`** — this is the URL you open in the browser |
 
 If you change `backend/.env` or an email template mid-session, **close and reopen the MAILMAN window** — the worker reads config once at startup.
+
+**Then, before every demo or rehearsal**, in a terminal in `backend\`:
+
+```
+php82 artisan demo:refresh
+```
+
+This re-dates the seven fixed demo appointments relative to today and undoes anything a rehearsal changed (an "Complete" click, an HMO/pediatric approve or reject) — see §7 for exactly what it does and which rows it touches. Safe to run as many times as you like; it never creates a new row, so re-running it 5 times in a row still leaves exactly the same 7 demo appointments, just re-dated.
 
 ---
 
@@ -73,7 +81,7 @@ All logins in the table (except the last row) were verified working against the 
    - **HMO Verification Queue** — approve or decline a pending HMO booking → the patient is notified by email + bell.
 5. **Log out → log in as Dr. Castro (dentist)** (`castro@smilebaydental.com`)
    - **My Schedule** — under **Today** there is a confirmed **10:00 AM — louie mundoy — Comprehensive Consultation** (appointment #140). Expand it → **Complete**.
-   - The row stays visible as *Completed*; expand it again → **Add Visit Record** → the patient's record opens with a clinical-note box pre-filled as *"Linked to the completed visit on 2026-09-09 at 10:00 AM"* → type a note → **Save Note**.
+   - The row stays visible as *Completed*; expand it again → **Add Visit Record** → the patient's record opens with a clinical-note box pre-filled as *"Linked to the completed visit on \<today's date\> at 10:00 AM"* → type a note → **Save Note**. (Ran `demo:refresh` after a rehearsal? #140 is back to confirmed — do the Complete click again, it's not a one-shot.)
    - **My Availability** — weekly hours + a day off.
 6. **Log out → log in as Pediatric Dentist**
    - **Pediatric Queue** — approve a pediatric booking (this is the gate before staff HMO verification for pediatric HMO bookings).
@@ -124,17 +132,22 @@ Log in as **each dentist** → sidebar **My Profile** (`/dentist/profile`). Ever
 
 ---
 
-## 7. Demo data seeded for this run (2026-09-09)
+## 7. Demo data — managed by `php artisan demo:refresh`
 
-| Appt | Patient | Dentist | Service | When | Status | Use it to show |
+Seven appointments, identified **by hard-coded id only** (no name/pattern matching — nothing else can ever be touched by this command). Every run re-dates all seven relative to that day's "today" and force-resets status (and any verification/cancellation fields) back to the values below — so a rehearsal "Complete" click, or an approve/reject on a queue item, is undone the next time you run it. It never creates a new row: running it once or fifty times leaves exactly these seven ids.
+
+| Appt id | Patient | Dentist | Service | When (relative to today) | Status every run | Use it to show |
 |---|---|---|---|---|---|---|
-| #140 | louie mundoy | Dr. Castro | Comprehensive Consultation | **today 10:00** | confirmed | **Complete → Add Visit Record** (step 5) |
-| #138 | louie mundoy | Dr. Ramirez | Cleaning (Oral Prophylaxis) | Fri 09-11 10:00 | confirmed | Ramirez's schedule isn't empty |
-| #139 | Christian Louie Mundoy | Dr. Santos | Pediatric Consultation | Sat 09-12 10:00 | confirmed | Santos's schedule isn't empty |
-| #137 | Gwaine Rosche Matuba | Dr. Ramirez | Simple Tooth Extraction | Sat 09-12 11:00 | pending (HMO) | **HMO Verification Queue** approve/decline (step 4) |
-| #117 | (pre-existing) | Dr. Castro | Comprehensive Consultation | Fri 09-11 09:30 | pending (HMO) | second item in the HMO queue |
-| #135 | (pre-existing) | Dr. Santos | Pediatric Consultation | Thu 09-10 09:00 | pending | **Pediatric Queue** approve/decline (step 6) |
-| #141 | **Bea Alcantara** (fallback acct) | Dr. Castro | Cleaning (Oral Prophylaxis) | Wed 08-19 11:00 | completed | fallback patient's past-visit tab |
-| #142 | **Bea Alcantara** (fallback acct) | Dr. Castro | Comprehensive Consultation | Fri 09-11 11:00 | confirmed | fallback patient's dashboard + upcoming tab |
+| **140** | louie mundoy | Dr. Castro | Comprehensive Consultation | **today, 10:00** | confirmed | **Complete → Add Visit Record** (step 5) |
+| **138** | louie mundoy | Dr. Ramirez | Cleaning (Oral Prophylaxis) | today + 2, 10:00 | confirmed | Ramirez's schedule isn't empty |
+| **139** | Christian Louie Mundoy | Dr. Santos | Pediatric Consultation | today + 3, 10:00 | confirmed (pediatric-approved) | Santos's schedule isn't empty |
+| **143** | louie mundoy | Dr. Santos | Pediatric Consultation | today + 2, 09:00 | pending, un-reviewed | **Pediatric Queue** approve/decline (step 6) |
+| **137** | Gwaine Rosche Matuba | Dr. Ramirez | Simple Tooth Extraction | today + 4, 11:00 | pending (HMO) | **HMO Verification Queue** approve/decline (step 4) |
+| **141** | Bea Alcantara (fallback acct) | Dr. Castro | Cleaning (Oral Prophylaxis) | today − 7, 11:00 | completed | fallback patient's past-visit tab |
+| **142** | Bea Alcantara (fallback acct) | Dr. Castro | Comprehensive Consultation | today + 3, 11:00 | confirmed | fallback patient's dashboard + upcoming tab |
+
+**Not managed, left alone on purpose** — two pre-existing appointments that happen to also serve as extra queue content, but are not touched, redated, or reset by `demo:refresh`: **#117** (HMO pending, Dr. Castro) and **#135** (pediatric pending, Dr. Santos). If either gets approved/rejected during a rehearsal it stays that way — re-approve/reject it by hand, or ignore it and rely on #137/#143 instead, which `demo:refresh` always resets for you.
+
+The command's own source (`backend/app/Console/Commands/RefreshDemoAppointments.php`) is the authoritative list — the `DEMO_APPOINTMENTS` constant at the top names exactly these seven ids and nothing else.
 
 Existing history also present: 2 completed visits (Aug), 4 cancelled, 1 rejected, ~11 confirmed across August–September, plus populated dental records (tooth charts, treatment plans, treatment history) and unread notifications on several accounts.
