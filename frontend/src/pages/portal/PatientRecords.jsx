@@ -182,8 +182,8 @@ function PatientRecords() {
       await setToothCondition(selectedPatientId, selectedTooth, toothForm.condition, toothForm.notes);
       await loadDetail(selectedPatientId);
       showSuccessToast('Tooth condition saved.');
-    } catch {
-      showErrorToast("Could not save this tooth's condition.");
+    } catch (err) {
+      showErrorToast(err.response?.data?.message || "Could not save this tooth's condition.");
     } finally {
       setSavingTooth(false);
     }
@@ -220,8 +220,8 @@ function PatientRecords() {
       setLinkedVisitLabel('');
       await loadDetail(selectedPatientId);
       showSuccessToast('Clinical note added.');
-    } catch {
-      showErrorToast('Could not save this note.');
+    } catch (err) {
+      showErrorToast(err.response?.data?.message || 'Could not save this note.');
     } finally {
       setSavingNote(false);
     }
@@ -259,8 +259,8 @@ function PatientRecords() {
       setPlanModalOpen(false);
       await loadDetail(selectedPatientId);
       showSuccessToast('Treatment plan created.');
-    } catch {
-      showErrorToast('Could not create this treatment plan.');
+    } catch (err) {
+      showErrorToast(err.response?.data?.message || 'Could not create this treatment plan.');
     } finally {
       setSavingPlan(false);
     }
@@ -301,8 +301,8 @@ function PatientRecords() {
       setHistoryModalOpen(false);
       await loadDetail(selectedPatientId);
       showSuccessToast('Procedure logged.');
-    } catch {
-      showErrorToast('Could not log this procedure.');
+    } catch (err) {
+      showErrorToast(err.response?.data?.message || 'Could not log this procedure.');
     } finally {
       setSavingHistory(false);
     }
@@ -543,6 +543,7 @@ function PatientRecords() {
                           placeholder="Notes (optional)"
                           value={toothForm.notes}
                           onChange={(e) => setToothForm((p) => ({ ...p, notes: e.target.value }))}
+                          maxLength={1000}
                         />
                         <button type="button" className="dash-btn" disabled={savingTooth} onClick={saveTooth}>
                           {savingTooth ? 'Saving…' : 'Save Tooth Condition'}
@@ -730,6 +731,7 @@ function PatientRecords() {
                 placeholder="Write the clinical note…"
                 value={noteText}
                 onChange={(e) => setNoteText(e.target.value)}
+                maxLength={5000}
               />
               <div className="modal-actions">
                 <button type="button" className="dash-btn dash-btn--outline" onClick={() => setNoteModalOpen(false)}>
@@ -748,6 +750,7 @@ function PatientRecords() {
                 value={planForm.title}
                 onChange={(e) => setPlanForm((p) => ({ ...p, title: e.target.value }))}
                 placeholder="e.g. Restorative Plan - Q1 2026"
+                maxLength={255}
               />
 
               <label className="modal-field-label">Description</label>
@@ -756,6 +759,7 @@ function PatientRecords() {
                 value={planForm.description}
                 onChange={(e) => setPlanForm((p) => ({ ...p, description: e.target.value }))}
                 placeholder="Optional"
+                maxLength={2000}
               />
 
               <label className="modal-field-label">Target Date</label>
@@ -774,6 +778,7 @@ function PatientRecords() {
                     placeholder="Procedure"
                     value={item.procedure_name}
                     onChange={(e) => updatePlanItem(i, 'procedure_name', e.target.value)}
+                    maxLength={255}
                   />
                   <input
                     className="form-input plan-item-form-tooth"
@@ -812,6 +817,7 @@ function PatientRecords() {
                 value={historyForm.procedure_name}
                 onChange={(e) => setHistoryForm((p) => ({ ...p, procedure_name: e.target.value }))}
                 placeholder="e.g. Composite Filling"
+                maxLength={255}
               />
 
               <label className="modal-field-label">Tooth Number</label>
@@ -839,6 +845,7 @@ function PatientRecords() {
                 value={historyForm.notes}
                 onChange={(e) => setHistoryForm((p) => ({ ...p, notes: e.target.value }))}
                 placeholder="Optional"
+                maxLength={1000}
               />
 
               <div className="modal-actions">
