@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   getAllAppointments,
   getAppointmentStats,
@@ -18,7 +19,7 @@ import RejectionModal from './components/RejectionModal';
 import {
   CalendarIcon, CheckCircleIcon, ClockIcon, XCircleIcon, SearchIcon, EyeIcon, CashIcon, ShieldIcon,
 } from './icons';
-import { formatDateShort, formatTime12h } from './dateTimeUtils';
+import { formatDateShort, formatTime12h, toLocalDate } from './dateTimeUtils';
 import { showSuccessToast, showErrorToast } from '../../utils/toast';
 import './dashboards.css';
 import './Appointments.css';
@@ -54,6 +55,21 @@ function getInitials(name) {
   return (first + last).toUpperCase();
 }
 
+// "Sep 12 – Sep 16, 2026" for the date-range filter trigger — year once,
+// at the end, not repeated on both sides like formatDateShort() would give
+// if called twice. toLocalDate() (not a raw `new Date(str)`) because these
+// are plain "YYYY-MM-DD" values typed into a date input, and parsing a
+// bare date string with `new Date()` reads it as UTC midnight — safe here
+// only by accident of the viewer's timezone, same class of bug already
+// fixed elsewhere in this app for API-sourced dates.
+function formatDateRangeLabel(from, to) {
+  if (!from && !to) return null;
+  const short = (d) => toLocalDate(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const full = (d) => toLocalDate(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  if (from && to) return `${short(from)} – ${full(to)}`;
+  return full(from || to);
+}
+
 function AllAppointments() {
   const [appointments, setAppointments] = useState([]);
   const [meta, setMeta] = useState(null);
@@ -70,6 +86,18 @@ function AllAppointments() {
   const [paymentType, setPaymentType] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+
+  // Date-range popover — draft values only; dateFrom/dateTo (the ones that
+  // actually drive the fetch below) are only touched by Apply/Clear, never
+  // by typing in the popover. Same portal + fixed-position + mousedown
+  // pattern as ActionMenu/NotificationBell.
+  const [dateRangeOpen, setDateRangeOpen] = useState(false);
+  const [dateRangePosition, setDateRangePosition] = useState(null);
+  const [draftDateFrom, setDraftDateFrom] = useState('');
+  const [draftDateTo, setDraftDateTo] = useState('');
+  const dateRangeTriggerRef = useRef(null);
+  const dateRangeDropdownRef = useRef(null);
+
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState('date_desc');
@@ -176,6 +204,58 @@ function AllAppointments() {
   };
 
   const hasActiveFilters = status || dentistId || paymentType || dateFrom || dateTo || search;
+
+  const openDateRange = () => {
+    // Seed the draft from whatever's currently applied, not from whatever
+    // was left over in the draft from a previous open-then-cancel.
+    setDraftDateFrom(dateFrom);
+    setDraftDateTo(dateTo);
+    const rect = dateRangeTriggerRef.current.getBoundingClientRect();
+    setDateRangePosition({ top: rect.bottom + 6, left: rect.left });
+    setDateRangeOpen(true);
+  };
+
+  const applyDateRange = () => {
+    setDateFrom(draftDateFrom);
+    setDateTo(draftDateTo);
+    setDateRangeOpen(false);
+  };
+
+  // Scoped to just this popover's two fields — the toolbar's own "Clear
+  // Filters" button (below) still resets every filter, including these.
+  const clearDateRange = () => {
+    setDraftDateFrom('');
+    setDraftDateTo('');
+    setDateFrom('');
+    setDateTo('');
+    setDateRangeOpen(false);
+  };
+
+  useEffect(() => {
+    if (!dateRangeOpen) return undefined;
+
+    const handleClickOutside = (e) => {
+      if (
+        dateRangeTriggerRef.current && !dateRangeTriggerRef.current.contains(e.target) &&
+        dateRangeDropdownRef.current && !dateRangeDropdownRef.current.contains(e.target)
+      ) {
+        // Outside click discards the draft — dateFrom/dateTo (applied)
+        // are untouched, and the draft gets re-seeded from them next open.
+        setDateRangeOpen(false);
+      }
+    };
+    const handleDismiss = () => setDateRangeOpen(false);
+
+    document.addEventListener('mousedown', handleClickOutside);
+    window.addEventListener('scroll', handleDismiss, true);
+    window.addEventListener('resize', handleDismiss);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('scroll', handleDismiss, true);
+      window.removeEventListener('resize', handleDismiss);
+    };
+  }, [dateRangeOpen]);
 
   const openBlankWalkIn = () => {
     setSelectedSlotData(null);
@@ -395,10 +475,56 @@ function AllAppointments() {
               />
             </div>
           </div>
-          <div className="filter-date-range">
-            <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
-            <span className="filter-date-range-sep" aria-hidden="true" />
-            <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+          <div className="filter-field">
+            <button
+              type="button"
+              ref={dateRangeTriggerRef}
+              className={`filter-search filter-date-trigger${dateFrom || dateTo ? ' filter-date-trigger--active' : ''}`}
+              onClick={() => (dateRangeOpen ? setDateRangeOpen(false) : openDateRange())}
+              aria-haspopup="true"
+              aria-expanded={dateRangeOpen}
+            >
+              <CalendarIcon />
+              <span className="filter-date-trigger-label">
+                {formatDateRangeLabel(dateFrom, dateTo) || 'Filter by date'}
+              </span>
+            </button>
+
+            {dateRangeOpen && dateRangePosition && createPortal(
+              <div
+                ref={dateRangeDropdownRef}
+                className="filter-date-popover"
+                style={{ top: dateRangePosition.top, left: dateRangePosition.left }}
+              >
+                <div className="filter-date-popover-field">
+                  <label htmlFor="date-range-from">From</label>
+                  <input
+                    id="date-range-from"
+                    type="date"
+                    value={draftDateFrom}
+                    onChange={(e) => setDraftDateFrom(e.target.value)}
+                  />
+                </div>
+                <div className="filter-date-popover-field">
+                  <label htmlFor="date-range-to">To</label>
+                  <input
+                    id="date-range-to"
+                    type="date"
+                    value={draftDateTo}
+                    onChange={(e) => setDraftDateTo(e.target.value)}
+                  />
+                </div>
+                <div className="filter-date-popover-actions">
+                  <button type="button" className="dash-btn dash-btn--outline" onClick={clearDateRange}>
+                    Clear
+                  </button>
+                  <button type="button" className="dash-btn" onClick={applyDateRange}>
+                    Apply
+                  </button>
+                </div>
+              </div>,
+              document.body
+            )}
           </div>
           <div className="filter-field">
             <select className="form-select" value={dentistId} onChange={(e) => setDentistId(e.target.value)}>

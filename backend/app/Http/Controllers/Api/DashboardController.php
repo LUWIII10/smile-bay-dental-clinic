@@ -86,7 +86,15 @@ class DashboardController extends Controller
 
             return [
                 'id' => $log->id,
+                // Kept alongside the structured fields below (not replaced
+                // by them) so the Admin dashboard's table can be reverted to
+                // this sentence with a one-line frontend change if it ever
+                // needs to be, without touching the backend again.
                 'description' => "{$patientName}'s {$serviceName} moved to \"{$log->new_status}\" (by {$actorName})",
+                'patient_name' => $patientName,
+                'service_name' => $serviceName,
+                'status' => $log->new_status,
+                'changed_by' => $actorName,
                 'timestamp' => $log->created_at?->diffForHumans(),
             ];
         });

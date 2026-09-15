@@ -681,3 +681,117 @@
   gap: 14px 24px;
   margin-bottom: 14px;
 }
+
+/* ============ Print — patient record detail (PatientRecords.jsx ONLY) ============
+   Everything below is scoped under .record-detail-print, a wrapper class
+   that exists nowhere else in the app — not on any other portal page, and
+   not on PatientDentalRecords.jsx (the patient's own read-only view), even
+   though this stylesheet is also loaded there. Nothing here can match
+   outside that one wrapper, on screen or in print.
+
+   .record-print-header and .record-print-tooth-summary are new, uniquely
+   named blocks that also exist only inside that wrapper. They're hidden on
+   screen unconditionally (no @media needed for that half — the classes
+   can't collide with anything) and revealed only inside @media print. */
+
+.record-print-header,
+.record-print-tooth-summary {
+  display: none;
+}
+
+@media print {
+  .record-detail-print .record-print-header {
+    display: block;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid #000;
+  }
+
+  .record-detail-print .record-print-header h1 {
+    margin: 0 0 2px;
+    font-size: 1.3rem;
+    color: #000;
+  }
+
+  .record-detail-print .record-print-header p {
+    margin: 0 0 10px;
+    font-size: 0.95rem;
+    color: #000;
+  }
+
+  .record-detail-print .record-print-header-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 28px;
+    font-size: 0.85rem;
+    color: #000;
+  }
+
+  .record-detail-print .record-print-tooth-summary {
+    display: block;
+    margin: 12px 0;
+  }
+
+  .record-detail-print .record-print-tooth-summary h4 {
+    margin: 0 0 6px;
+    font-size: 0.95rem;
+    color: #000;
+  }
+
+  .record-detail-print .record-print-tooth-summary table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+  }
+
+  .record-detail-print .record-print-tooth-summary th,
+  .record-detail-print .record-print-tooth-summary td {
+    border: 1px solid #000;
+    padding: 4px 6px;
+    text-align: left;
+    color: #000;
+  }
+
+  /* The interactive chart is color-coded and click-to-select-to-reveal —
+     neither survives paper. The summary table above stands in for it. */
+  .record-detail-print .tooth-chart,
+  .record-detail-print .tooth-legend,
+  .record-detail-print .tooth-chart-note,
+  .record-detail-print .tooth-detail-panel {
+    display: none !important;
+  }
+
+  /* Status/condition pills already carry their label as text, not color
+     alone — but a pale fill can wash out on a black-and-white printer.
+     Force a solid border and black text so they stay legible either way. */
+  .record-detail-print .status-badge {
+    background: none !important;
+    border: 1px solid #000 !important;
+    color: #000 !important;
+  }
+
+  /* The editable plan-status <select> (dentist view) — strip its form-
+     control chrome so it reads as plain text instead of an interactive
+     control; it still shows its selected option's text either way. */
+  .record-detail-print .plan-status-select {
+    appearance: none;
+    -webkit-appearance: none;
+    border: none !important;
+    background: none !important;
+    padding: 0 !important;
+    color: #000 !important;
+    font-weight: 600;
+  }
+
+  /* Don't split a single entry across a page break. Sections themselves
+     are left free to flow across pages — only the entry, not the section,
+     is protected. */
+  .record-detail-print .note-item,
+  .record-detail-print .plan-card,
+  .record-detail-print .history-item,
+  .record-detail-print .timeline-entry,
+  .record-detail-print .record-print-tooth-summary tbody tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}

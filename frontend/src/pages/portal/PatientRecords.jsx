@@ -379,7 +379,18 @@ function PatientRecords() {
             <span className="dash-empty-title">{detailError}</span>
           </div>
         ) : patient && record ? (
-          <>
+          <div className="record-detail-print">
+            {/* Print-only — hidden on screen (DentalRecords.css), shown only inside .record-detail-print when printing */}
+            <div className="record-print-header">
+              <h1>Smile Bay Dental Clinic</h1>
+              <p>Patient Dental Record</p>
+              <div className="record-print-header-grid">
+                <span><strong>Patient:</strong> {patient.first_name} {patient.middle_name} {patient.last_name}</span>
+                <span><strong>Record No.:</strong> {record.record_number}</span>
+                <span><strong>Printed:</strong> {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
+              </div>
+            </div>
+
             <div className="section-card">
               <div className="section-card-header">
                 <h3 className="section-card-title">
@@ -515,6 +526,38 @@ function PatientRecords() {
                   ))}
                 </div>
 
+                {/* Print-only — the colored grid above relies on click-to-select
+                    for per-tooth detail and on color alone for condition, neither
+                    of which survives onto paper. This text summary stands in for
+                    it when printing; hidden on screen (DentalRecords.css). */}
+                <div className="record-print-tooth-summary">
+                  <h4>Tooth Chart Summary</h4>
+                  {record.tooth_conditions.length === 0 ? (
+                    <p>No tooth conditions charted yet.</p>
+                  ) : (
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Tooth #</th>
+                          <th>Condition</th>
+                          <th>Notes</th>
+                          <th>Last Updated By</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {record.tooth_conditions.map((tc) => (
+                          <tr key={tc.tooth_number}>
+                            <td>{tc.tooth_number}</td>
+                            <td>{CONDITION_META[tc.condition]?.label || tc.condition}</td>
+                            <td>{tc.notes || '—'}</td>
+                            <td>{tc.updated_by?.name || '—'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+
                 {selectedInfo && (
                   <div className="tooth-detail-panel">
                     <div className="tooth-detail-header">
@@ -631,7 +674,7 @@ function PatientRecords() {
               <div className="section-card-header">
                 <h3 className="section-card-title">{isAssistantView ? 'Dental Treatment History' : 'Treatment History'}</h3>
                 <div className="history-header-actions">
-                  {isAssistantView && record.treatment_history.length > 0 && (
+                  {record.treatment_history.length > 0 && (
                     <button type="button" className="dash-btn dash-btn--outline" onClick={() => window.print()}>
                       <PrinterIcon /> Print History
                     </button>
@@ -714,7 +757,7 @@ function PatientRecords() {
                 )}
               </div>
             )}
-          </>
+          </div>
         ) : null}
 
         {isDentist && (

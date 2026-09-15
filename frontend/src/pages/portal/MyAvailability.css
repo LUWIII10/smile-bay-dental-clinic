@@ -79,9 +79,17 @@
 /* .form-input already supplies the white background + visible border (not
    the browser's dark color-scheme default) that the spec calls for — this
    just narrows its width: 100% down to what a native time input needs,
-   since two of them share a row instead of each filling it. */
+   since two of them share a row instead of each filling it.
+   170px, not the previous 128px, which clipped the trailing letter of
+   "AM"/"PM" ("09:00 ar"): border-box means this width already includes
+   .form-input's 1px border + 14px×2 padding (30px fixed chrome), leaving
+   140px of content box for the rendered "09:00 AM" text (~65px, generous
+   estimate) + the browser's native clock/spinner affordance and internal
+   segment gaps (~40px, generous estimate) — ~35px of headroom above that
+   already-padded estimate, so it stays clear of the text on a different
+   OS/font rendering the same value slightly wider. */
 .avail-time-input {
-  width: 128px;
+  width: 170px;
   flex-shrink: 0;
 }
 

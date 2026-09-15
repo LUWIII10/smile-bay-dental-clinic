@@ -19,6 +19,8 @@ import DashGreeting from './components/DashGreeting';
 import { greetingName } from './greetingName';
 import StatCard from './components/StatCard';
 import Skeleton from './components/Skeleton';
+import DataTable from './components/DataTable';
+import StatusBadge from './components/StatusBadge';
 import { UsersIcon, CalendarIcon, UserIcon, ShieldIcon, CheckCircleIcon } from './icons';
 import './dashboards.css';
 
@@ -55,6 +57,18 @@ function formatDayLabel(dateStr) {
   const [, month, day] = dateStr.split('-');
   return `${Number(month)}/${Number(day)}`;
 }
+
+// Recent Activity, one column per field — DashboardController::
+// recentActivity() sends these alongside its old pre-built `description`
+// sentence (kept, unused here) specifically so this table can be reverted
+// to the old <ul> sentence list in one line without a backend change.
+const ACTIVITY_COLUMNS = [
+  { key: 'patient', label: 'Patient', render: (row) => row.patient_name },
+  { key: 'service', label: 'Service', render: (row) => row.service_name, noWrap: true },
+  { key: 'status', label: 'Status', render: (row) => <StatusBadge status={row.status} /> },
+  { key: 'changed_by', label: 'Changed By', render: (row) => row.changed_by },
+  { key: 'timestamp', label: 'When', render: (row) => row.timestamp },
+];
 
 function AdminDashboard() {
   const { user } = useAuth();
@@ -195,21 +209,8 @@ function AdminDashboard() {
 
             {loading ? (
               <Skeleton variant="row" count={4} />
-            ) : activity.length === 0 ? (
-              <div className="dash-empty">
-                <span className="dash-empty-title">No activity yet.</span>
-              </div>
             ) : (
-              <ul className="activity-list">
-                {activity.map((entry) => (
-                  <li key={entry.id} className="activity-item">
-                    <div className="activity-item-text">
-                      <span className="activity-item-desc">{entry.description}</span>
-                    </div>
-                    <span className="activity-item-date">{entry.timestamp}</span>
-                  </li>
-                ))}
-              </ul>
+              <DataTable columns={ACTIVITY_COLUMNS} rows={activity} emptyMessage="No activity yet." />
             )}
           </div>
         </>
