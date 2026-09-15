@@ -327,6 +327,7 @@ function AllAppointments() {
           <span className={`th-sort-arrow${sort === 'date_asc' ? ' th-sort-arrow--asc' : ''}`}>&#9662;</span>
         </button>
       ),
+      mobileLabel: 'Appointment',
       minWidth: '14%',
       minWidthPx: '140px',
       // Two guaranteed lines: date, then time + ref # folded into the same

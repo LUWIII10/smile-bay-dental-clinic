@@ -72,10 +72,16 @@ function DataTable({ columns, rows, keyField = 'id', emptyMessage = 'No records 
                   .filter(Boolean)
                   .join(' ') || undefined;
 
+                // data-label feeds the stacked-card ::before content below
+                // the breakpoint, which needs a plain string — column.label
+                // itself may be JSX (e.g. a clickable sort control), so fall
+                // back to mobileLabel when label isn't already a string.
+                const labelText = typeof column.label === 'string' ? column.label : (column.mobileLabel || '');
+
                 return (
                   <td
                     key={column.key}
-                    data-label={column.label}
+                    data-label={labelText}
                     style={cellStyle(column)}
                     className={cellClass}
                   >
