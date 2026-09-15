@@ -301,7 +301,7 @@ function AllAppointments() {
     {
       key: 'patient',
       label: 'Patient',
-      minWidth: '22%',
+      minWidth: '20%',
       minWidthPx: '200px',
       render: (row) => {
         const name = `${row.patient?.first_name || ''} ${row.patient?.last_name || ''}`.trim();
@@ -313,7 +313,7 @@ function AllAppointments() {
             <span className="cell-avatar">{getInitials(name)}</span>
             <span className="cell-person-text">
               <span className="cell-person-name" title={name}>{name}</span>
-              {subLine && <span className="cell-person-sub">{subLine}</span>}
+              {subLine && <span className="cell-person-sub" title={subLine}>{subLine}</span>}
             </span>
           </span>
         );
@@ -327,27 +327,23 @@ function AllAppointments() {
           <span className={`th-sort-arrow${sort === 'date_asc' ? ' th-sort-arrow--asc' : ''}`}>&#9662;</span>
         </button>
       ),
-      minWidth: '13%',
-      minWidthPx: '130px',
-      // Ref # folded in here (small muted label) rather than its own
-      // column — it's still visible/scannable, just not spending a whole
-      // column's worth of width on a value nobody scans in isolation.
+      minWidth: '14%',
+      minWidthPx: '140px',
+      // Two guaranteed lines: date, then time + ref # folded into the same
+      // muted line — no separate ref line and no icon, both of which were
+      // costing horizontal room the date needs to stay on one line.
       render: (row) => (
         <span className="cell-appointment">
-          <span className="cell-appointment-ref">#{row.id}</span>
-          <span className="cell-appointment-date">
-            <CalendarIcon />
-            {formatDateShort(row.appointment_date)}
-          </span>
-          <span className="cell-appointment-time">{formatTime12h(row.appointment_time)}</span>
+          <span className="cell-appointment-date">{formatDateShort(row.appointment_date)}</span>
+          <span className="cell-appointment-time">{formatTime12h(row.appointment_time)} · #{row.id}</span>
         </span>
       ),
     },
     {
       key: 'dentist',
       label: 'Dentist',
-      minWidth: '16%',
-      minWidthPx: '150px',
+      minWidth: '18%',
+      minWidthPx: '180px',
       // No photo/avatar here by request — plain truncated text, tooltip on
       // genuine overflow. Photo shows in the detail modal instead.
       render: (row) => {
@@ -358,10 +354,10 @@ function AllAppointments() {
     {
       key: 'service',
       label: 'Service',
-      minWidth: '21%',
-      minWidthPx: '190px',
+      minWidth: '18%',
+      minWidthPx: '150px',
       clampLines: 2,
-      render: (row) => <span className="cell-service">{row.service?.name}</span>,
+      render: (row) => <span className="cell-service" title={row.service?.name}>{row.service?.name}</span>,
     },
     {
       key: 'payment',
@@ -383,7 +379,7 @@ function AllAppointments() {
     {
       key: 'status',
       label: 'Status',
-      minWidth: '10%',
+      minWidth: '12%',
       minWidthPx: '140px',
       align: 'center',
       render: (row) => (
@@ -469,7 +465,7 @@ function AllAppointments() {
               <input
                 type="text"
                 className="form-input"
-                placeholder="Search patient, dentist, or REF #…"
+                placeholder="Search name or REF #"
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
               />

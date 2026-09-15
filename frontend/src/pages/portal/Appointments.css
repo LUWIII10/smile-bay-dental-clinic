@@ -297,35 +297,22 @@
   gap: 2px;
 }
 
-.cell-appointment-ref {
-  font-size: 0.72rem;
-  color: var(--portal-muted);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-}
-
 .cell-appointment-date {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
   font-weight: 600;
   font-size: 0.88rem;
   color: var(--portal-slate);
-}
-
-.cell-appointment-date svg {
-  width: 13px;
-  height: 13px;
-  color: var(--portal-muted);
-  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .cell-appointment-time {
   font-size: 0.78rem;
   color: var(--portal-muted);
+  white-space: nowrap;
 }
 
 .cell-service {
   font-size: 0.88rem;
+  line-height: 1.4;
   color: var(--portal-slate);
 }
 
