@@ -102,7 +102,7 @@ class AuthController extends Controller
             return $user;
         });
 
-        $otp = $this->issueOtp($user);
+        $this->issueOtp($user);
 
         return response()->json([
             // The account row is committed either way; only the email delivery
@@ -114,7 +114,6 @@ class AuthController extends Controller
             'email' => $user->email,
             'email_sent' => $this->otpEmailDelivered,
             'retry_after' => self::OTP_RESEND_COOLDOWN_SECONDS,
-            ...$this->devOtpPayload($otp),
         ], 201);
     }
 
@@ -222,7 +221,7 @@ class AuthController extends Controller
             }
         }
 
-        $otp = $this->issueOtp($user, 'email_verification');
+        $this->issueOtp($user, 'email_verification');
 
         if (! $this->otpEmailDelivered) {
             return response()->json([
@@ -236,7 +235,6 @@ class AuthController extends Controller
             'message' => 'A new verification code has been sent to your email.',
             'email_sent' => true,
             'retry_after' => self::OTP_RESEND_COOLDOWN_SECONDS,
-            ...$this->devOtpPayload($otp),
         ]);
     }
 
@@ -282,12 +280,9 @@ class AuthController extends Controller
             }
         }
 
-        $otp = $this->issueOtp($user, 'password_reset');
+        $this->issueOtp($user, 'password_reset');
 
-        return response()->json([
-            ...$genericResponse,
-            ...$this->devOtpPayload($otp),
-        ]);
+        return response()->json($genericResponse);
     }
 
     /**
@@ -430,20 +425,6 @@ class AuthController extends Controller
         }
 
         return $plainOtp;
-    }
-
-    /**
-     * In local development without real SMTP configured, surface the OTP directly
-     * in the API response (mirrors the old dev-mode verification-link notice) so the
-     * flow is testable without an email server. Never included outside local+log mail.
-     */
-    private function devOtpPayload(string $plainOtp): array
-    {
-        if (app()->environment('local') && config('mail.default') === 'log') {
-            return ['dev_otp' => $plainOtp];
-        }
-
-        return [];
     }
 
     /**

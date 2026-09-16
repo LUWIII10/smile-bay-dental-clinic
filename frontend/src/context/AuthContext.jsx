@@ -96,8 +96,8 @@ export function AuthProvider({ children }) {
 
     // Always reports success-shaped data regardless of whether the email
     // matches an account — mirrors the backend's enumeration-prevention
-    // wording. retryAfter/dev_otp pass through when present so the reset
-    // OTP screen's cooldown timer and local-dev convenience still work.
+    // wording. retryAfter passes through when present so the reset OTP
+    // screen's cooldown timer still works.
     const forgotPassword = async (email) => {
         try {
             await api.get('/sanctum/csrf-cookie');
@@ -106,7 +106,6 @@ export function AuthProvider({ children }) {
                 success: true,
                 message: response.data.message,
                 retryAfter: response.data.retry_after,
-                devOtp: response.data.dev_otp,
             };
         } catch (err) {
             return {

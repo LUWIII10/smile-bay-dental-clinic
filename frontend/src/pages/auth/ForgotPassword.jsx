@@ -34,7 +34,7 @@ function ForgotPassword() {
 
     if (result.success) {
       navigate(`/forgot-password/verify?email=${encodeURIComponent(trimmed)}`, {
-        state: { retryAfter: result.retryAfter, devOtp: result.devOtp },
+        state: { retryAfter: result.retryAfter },
       });
     } else {
       setError(result.message || 'Something went wrong. Please try again.');

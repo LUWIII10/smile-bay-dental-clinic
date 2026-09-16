@@ -203,6 +203,10 @@ class PatientRecordController extends Controller
      */
     public function updateTreatmentPlanStatus(Request $request, TreatmentPlan $treatmentPlan)
     {
+        if ($treatmentPlan->dentist_id !== $request->user()->id) {
+            return response()->json(['message' => 'This treatment plan was not created by you.'], 403);
+        }
+
         $validated = $request->validate([
             'status' => ['required', 'in:planned,in_progress,completed,cancelled'],
         ]);
@@ -220,6 +224,10 @@ class PatientRecordController extends Controller
      */
     public function updateTreatmentPlanItem(Request $request, TreatmentPlanItem $treatmentPlanItem)
     {
+        if ($treatmentPlanItem->treatmentPlan->dentist_id !== $request->user()->id) {
+            return response()->json(['message' => 'This treatment plan was not created by you.'], 403);
+        }
+
         $validated = $request->validate([
             'status' => ['required', 'in:pending,completed,cancelled'],
         ]);
