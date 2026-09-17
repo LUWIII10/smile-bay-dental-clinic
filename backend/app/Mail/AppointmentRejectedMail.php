@@ -5,7 +5,6 @@ namespace App\Mail;
 use App\Models\Appointment;
 use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
@@ -18,7 +17,7 @@ use Illuminate\Queue\SerializesModels;
  * back to a generic "contact the clinic" line when none was given, rather
  * than showing a blank reason.
  */
-class AppointmentRejectedMail extends Mailable implements ShouldQueue
+class AppointmentRejectedMail extends Mailable
 {
     use Queueable, SerializesModels;
 

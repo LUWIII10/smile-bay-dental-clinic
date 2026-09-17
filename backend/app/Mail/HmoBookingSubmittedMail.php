@@ -4,7 +4,6 @@ namespace App\Mail;
 
 use App\Models\Appointment;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
@@ -13,10 +12,9 @@ use Illuminate\Queue\SerializesModels;
 /**
  * Sent the moment an HMO patient's booking is saved as pending_verification
  * — informs them staff will review their details, with no SLA/timeframe
- * promised (per the clinic's approval-state policy). Queued: unlike OTP
- * mail, nothing in the request/response cycle is waiting on this send.
+ * promised (per the clinic's approval-state policy).
  */
-class HmoBookingSubmittedMail extends Mailable implements ShouldQueue
+class HmoBookingSubmittedMail extends Mailable
 {
     use Queueable, SerializesModels;
 

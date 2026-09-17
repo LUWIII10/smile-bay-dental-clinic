@@ -5,7 +5,6 @@ namespace App\Mail;
 use App\Models\Appointment;
 use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
@@ -19,7 +18,7 @@ use Illuminate\Queue\SerializesModels;
  * copy explicitly says "since it's billed through your HMO," which would be
  * false for a cash-paying pediatric patient.
  */
-class PediatricBookingSubmittedMail extends Mailable implements ShouldQueue
+class PediatricBookingSubmittedMail extends Mailable
 {
     use Queueable, SerializesModels;
 

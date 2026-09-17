@@ -5,7 +5,6 @@ namespace App\Mail;
 use App\Models\Appointment;
 use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
@@ -17,7 +16,7 @@ use Illuminate\Queue\SerializesModels;
  * change, so neither AppointmentConfirmedMail nor AppointmentRejectedMail
  * fits; the patient needs to see both the old and new slot, not just one.
  */
-class AppointmentRescheduledMail extends Mailable implements ShouldQueue
+class AppointmentRescheduledMail extends Mailable
 {
     use Queueable, SerializesModels;
 

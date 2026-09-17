@@ -5,7 +5,6 @@ namespace App\Mail;
 use App\Models\Appointment;
 use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
@@ -21,7 +20,7 @@ use Illuminate\Queue\SerializesModels;
  * patient_type_snapshot rather than a constructor flag, since a cash
  * appointment's snapshot is never 'hmo'.
  */
-class AppointmentConfirmedMail extends Mailable implements ShouldQueue
+class AppointmentConfirmedMail extends Mailable
 {
     use Queueable, SerializesModels;
 

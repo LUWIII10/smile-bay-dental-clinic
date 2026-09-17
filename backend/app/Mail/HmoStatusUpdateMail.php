@@ -5,7 +5,6 @@ namespace App\Mail;
 use App\Models\Appointment;
 use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
@@ -19,7 +18,7 @@ use Illuminate\Queue\SerializesModels;
  * can proactively reassure them it's still being worked on instead of the
  * patient having to call in and ask.
  */
-class HmoStatusUpdateMail extends Mailable implements ShouldQueue
+class HmoStatusUpdateMail extends Mailable
 {
     use Queueable, SerializesModels;
 
