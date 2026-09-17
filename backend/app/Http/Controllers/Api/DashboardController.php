@@ -26,15 +26,16 @@ class DashboardController extends Controller
             ->where('appointment_date', $today)
             ->count();
 
-        // A pending_verification row is, by construction, either sitting in
-        // the pediatric queue (pediatric_confirmed_at still null) or the
-        // staff HMO queue (pediatric-confirmed already, or never pediatric
-        // to begin with) — see PediatricVerificationController::index() and
-        // StaffVerificationController::index()'s own filters. The two sets
-        // are mutually exclusive and jointly exhaustive of every
-        // pending_verification row, so a single status count already IS the
-        // combined total — no need to run both queue queries separately.
-        $pendingVerifications = Appointment::where('status', 'pending_verification')->count();
+        // Matches exactly what StaffVerificationController::index() shows —
+        // HMO, still pending, and (if pediatric) already cleared by the
+        // pediatric dentist — via the shared Appointment::scopeAwaitingHmoVerification()
+        // scope, so this count and that queue can never drift apart. A plain
+        // status='pending_verification' count previously overcounted: a
+        // pediatric booking awaiting the pediatric dentist's own slot
+        // confirmation isn't something a dental assistant can act on, cash
+        // or HMO, so it doesn't belong in a card labeled "Pending
+        // Verifications" that links to the HMO queue.
+        $pendingVerifications = Appointment::awaitingHmoVerification()->count();
 
         $confirmedToday = Appointment::where('status', 'confirmed')
             ->where('appointment_date', $today)

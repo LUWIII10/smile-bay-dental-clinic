@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -64,6 +65,23 @@ class Appointment extends Model
     public function statusLogs(): HasMany
     {
         return $this->hasMany(AppointmentStatusLog::class);
+    }
+
+    // Same three conditions StaffVerificationController::index() applies
+    // inline: HMO, still pending, and — if pediatric — already cleared by
+    // the pediatric dentist. Extracted here so a second consumer (the staff
+    // dashboard's "Pending Verifications" count) can match that queue
+    // exactly without hand-copying the filter. StaffVerificationController
+    // itself is intentionally left as its own inline query, not switched to
+    // this scope, so its behavior stays provably unchanged.
+    public function scopeAwaitingHmoVerification(Builder $query): Builder
+    {
+        return $query->where('patient_type_snapshot', 'hmo')
+            ->where('status', 'pending_verification')
+            ->where(function (Builder $query) {
+                $query->whereHas('service', fn ($q) => $q->where('is_pediatric', false))
+                    ->orWhereNotNull('pediatric_confirmed_at');
+            });
     }
 
     // Only ever populated by the upcoming-appointment reminder job
