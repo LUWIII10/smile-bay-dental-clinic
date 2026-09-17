@@ -70,6 +70,13 @@ class DentistScheduleController extends Controller
             ->distinct('patient_id')
             ->count('patient_id');
 
+        // Matches exactly what PediatricVerificationController::index() shows
+        // this dentist — via the shared Appointment::scopeAwaitingPediatricReview()
+        // scope, so this count and that queue can never drift apart. Always 0
+        // for a non-pediatric dentist, since dentist_id scoping alone means
+        // pediatric bookings never land on their account.
+        $pediatricPending = Appointment::awaitingPediatricReview($dentistId)->count();
+
         $todaysSchedule = $visible(Appointment::where('dentist_id', $dentistId)
             ->where('appointment_date', $today))
             ->with(['patient:id,patient_number,first_name,last_name', 'service:id,name'])
@@ -91,6 +98,7 @@ class DentistScheduleController extends Controller
                     'today' => $todayCount,
                     'thisWeek' => $thisWeekCount,
                     'patientsThisMonth' => $patientsThisMonth,
+                    'pediatricPending' => $pediatricPending,
                 ],
                 'todaysSchedule' => $todaysSchedule,
                 'upcoming' => $upcoming,

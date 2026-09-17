@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { getDentistDashboardSummary } from '../../api/appointments';
 import DashGreeting from './components/DashGreeting';
@@ -7,7 +8,7 @@ import StatCard from './components/StatCard';
 import StatusBadge from './components/StatusBadge';
 import DataTable from './components/DataTable';
 import Skeleton from './components/Skeleton';
-import { CalendarIcon, ClockIcon, UsersIcon } from './icons';
+import { CalendarIcon, ClockIcon, UsersIcon, AlertIcon } from './icons';
 import { formatDateShort, formatTime12h } from './dateTimeUtils';
 import './dashboards.css';
 
@@ -59,9 +60,29 @@ function DentistDashboard() {
     load();
   }, [load]);
 
+  const pediatricPending = summary?.stats.pediatricPending ?? 0;
+
   return (
     <div>
       <DashGreeting firstName={firstName} />
+
+      {!loading && pediatricPending > 0 && (
+        <div className="priority-card">
+          <span className="priority-card-icon">
+            <AlertIcon />
+          </span>
+          <div className="priority-card-text">
+            <span className="priority-card-title">Pediatric slot reviews</span>
+            <span className="priority-card-desc">
+              {pediatricPending} booking{pediatricPending === 1 ? ' is' : 's are'} waiting on your review before{' '}
+              {pediatricPending === 1 ? 'it can' : 'they can'} be confirmed.
+            </span>
+          </div>
+          <Link to="/dentist/pediatric-queue" className="dash-btn dash-btn--amber">
+            Review
+          </Link>
+        </div>
+      )}
 
       <div className="stat-grid">
         {loading ? (

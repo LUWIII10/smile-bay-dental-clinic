@@ -84,6 +84,20 @@ class Appointment extends Model
             });
     }
 
+    // Same three conditions PediatricVerificationController::index() applies
+    // inline: this dentist's own bookings, still pending, not yet cleared by
+    // them. Extracted here so a second consumer (the dentist dashboard's
+    // pediatric-review banner) can match that queue exactly without
+    // hand-copying the filter. PediatricVerificationController itself is
+    // intentionally left as its own inline query, not switched to this
+    // scope, so its behavior stays provably unchanged.
+    public function scopeAwaitingPediatricReview(Builder $query, int $dentistId): Builder
+    {
+        return $query->where('dentist_id', $dentistId)
+            ->where('status', 'pending_verification')
+            ->whereNull('pediatric_confirmed_at');
+    }
+
     // Only ever populated by the upcoming-appointment reminder job
     // (Notification::notifyUser's $appointmentId param) — every other
     // notification is fired directly from a controller action and has no
