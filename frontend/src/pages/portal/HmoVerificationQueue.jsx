@@ -156,6 +156,7 @@ function HmoVerificationQueue() {
     try {
       await verifyHmoAppointment(appointment.id, 'approve');
       setAppointments((prev) => prev.filter((a) => a.id !== appointment.id));
+      showSuccessToast('Appointment approved.');
     } catch (err) {
       setActionError(err.response?.data?.message || 'Could not approve this appointment.');
     } finally {
@@ -199,6 +200,7 @@ function HmoVerificationQueue() {
       await verifyHmoAppointment(rejectTarget.id, 'reject', rejectReason);
       setAppointments((prev) => prev.filter((a) => a.id !== rejectTarget.id));
       setRejectTarget(null);
+      showSuccessToast('Appointment rejected.');
     } catch (err) {
       setActionError(err.response?.data?.message || 'Could not reject this appointment.');
     } finally {

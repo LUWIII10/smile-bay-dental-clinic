@@ -5,6 +5,7 @@ import RejectionModal from './components/RejectionModal';
 import Skeleton from './components/Skeleton';
 import { BabyIcon, CheckCircleIcon } from './icons';
 import { formatDateLong, formatTime12h } from './dateTimeUtils';
+import { showSuccessToast } from '../../utils/toast';
 import './dashboards.css';
 import './Appointments.css';
 
@@ -107,6 +108,7 @@ function PediatricQueue() {
     try {
       await verifyPediatricAppointment(appointment.id, 'approve');
       setAppointments((prev) => prev.filter((a) => a.id !== appointment.id));
+      showSuccessToast('Appointment approved.');
     } catch (err) {
       setActionError(err.response?.data?.message || 'Could not approve this appointment.');
     } finally {
@@ -128,6 +130,7 @@ function PediatricQueue() {
       await verifyPediatricAppointment(rejectTarget.id, 'reject', rejectReason);
       setAppointments((prev) => prev.filter((a) => a.id !== rejectTarget.id));
       setRejectTarget(null);
+      showSuccessToast('Appointment rejected.');
     } catch (err) {
       setActionError(err.response?.data?.message || 'Could not reject this appointment.');
     } finally {
