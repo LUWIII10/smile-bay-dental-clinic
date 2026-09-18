@@ -15,15 +15,18 @@
 /* ============ Page header ============ */
 
 .appt-page-title {
-  font-size: 1.4rem;
+  font-family: 'Poppins', sans-serif;
+  font-size: 26px;
   font-weight: 600;
+  line-height: 1.25;
   color: var(--portal-navy);
   margin: 0 0 3px;
   letter-spacing: -0.01em;
 }
 
 .appt-page-subtitle {
-  font-size: 0.85rem;
+  font-size: 14.5px;
+  line-height: 1.5;
   color: var(--portal-muted);
   margin: 0;
 }
