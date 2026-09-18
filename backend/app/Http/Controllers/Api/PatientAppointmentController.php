@@ -66,8 +66,17 @@ class PatientAppointmentController extends Controller
             ->get()
             ->map(fn (AppointmentStatusLog $log) => [
                 'id' => $log->id,
-                'description' => ($log->appointment?->service?->name ?? 'Your appointment')." is now \"{$log->new_status}\"".($log->note ? " — {$log->note}" : ''),
-                'timestamp' => $log->created_at?->diffForHumans(),
+                'status' => $log->new_status,
+                // Two separate fields, not one pre-joined sentence — the
+                // frontend renders its own layout (name + badge on one line,
+                // note below) and stored note text can itself already
+                // contain an em-dash (see PediatricVerificationController),
+                // so re-splitting a joined string back apart would be
+                // fragile in exactly the way a badge/note split needs not
+                // to be.
+                'serviceName' => $log->appointment?->service?->name ?? 'Your appointment',
+                'note' => $log->note,
+                'timestamp' => $log->created_at?->diffForHumans(['short' => true]),
             ]);
 
         return response()->json([

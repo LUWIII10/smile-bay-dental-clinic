@@ -53,6 +53,12 @@
   color: var(--portal-navy);
 }
 
+.section-card-subtitle {
+  margin: 2px 0 0;
+  font-size: 0.78rem;
+  color: var(--portal-muted);
+}
+
 /* Self-contained icon+text composition for a .section-card-title that
    wants a leading icon — an inline-flex wrapper *inside* the title rather
    than changing .section-card-title's own display, so every other page's
@@ -619,7 +625,6 @@
 .activity-item {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
   padding: 12px 0;
   border-bottom: 1px solid var(--portal-border-light);
@@ -630,22 +635,73 @@
   padding-bottom: 0;
 }
 
+.activity-item-icon {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.activity-item-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.activity-item-icon--green {
+  background: var(--portal-green-bg);
+  color: var(--portal-green-text);
+}
+
+.activity-item-icon--amber {
+  background: var(--portal-amber-bg);
+  color: var(--portal-amber-text);
+}
+
+.activity-item-icon--red {
+  background: var(--portal-red-bg);
+  color: var(--portal-red-text);
+}
+
+.activity-item-icon--gray {
+  background: var(--portal-gray-bg);
+  color: var(--portal-gray-text);
+}
+
 .activity-item-text {
   display: flex;
   flex-direction: column;
   gap: 2px;
   min-width: 0;
+  flex: 1 1 auto;
 }
 
-.activity-item-desc {
-  font-size: 0.85rem;
-  color: var(--portal-slate);
+.activity-item-header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.activity-item-name {
+  font-size: 14.5px;
   font-weight: 500;
+  color: #0f172a;
+}
+
+.activity-item-note {
+  font-size: 13.5px;
+  color: var(--portal-slate);
+  line-height: 1.5;
 }
 
 .activity-item-date {
-  font-size: 0.72rem;
+  flex-shrink: 0;
+  font-size: 12.5px;
   color: var(--portal-muted);
+  white-space: nowrap;
 }
 
 

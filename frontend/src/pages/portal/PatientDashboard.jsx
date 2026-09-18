@@ -7,11 +7,28 @@ import { greetingName } from './greetingName';
 import StatCard from './components/StatCard';
 import StatusBadge from './components/StatusBadge';
 import Skeleton from './components/Skeleton';
-import { CalendarIcon, ClockIcon, CheckCircleIcon, CalendarPlusIcon } from './icons';
+import { CalendarIcon, ClockIcon, CheckCircleIcon, CalendarPlusIcon, XCircleIcon, AlertIcon } from './icons';
 import { formatDateLong, formatTime12h, toLocalDate } from './dateTimeUtils';
 import './dashboards.css';
 
 const MONTH_ABBR = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+
+// Icon + tint for the Recent Activity feed's left-hand circle, keyed by the
+// appointment_status_log row's raw new_status value. Falls back to a
+// neutral gray + AlertIcon (the closest generic icon already in icons.jsx —
+// there's no dedicated dot/info icon) for any status this mapping doesn't
+// explicitly name, so an unexpected value never renders blank.
+const ACTIVITY_ICON = {
+  confirmed: { Icon: CheckCircleIcon, tone: 'green' },
+  completed: { Icon: CheckCircleIcon, tone: 'green' },
+  pending_verification: { Icon: ClockIcon, tone: 'amber' },
+  rejected: { Icon: XCircleIcon, tone: 'red' },
+  cancelled: { Icon: XCircleIcon, tone: 'red' },
+};
+
+function activityIconFor(status) {
+  return ACTIVITY_ICON[status] || { Icon: AlertIcon, tone: 'gray' };
+}
 
 function PatientDashboard() {
   const { user } = useAuth();
@@ -99,7 +116,10 @@ function PatientDashboard() {
 
       <div className="section-card">
         <div className="section-card-header">
-          <h3 className="section-card-title">Recent Activity</h3>
+          <div>
+            <h3 className="section-card-title">Recent activity</h3>
+            <p className="section-card-subtitle">Your last few appointment updates</p>
+          </div>
         </div>
 
         {loading ? (
@@ -110,14 +130,24 @@ function PatientDashboard() {
           </div>
         ) : (
           <ul className="activity-list">
-            {activity.map((entry) => (
-              <li key={entry.id} className="activity-item">
-                <div className="activity-item-text">
-                  <span className="activity-item-desc">{entry.description}</span>
-                </div>
-                <span className="activity-item-date">{entry.timestamp}</span>
-              </li>
-            ))}
+            {activity.map((entry) => {
+              const { Icon, tone } = activityIconFor(entry.status);
+              return (
+                <li key={entry.id} className="activity-item">
+                  <span className={`activity-item-icon activity-item-icon--${tone}`}>
+                    <Icon />
+                  </span>
+                  <div className="activity-item-text">
+                    <div className="activity-item-header">
+                      <span className="activity-item-name">{entry.serviceName}</span>
+                      <StatusBadge status={entry.status} />
+                    </div>
+                    {entry.note && <span className="activity-item-note">{entry.note}</span>}
+                  </div>
+                  <span className="activity-item-date">{entry.timestamp}</span>
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>
