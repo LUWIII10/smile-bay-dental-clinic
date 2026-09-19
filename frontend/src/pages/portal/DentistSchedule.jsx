@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getDentistSchedule, completeAppointment, cancelAppointmentAsDentist } from '../../api/appointments';
+import { getDentistSchedule, cancelAppointmentAsDentist } from '../../api/appointments';
 import StatCard from './components/StatCard';
 import StatusBadge from './components/StatusBadge';
 import Skeleton from './components/Skeleton';
@@ -111,7 +111,6 @@ function DentistSchedule() {
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [completingId, setCompletingId] = useState(null);
   const [expandedId, setExpandedId] = useState(null);
 
   const [rescheduleTarget, setRescheduleTarget] = useState(null);
@@ -141,17 +140,25 @@ function DentistSchedule() {
     return () => clearInterval(interval);
   }, [loadSchedule]);
 
-  const handleComplete = async (appointment) => {
-    setCompletingId(appointment.id);
-    try {
-      await completeAppointment(appointment.id);
-      setExpandedId(null);
-      setAppointments((prev) => prev.map((a) => (a.id === appointment.id ? { ...a, status: 'completed' } : a)));
-    } catch (err) {
-      setError(err.response?.data?.message || 'Could not mark this appointment as completed.');
-    } finally {
-      setCompletingId(null);
-    }
+  // Completing no longer happens here at all — it takes the dentist into
+  // Patient Records, where the tooth chart, clinical notes, treatment plans
+  // and treatment history for this patient already live, to fill in what
+  // was actually done before completing. mode: 'completing' tells
+  // PatientRecords.jsx which of its two arrival behaviours applies (see its
+  // isCompletingVisit) rather than it having to infer that from status,
+  // which could change mid-session.
+  const handleComplete = (appointment) => {
+    navigate('/dentist/patient-records', {
+      state: {
+        patientId: appointment.patient.id,
+        appointmentId: appointment.id,
+        visitLabel: `${appointment.appointment_date.slice(0, 10)} at ${formatTime12h(appointment.appointment_time)}`,
+        serviceName: appointment.service.name,
+        appointmentDate: appointment.appointment_date.slice(0, 10),
+        appointmentStatus: appointment.status,
+        mode: 'completing',
+      },
+    });
   };
 
   const openCancel = (appointment) => {
@@ -160,15 +167,17 @@ function DentistSchedule() {
     setCancelTarget(appointment);
   };
 
-  // Jump straight to writing this completed visit's dental record: the
-  // patient is pre-selected on the records page and the note is tied to
-  // this appointment (see PatientRecords.jsx reading location.state).
+  // Jump to writing an already-completed visit's dental record — the old
+  // "Add Visit Record" behaviour, unchanged. mode: 'addRecord' is what tells
+  // PatientRecords.jsx to auto-open its "Add Clinical Note" modal like it
+  // always has; it's the explicit counterpart to mode: 'completing' above.
   const handleAddRecord = (appointment) => {
     navigate('/dentist/patient-records', {
       state: {
         patientId: appointment.patient.id,
         appointmentId: appointment.id,
         visitLabel: `${appointment.appointment_date.slice(0, 10)} at ${formatTime12h(appointment.appointment_time)}`,
+        mode: 'addRecord',
       },
     });
   };
@@ -200,12 +209,18 @@ function DentistSchedule() {
   }, [appointments]);
 
   // API already returns these ascending, but re-sort defensively after a
-  // status update above swaps an item in place.
-  const sortedAppointments = [...appointments].sort((a, b) => {
-    const dateCompare = toLocalDate(a.appointment_date) - toLocalDate(b.appointment_date);
-    if (dateCompare !== 0) return dateCompare;
-    return a.appointment_time.localeCompare(b.appointment_time);
-  });
+  // status update above swaps an item in place. Completed rows are excluded
+  // here — they move into the Completed Today section below instead of
+  // staying mixed into the dated list (the API only ever returns a
+  // completed row when it's dated today, so "completed" and "completed
+  // today" are the same set here).
+  const sortedAppointments = [...appointments]
+    .filter((a) => a.status === 'confirmed')
+    .sort((a, b) => {
+      const dateCompare = toLocalDate(a.appointment_date) - toLocalDate(b.appointment_date);
+      if (dateCompare !== 0) return dateCompare;
+      return a.appointment_time.localeCompare(b.appointment_time);
+    });
 
   const groups = useMemo(() => {
     const byDate = new Map();
@@ -216,6 +231,14 @@ function DentistSchedule() {
     });
     return Array.from(byDate.entries());
   }, [sortedAppointments]);
+
+  const completedToday = useMemo(
+    () =>
+      [...appointments]
+        .filter((a) => a.status === 'completed')
+        .sort((a, b) => a.appointment_time.localeCompare(b.appointment_time)),
+    [appointments]
+  );
 
   const today = todayKey();
 
@@ -259,7 +282,6 @@ function DentistSchedule() {
                 appointment={appointment}
                 expanded={expandedId === appointment.id}
                 onToggle={(id) => setExpandedId((prev) => (prev === id ? null : id))}
-                completingId={completingId}
                 onComplete={handleComplete}
                 onReschedule={setRescheduleTarget}
                 onCancel={openCancel}
@@ -269,6 +291,38 @@ function DentistSchedule() {
           </div>
         ))
       )}
+
+      {!loading && completedToday.length > 0 && (
+        <div className="section-card-header" style={{ marginTop: 28 }}>
+          <h3 className="section-card-title">
+            Completed today <span className="portal-tab-count">{completedToday.length}</span>
+          </h3>
+        </div>
+      )}
+
+      {!loading &&
+        completedToday.map((appointment) => {
+          const patientName = `${appointment.patient.first_name} ${appointment.patient.last_name}`.trim();
+          const entry = appointment.treatmentHistoryEntry;
+          return (
+            <div key={appointment.id} className="completed-today-row">
+              <span className="activity-item-icon activity-item-icon--green">
+                <CheckCircleIcon />
+              </span>
+              <div className="completed-today-text">
+                <span className="completed-today-name">
+                  {patientName}
+                  {entry?.procedure_name ? ` — ${entry.procedure_name}` : ''}
+                </span>
+                {entry?.notes && <span className="completed-today-notes">{entry.notes}</span>}
+                <button type="button" className="completed-today-link" onClick={() => handleAddRecord(appointment)}>
+                  <FileIcon /> Add Visit Record
+                </button>
+              </div>
+              <span className="completed-today-time">{formatTime12h(appointment.appointment_time)}</span>
+            </div>
+          );
+        })}
 
       <RescheduleModal
         open={!!rescheduleTarget}

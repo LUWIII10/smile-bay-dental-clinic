@@ -69,9 +69,19 @@ export async function getDentistDashboardSummary() {
   return response.data.data;
 }
 
-export async function completeAppointment(appointmentId) {
+export async function getCompletedPatients() {
+  const response = await api.get('/api/dentist/completed-patients');
+  return response.data.data;
+}
+
+export async function completeAppointment(appointmentId, { procedureName, toothNumber, performedAt, notes }) {
   await api.get('/sanctum/csrf-cookie');
-  const response = await api.patch(`/api/appointments/${appointmentId}/complete`);
+  const response = await api.patch(`/api/appointments/${appointmentId}/complete`, {
+    procedure_name: procedureName,
+    tooth_number: toothNumber || null,
+    performed_at: performedAt,
+    notes,
+  });
   return response.data;
 }
 

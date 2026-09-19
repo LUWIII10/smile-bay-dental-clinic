@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Appointment;
+use App\Models\TreatmentHistory;
 use Illuminate\Http\Request;
 
 class DentistScheduleController extends Controller
@@ -27,12 +28,40 @@ class DentistScheduleController extends Controller
                         $q->where('status', 'completed')->where('appointment_date', $today);
                     });
             })
-            ->with(['patient:id,patient_number,first_name,last_name', 'service:id,name,duration_minutes'])
+            ->with([
+                'patient:id,patient_number,first_name,last_name',
+                'service:id,name,duration_minutes',
+                // Only ever non-null for a completed row saved through the
+                // new Complete-and-record flow — carries the procedure
+                // name/notes the "Completed today" section on this page
+                // shows. Null for anything not completed, and for any
+                // completed row from before this pass existed.
+                'treatmentHistoryEntry',
+            ])
             ->orderBy('appointment_date')
             ->orderBy('appointment_time')
             ->get();
 
         return response()->json(['data' => $appointments]);
+    }
+
+    /**
+     * Every procedure this dentist has ever recorded, across all patients
+     * and dates — sourced from treatment_history (what was actually done),
+     * not from appointments (what was booked). Nothing here filters by
+     * appointment_id being set: the 7 rows that predate this feature have
+     * none and still belong on this list, same as any row logged through
+     * Patient Records' own "+ Log Procedure" going forward.
+     */
+    public function completedPatients(Request $request)
+    {
+        $entries = TreatmentHistory::where('performed_by', $request->user()->id)
+            ->with(['dentalRecord.patient:id,patient_number,first_name,last_name'])
+            ->orderByDesc('performed_at')
+            ->orderByDesc('id')
+            ->get();
+
+        return response()->json(['data' => $entries]);
     }
 
     /**

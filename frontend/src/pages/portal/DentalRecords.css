@@ -464,6 +464,90 @@
   }
 }
 
+/* ============ Completing a visit (PatientRecords.jsx, dentist role only) ============
+   Renders only when arriving from DentistSchedule's Complete button
+   (mode: 'completing' in navigation state) — see isCompletingVisit. Both
+   pieces sit outside .record-detail-print, so neither prints and neither
+   touches any existing section. */
+
+.completing-banner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: var(--portal-blue-tint);
+  border-radius: var(--portal-radius-lg);
+  padding: 16px 20px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+
+.completing-banner-icon {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--portal-card);
+  color: var(--portal-blue);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.completing-banner-text {
+  flex: 1;
+  min-width: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.completing-banner-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--portal-navy);
+}
+
+.completing-banner-desc {
+  font-size: 0.8rem;
+  color: var(--portal-slate);
+}
+
+.completing-banner-hint {
+  flex-shrink: 0;
+  font-size: 0.78rem;
+  color: var(--portal-muted);
+}
+
+.completion-bar-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.completion-bar-warning {
+  margin-bottom: 16px;
+}
+
+/* Sits directly beside the disabled Complete button (.modal-actions is a
+   flex row, justify-content: flex-end) — a disabled control with no
+   visible reason is worse than no control. */
+.completion-bar-disabled-reason {
+  font-size: 0.8rem;
+  color: var(--portal-muted);
+  align-self: center;
+}
+
+@media (max-width: 560px) {
+  .completing-banner-hint {
+    padding-left: 56px;
+  }
+
+  .completion-bar-disabled-reason {
+    width: 100%;
+  }
+}
+
 /* ============ Patient-facing Treatment History timeline (PatientDentalRecords.jsx only) ============ */
 
 .section-card-subtitle {

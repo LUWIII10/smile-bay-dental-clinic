@@ -333,4 +333,5 @@ export const ICONS = {
   shield: ShieldIcon,
   chart: ChartIcon,
   settings: SettingsIcon,
+  checkCircle: CheckCircleIcon,
 };

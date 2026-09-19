@@ -31,6 +31,7 @@ export const NAV_CONFIG = {
     { label: 'My Availability', path: '/dentist/availability', icon: 'calendarPlus' },
     { label: 'Pediatric Queue', path: '/dentist/pediatric-queue', icon: 'shield' },
     { label: 'Patient Records', path: '/dentist/patient-records', icon: 'file' },
+    { label: 'Completed Patients', path: '/dentist/completed-patients', icon: 'checkCircle' },
     { label: 'My Profile', path: '/dentist/profile', icon: 'user' },
   ],
   dental_assistant: [

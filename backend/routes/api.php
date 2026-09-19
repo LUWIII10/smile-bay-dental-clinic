@@ -84,6 +84,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::middleware('role:dentist')->group(function () {
         Route::get('/dentist/schedule', [DentistScheduleController::class, 'index']);
         Route::get('/dentist/dashboard-summary', [DentistScheduleController::class, 'summary']);
+        Route::get('/dentist/completed-patients', [DentistScheduleController::class, 'completedPatients']);
         Route::patch('/appointments/{appointment}/complete', [AppointmentController::class, 'complete']);
         Route::patch('/appointments/{appointment}/reschedule', [AppointmentController::class, 'reschedule']);
         Route::patch('/appointments/{appointment}/cancel', [AppointmentController::class, 'cancel']);

@@ -888,6 +888,25 @@
   margin-top: 0;
 }
 
+/* Inline field-level feedback for modal forms — a deliberate exception to
+   the app's usual toast-only error pattern, used where a dentist needs to
+   be pointed at exactly which field is wrong (e.g. the minimum-length notes
+   field on Complete Appointment) rather than a generic top-of-form message. */
+.modal-field-error {
+  display: block;
+  margin-top: 4px;
+  color: var(--portal-red-text);
+  font-size: 0.72rem;
+}
+
+.modal-field-hint {
+  display: block;
+  margin-top: 4px;
+  color: var(--portal-muted);
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
 /* Inline success/error banner used by editable-form pages (My Profile,
    User Management create/edit) — same red/green tones as .status-badge but
    a full-width block instead of a pill. */
@@ -1236,6 +1255,11 @@
 .appt-card-date-chip--amber {
   background: var(--portal-amber-bg);
   color: var(--portal-amber-text);
+}
+
+.appt-card-date-chip--green {
+  background: var(--portal-green-bg);
+  color: var(--portal-green-text);
 }
 
 .appt-card-date-chip--gray {

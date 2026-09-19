@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import {
   searchPatientRecords,
@@ -11,19 +11,27 @@ import {
   updateTreatmentPlanItemStatus,
   addTreatmentHistory,
 } from '../../api/patientRecords';
+import { completeAppointment } from '../../api/appointments';
 import DataTable from './components/DataTable';
 import Pagination from './components/Pagination';
 import Skeleton from './components/Skeleton';
 import StatusBadge from './components/StatusBadge';
 import Modal from './components/Modal';
 import { CONDITION_META, PLAN_STATUS_TONE, UPPER_ARCH, LOWER_ARCH, formatRecordDate as formatDate } from './dentalRecordShared';
-import { SearchIcon, FileIcon, ClockIcon, UserIcon, ShieldIcon, PrinterIcon } from './icons';
+import { SearchIcon, FileIcon, ClockIcon, UserIcon, ShieldIcon, PrinterIcon, AlertIcon } from './icons';
 import { showSuccessToast, showErrorToast } from '../../utils/toast';
 import './dashboards.css';
 import './Appointments.css';
 import './DentalRecords.css';
 
 const SEARCH_DEBOUNCE_MS = 400;
+const VISIT_NOTES_MIN_LENGTH = 20;
+// complete()'s notes column caps at 1000 — storeClinicalNote() allows up to
+// 5000 (same as the "+ Add Note" textarea). A note longer than this is
+// valid everywhere else on this page but can't be forwarded to complete()
+// as-is; checked client-side so it's caught with a specific message instead
+// of a 422. Known constraint, not something this pass reconciles.
+const VISIT_NOTES_MAX_LENGTH = 1000;
 const CONDITION_OPTIONS = Object.entries(CONDITION_META).map(([value, meta]) => ({ value, label: meta.label }));
 const EMPTY_ITEM = { procedure_name: '', tooth_number: '', notes: '' };
 const SEX_LABELS = { male: 'Male', female: 'Female' };
@@ -36,11 +44,29 @@ function getInitials(name) {
   return (first + last).toUpperCase();
 }
 
+// complete()'s exact notes rule (min 20, max 1000), checked ahead of time so
+// a note that fails it is caught with a specific message on submit rather
+// than a 422 from the network. Doesn't gate the button — see submitVisit.
+function checkNoteLengthForCompletion(note) {
+  const length = note.trim().length;
+  if (length < VISIT_NOTES_MIN_LENGTH) {
+    return `The clinical note for this visit is too short to record — ${length}/${VISIT_NOTES_MIN_LENGTH} characters.`;
+  }
+  if (length > VISIT_NOTES_MAX_LENGTH) {
+    return `The clinical note for this visit is too long to record — shorten it to ${VISIT_NOTES_MAX_LENGTH.toLocaleString()} characters or fewer. It is currently ${length.toLocaleString()}.`;
+  }
+  return null;
+}
+
 function PatientRecords() {
   const { role } = useAuth();
   const location = useLocation();
-  // Set when the dentist arrives here via "Add Visit Record" on their
-  // schedule — the completed appointment to open a note against.
+  const navigate = useNavigate();
+  // Set when the dentist arrives here from DentistSchedule.jsx — either
+  // mode: 'completing' (Complete button, still-confirmed appointment) or
+  // mode: 'addRecord' (the old "Add Visit Record", already-completed
+  // appointment). Kept as an explicit flag rather than inferred from status,
+  // since status can change mid-session.
   const incoming = location.state || {};
   const isDentist = role === 'dentist';
   // Assistants get a read-only, front-desk-appropriate slice of the record —
@@ -68,6 +94,32 @@ function PatientRecords() {
   const [selectedTooth, setSelectedTooth] = useState(null);
   const [toothForm, setToothForm] = useState({ condition: 'healthy', notes: '' });
   const [savingTooth, setSavingTooth] = useState(false);
+
+  // ---- Completing a visit (arrived via DentistSchedule's Complete button) ----
+  // Only ever true while still viewing the same patient this completing
+  // session is for — switching patients or going back to the list hides the
+  // banner/bar even though location.state itself hasn't changed.
+  // appointmentStatus is a point-in-time snapshot taken when the dentist
+  // clicked Complete; complete() itself is still the authoritative guard.
+  const isCompletingVisit =
+    isDentist &&
+    incoming.mode === 'completing' &&
+    incoming.appointmentStatus === 'confirmed' &&
+    !!incoming.appointmentId &&
+    selectedPatientId === incoming.patientId;
+  // No tooth_number or notes field here — the tooth chart and Clinical
+  // Notes sections above are the source of truth for both; duplicating them
+  // on the bar contradicted them on the same screen. tooth_number always
+  // sends null (the chart has no appointment link, so there's nothing
+  // honest to send); notes comes from the most recent clinical_notes row
+  // scoped to this appointment (see noteForVisit below).
+  const [visitForm, setVisitForm] = useState({
+    procedure_name: incoming.serviceName || '',
+    performed_at: incoming.appointmentDate || '',
+  });
+  const [visitErrors, setVisitErrors] = useState({});
+  const [visitFormError, setVisitFormError] = useState('');
+  const [savingVisit, setSavingVisit] = useState(false);
 
   // ---- Modals (dentist-only actions) ----
   const [noteModalOpen, setNoteModalOpen] = useState(false);
@@ -140,10 +192,13 @@ function PatientRecords() {
     }
   }, [selectedPatientId, loadDetail]);
 
-  // Arrived from the schedule's "Add Visit Record" — open the note modal
-  // straight away so the dentist lands on writing the visit up. Runs once.
+  // Arrived from the schedule's "Add Visit Record" (an already-completed
+  // appointment) — open the note modal straight away so the dentist lands
+  // on writing the visit up. Explicitly NOT for mode: 'completing' — that
+  // flow uses the inline form on the completion bar instead, not this
+  // modal. Runs once.
   useEffect(() => {
-    if (incoming.appointmentId && incoming.patientId) {
+    if (incoming.mode === 'addRecord' && incoming.appointmentId && incoming.patientId) {
       setNoteModalOpen(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -308,6 +363,60 @@ function PatientRecords() {
     }
   };
 
+  // ---- Completing a visit ----
+  // Only the two fields with no equivalent section on this page — the
+  // Clinical Notes section above is the source of truth for notes, the
+  // tooth chart for tooth data. Same validation CompleteAppointmentModal.jsx
+  // already has for these two (that file is unused but left in place, not
+  // extended or imported from here).
+  const validateVisitForm = () => {
+    const next = {};
+    if (!visitForm.procedure_name.trim()) next.procedure_name = 'Enter the procedure that was performed.';
+    if (!visitForm.performed_at) next.performed_at = 'Enter the date this was performed.';
+    return next;
+  };
+
+  // noteForVisit is the most recent clinical_notes row scoped to this
+  // appointment (record.clinical_notes arrives newest-first — see Phase 1).
+  // Its presence gates the button where it's rendered; its length is
+  // checked here, on submit, so a note that's too short or too long is
+  // caught with a specific message instead of a 422 from complete().
+  // tooth_number always sends null — the tooth chart has no appointment
+  // link, so there's nothing honest to send.
+  const submitVisit = async (noteForVisit) => {
+    const clientErrors = validateVisitForm();
+    const noteIssue = noteForVisit ? checkNoteLengthForCompletion(noteForVisit.note) : null;
+    if (noteIssue) clientErrors.notes = noteIssue;
+    if (Object.keys(clientErrors).length > 0) {
+      setVisitErrors(clientErrors);
+      return;
+    }
+
+    setSavingVisit(true);
+    setVisitFormError('');
+    setVisitErrors({});
+    try {
+      await completeAppointment(incoming.appointmentId, {
+        procedureName: visitForm.procedure_name.trim(),
+        toothNumber: null,
+        performedAt: visitForm.performed_at,
+        notes: noteForVisit.note.trim(),
+      });
+      showSuccessToast('Appointment completed.');
+      navigate('/dentist/schedule');
+    } catch (err) {
+      const serverErrors = err.response?.data?.errors;
+      if (serverErrors) {
+        setVisitErrors(
+          Object.fromEntries(Object.entries(serverErrors).map(([field, messages]) => [field, messages[0]]))
+        );
+      }
+      setVisitFormError(err.response?.data?.message || 'Could not complete this appointment.');
+    } finally {
+      setSavingVisit(false);
+    }
+  };
+
   const columns = [
     {
       key: 'patient',
@@ -364,6 +473,24 @@ function PatientRecords() {
     const record = detail?.dental_record;
     const selectedInfo = selectedTooth ? getToothInfo(selectedTooth) : null;
 
+    // Only the two categories Phase 1 confirmed can be reliably scoped by
+    // appointment_id — tooth conditions and treatment plans have no
+    // appointment link and were deliberately dropped from this count rather
+    // than show a number that might be wrong.
+    const historyForVisit = isCompletingVisit
+      ? (record?.treatment_history || []).filter((h) => h.appointment_id === incoming.appointmentId)
+      : [];
+    const notesForVisit = isCompletingVisit
+      ? (record?.clinical_notes || []).filter((n) => n.appointment_id === incoming.appointmentId)
+      : [];
+    // record.clinical_notes arrives newest-first (PatientRecordController::
+    // show()'s orderByDesc('created_at')), so notesForVisit[0] is the most
+    // recent note for this appointment — the one that stands as the visit
+    // record if the dentist wrote more than one. Its presence, not its
+    // content, gates the Complete button; length is checked on submit.
+    const noteForVisit = notesForVisit[0] || null;
+    const patientFullName = patient ? `${patient.first_name} ${patient.last_name}`.trim() : '';
+
     return (
       <div>
         <div className="section-card-header appt-page-header">
@@ -379,6 +506,19 @@ function PatientRecords() {
             <span className="dash-empty-title">{detailError}</span>
           </div>
         ) : patient && record ? (
+          <>
+            {isCompletingVisit && (
+              <div className="completing-banner">
+                <span className="completing-banner-icon"><FileIcon /></span>
+                <div className="completing-banner-text">
+                  <span className="completing-banner-title">Recording today's visit</span>
+                  <span className="completing-banner-desc">
+                    {patientFullName} &middot; {incoming.serviceName} &middot; {incoming.visitLabel}
+                  </span>
+                </div>
+                <span className="completing-banner-hint">Fill in the record below, then complete</span>
+              </div>
+            )}
           <div className="record-detail-print">
             {/* Print-only — hidden on screen (DentalRecords.css), shown only inside .record-detail-print when printing */}
             <div className="record-print-header">
@@ -758,6 +898,79 @@ function PatientRecords() {
               </div>
             )}
           </div>
+
+          {isCompletingVisit && (
+            <div className="section-card completion-bar">
+              {noteForVisit ? (
+                <>
+                  <div className="section-card-header">
+                    <h3 className="section-card-title">Recorded for this visit</h3>
+                  </div>
+                  <div className="completion-bar-badges">
+                    {historyForVisit.length > 0 && (
+                      <StatusBadge
+                        status={`${historyForVisit.length} procedure${historyForVisit.length === 1 ? '' : 's'} logged`}
+                        tone="green"
+                      />
+                    )}
+                    <StatusBadge
+                      status={`${notesForVisit.length} clinical note${notesForVisit.length === 1 ? '' : 's'} added`}
+                      tone="green"
+                    />
+                  </div>
+                </>
+              ) : (
+                <div className="priority-card completion-bar-warning">
+                  <span className="priority-card-icon"><AlertIcon /></span>
+                  <div className="priority-card-text">
+                    <span className="priority-card-title">Add a clinical note before completing</span>
+                    <span className="priority-card-desc">
+                      This visit needs a clinical note in the patient's chart before it can be marked complete.
+                      Write what was done in the Clinical Notes section above.
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              <label className="modal-field-label" htmlFor="visit-procedure-name">Procedure performed</label>
+              <input
+                id="visit-procedure-name"
+                className="form-input"
+                value={visitForm.procedure_name}
+                onChange={(e) => setVisitForm((p) => ({ ...p, procedure_name: e.target.value }))}
+                maxLength={255}
+              />
+              {visitErrors.procedure_name && <span className="modal-field-error">{visitErrors.procedure_name}</span>}
+
+              <label className="modal-field-label" htmlFor="visit-performed-at">Date performed</label>
+              <input
+                id="visit-performed-at"
+                className="form-input"
+                type="date"
+                value={visitForm.performed_at}
+                onChange={(e) => setVisitForm((p) => ({ ...p, performed_at: e.target.value }))}
+              />
+              {visitErrors.performed_at && <span className="modal-field-error">{visitErrors.performed_at}</span>}
+
+              {visitErrors.notes && <div className="profile-alert profile-alert--error" style={{ marginTop: 14 }}>{visitErrors.notes}</div>}
+              {visitFormError && <div className="profile-alert profile-alert--error" style={{ marginTop: 14 }}>{visitFormError}</div>}
+
+              <div className="modal-actions">
+                {!noteForVisit && (
+                  <span className="completion-bar-disabled-reason">Add a clinical note above to enable this.</span>
+                )}
+                <button
+                  type="button"
+                  className="dash-btn"
+                  disabled={savingVisit || !noteForVisit}
+                  onClick={() => submitVisit(noteForVisit)}
+                >
+                  {savingVisit ? 'Completing…' : 'Complete appointment'}
+                </button>
+              </div>
+            </div>
+          )}
+          </>
         ) : null}
 
         {isDentist && (
@@ -765,7 +978,7 @@ function PatientRecords() {
             <Modal open={noteModalOpen} onClose={() => setNoteModalOpen(false)} title="Add Clinical Note">
               {linkedAppointmentId && (
                 <p style={{ margin: '0 0 10px', fontSize: '0.82rem', color: 'var(--portal-muted)' }}>
-                  Linked to the completed visit{linkedVisitLabel ? ` on ${linkedVisitLabel}` : ''}.
+                  Linked to this visit{linkedVisitLabel ? ` on ${linkedVisitLabel}` : ''}.
                 </p>
               )}
               <label className="modal-field-label">Note</label>

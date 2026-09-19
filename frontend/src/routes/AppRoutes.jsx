@@ -22,6 +22,7 @@ import UserManagement from '../pages/portal/UserManagement';
 import Settings from '../pages/portal/Settings';
 import Reports from '../pages/portal/Reports';
 import DentistSchedule from '../pages/portal/DentistSchedule';
+import CompletedPatients from '../pages/portal/CompletedPatients';
 import MyAvailability from '../pages/portal/MyAvailability';
 import PediatricQueue from '../pages/portal/PediatricQueue';
 import HmoVerificationQueue from '../pages/portal/HmoVerificationQueue';
@@ -82,6 +83,7 @@ function AppRoutes() {
                     '/dentist/availability': MyAvailability,
                     '/dentist/pediatric-queue': PediatricQueue,
                     '/dentist/patient-records': PatientRecords,
+                    '/dentist/completed-patients': CompletedPatients,
                     '/dentist/profile': MyProfile,
                 })}
             </Route>

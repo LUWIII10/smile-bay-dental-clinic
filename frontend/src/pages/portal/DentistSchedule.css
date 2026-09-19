@@ -178,3 +178,80 @@
     flex-direction: column;
   }
 }
+
+/* ============ Completed Today (My Schedule) ============
+   Deliberately simpler than .schedule-row above — no expand/collapse, the
+   row already shows everything it has (procedure + notes were just typed
+   into the Complete form, there's no further action to reveal). .activity-
+   item-icon/--green (dashboards.css) supplies the 32px tinted check circle,
+   reused as-is rather than a near-duplicate new class for 2px of spec
+   difference from the requested 30px. */
+.completed-today-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--portal-card);
+  border: 1.5px solid var(--portal-border-light);
+  border-radius: var(--portal-radius-lg);
+  box-shadow: var(--portal-shadow);
+  margin-bottom: 10px;
+}
+
+.completed-today-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.completed-today-name {
+  font-weight: 600;
+  font-size: 0.88rem;
+  color: var(--portal-navy);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.completed-today-notes {
+  font-size: 0.8rem;
+  color: var(--portal-muted);
+  line-height: 1.4;
+}
+
+/* Preserves the existing Add Visit Record / Clinical Notes entry point —
+   that flow is unchanged, only its access point moved from an expand-to-
+   reveal button into this row, since completed rows no longer expand. */
+.completed-today-link {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 2px;
+  padding: 0;
+  background: none;
+  border: none;
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--portal-blue);
+  cursor: pointer;
+}
+
+.completed-today-link svg {
+  width: 13px;
+  height: 13px;
+}
+
+.completed-today-link:hover {
+  text-decoration: underline;
+}
+
+.completed-today-time {
+  flex-shrink: 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--portal-slate);
+}

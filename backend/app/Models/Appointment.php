@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Appointment extends Model
 {
@@ -96,6 +97,17 @@ class Appointment extends Model
         return $query->where('dentist_id', $dentistId)
             ->where('status', 'pending_verification')
             ->whereNull('pediatric_confirmed_at');
+    }
+
+    // The other direction of TreatmentHistory::appointment(). Only ever
+    // populated going forward, by AppointmentController::complete()'s new
+    // procedure-record step — appointments completed before that existed
+    // (and the 7 pre-existing treatment_history rows, none of which carry
+    // an appointment_id) simply resolve this to null, same as any
+    // appointment nobody has logged a procedure against yet.
+    public function treatmentHistoryEntry(): HasOne
+    {
+        return $this->hasOne(TreatmentHistory::class);
     }
 
     // Only ever populated by the upcoming-appointment reminder job

@@ -11,8 +11,10 @@ use App\Mail\HmoBookingSubmittedMail;
 use App\Mail\PediatricBookingSubmittedMail;
 use App\Models\Appointment;
 use App\Models\AppointmentStatusLog;
+use App\Models\DentalRecord;
 use App\Models\Notification;
 use App\Models\Service;
+use App\Models\TreatmentHistory;
 use App\Models\User;
 use App\Services\AppointmentSlotService;
 use Illuminate\Http\Request;
@@ -192,6 +194,15 @@ class AppointmentController extends Controller
      * 'confirmed' — there's nothing to complete on a pending/cancelled/
      * already-completed row.
      */
+    /**
+     * Completing an appointment and recording the procedure that was
+     * actually performed are one action, not two — a completed appointment
+     * with no treatment_history row is exactly the gap this pass closes.
+     * Validated, written, and status-changed inside one transaction: if the
+     * treatment_history insert fails, the appointment must NOT end up
+     * completed with nothing recorded against it, so nothing here commits
+     * unless all of it succeeds.
+     */
     public function complete(Request $request, Appointment $appointment)
     {
         if ($appointment->dentist_id !== $request->user()->id) {
@@ -204,7 +215,14 @@ class AppointmentController extends Controller
             ], 422);
         }
 
-        DB::transaction(function () use ($appointment, $request) {
+        $validated = $request->validate([
+            'procedure_name' => ['required', 'string', 'max:255'],
+            'tooth_number' => ['nullable', 'integer', 'between:1,32'],
+            'performed_at' => ['required', 'date'],
+            'notes' => ['required', 'string', 'min:20', 'max:1000'],
+        ]);
+
+        DB::transaction(function () use ($appointment, $request, $validated) {
             $appointment->update(['status' => 'completed']);
 
             AppointmentStatusLog::create([
@@ -214,9 +232,39 @@ class AppointmentController extends Controller
                 'changed_by' => $request->user()->id,
                 'note' => 'Marked completed by dentist.',
             ]);
+
+            // Lazily provisioned exactly like PatientDentalRecordController::
+            // show() — dental_records isn't created at registration, so a
+            // patient whose first-ever appointment is the one being
+            // completed here may not have a row yet. Same two-step shape:
+            // record_number is NOT NULL + unique with no default, and the id
+            // it's derived from only exists once the row itself is inserted.
+            $record = $appointment->patient->dentalRecord;
+            if (! $record) {
+                $record = DentalRecord::create([
+                    'patient_id' => $appointment->patient_id,
+                    'opened_at' => now(),
+                    'record_number' => 'PENDING-'.$appointment->patient_id,
+                ]);
+                $record->update(['record_number' => DentalRecord::formatRecordNumber($record->id, $record->opened_at)]);
+            }
+
+            TreatmentHistory::create([
+                'dental_record_id' => $record->id,
+                'appointment_id' => $appointment->id,
+                'tooth_number' => $validated['tooth_number'] ?? null,
+                'procedure_name' => $validated['procedure_name'],
+                'performed_by' => $request->user()->id,
+                'performed_at' => $validated['performed_at'],
+                'notes' => $validated['notes'],
+            ]);
         });
 
-        $appointment->load(['service:id,name,duration_minutes', 'patient:id,patient_number,first_name,last_name']);
+        $appointment->load([
+            'service:id,name,duration_minutes',
+            'patient:id,patient_number,first_name,last_name',
+            'treatmentHistoryEntry',
+        ]);
 
         return response()->json(['message' => 'Appointment marked as completed.', 'data' => $appointment]);
     }
