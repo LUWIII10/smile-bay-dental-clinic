@@ -124,6 +124,20 @@ function Reports() {
   const hmoPct = paymentTotal ? Math.round((data.payment_split.hmo / paymentTotal) * 100) : 0;
   const avgPerDay = data && data.by_day.length ? (data.totals.total_appointments / data.by_day.length).toFixed(1) : 0;
 
+  // Printed tables 3 and 4 — share is each row's count over the sum of
+  // that table's own rows (top_services is already capped at 5 by the
+  // backend, so this is "share of the top 5 shown", not "share of every
+  // appointment" — matching what the table itself actually lists), one
+  // decimal place. Table 2 reuses cashPct/hmoPct above as-is instead of
+  // recomputing to a different decimal precision.
+  const servicesTotal = data ? data.top_services.reduce((sum, s) => sum + s.count, 0) : 0;
+  const dentistTotal = data ? data.by_dentist.reduce((sum, d) => sum + d.count, 0) : 0;
+  const pct = (count, total) => (total ? ((count / total) * 100).toFixed(1) : '0.0');
+
+  const printPeriod = data && (
+    <p className="reports-print-caption-date">{formatDateLong(range.date_from)} – {formatDateLong(range.date_to)}</p>
+  );
+
   return (
     <div>
       <div className="section-card-header appt-page-header">
@@ -195,6 +209,28 @@ function Reports() {
             )}
           </div>
 
+          {/* Print-only — Table 1. No header row (label/figure pairs, not
+              name/count/share), so the "dark rule above first row, below
+              last row" comes from the .reports-print-table--summary
+              modifier's own border rather than a <thead>. No Total row:
+              these four figures aren't parts of one whole that sums to
+              100% (New Patients is an unrelated metric), unlike tables
+              2-4 below. */}
+          {!loading && data && (
+            <div className="reports-print-table-block">
+              <p className="reports-print-caption">TABLE 1 — APPOINTMENT SUMMARY</p>
+              {printPeriod}
+              <table className="reports-print-table reports-print-table--summary">
+                <tbody>
+                  <tr><td>Total appointments</td><td className="reports-print-num">{data.totals.total_appointments}</td></tr>
+                  <tr><td>Completed</td><td className="reports-print-num">{data.totals.completed}</td></tr>
+                  <tr><td>Cancelled / rejected</td><td className="reports-print-num">{data.totals.cancelled + data.totals.rejected}</td></tr>
+                  <tr><td>New patients</td><td className="reports-print-num">{data.totals.new_patients}</td></tr>
+                </tbody>
+              </table>
+            </div>
+          )}
+
           <div className="chart-grid">
             <div className="section-card">
               <div className="section-card-header">
@@ -230,10 +266,26 @@ function Reports() {
                   <div className="chart-container">
                     <Doughnut data={paymentData} options={DOUGHNUT_OPTIONS} />
                   </div>
-                  <ul className="reports-print-summary reports-print-summary--list">
-                    <li>Cash: {data.payment_split.cash} ({cashPct}%)</li>
-                    <li>HMO: {data.payment_split.hmo} ({hmoPct}%)</li>
-                  </ul>
+                  {/* Print-only — Table 2, replacing the doughnut. Reuses
+                      cashPct/hmoPct as already computed above (whole-number
+                      rounding) rather than recomputing to the one-decimal
+                      precision tables 3/4 use below. */}
+                  <div className="reports-print-table-block">
+                    <p className="reports-print-caption">TABLE 2 — PAYMENT TYPE</p>
+                    {printPeriod}
+                    <table className="reports-print-table">
+                      <thead>
+                        <tr><th>Type</th><th className="reports-print-num">Count</th><th className="reports-print-num">Share</th></tr>
+                      </thead>
+                      <tbody>
+                        <tr><td>Cash</td><td className="reports-print-num">{data.payment_split.cash}</td><td className="reports-print-num">{cashPct}%</td></tr>
+                        <tr><td>HMO</td><td className="reports-print-num">{data.payment_split.hmo}</td><td className="reports-print-num">{hmoPct}%</td></tr>
+                      </tbody>
+                      <tfoot>
+                        <tr><td>Total</td><td className="reports-print-num">{paymentTotal}</td><td className="reports-print-num">100%</td></tr>
+                      </tfoot>
+                    </table>
+                  </div>
                 </>
               )}
             </div>
@@ -249,17 +301,43 @@ function Reports() {
               ) : data.top_services.length === 0 ? (
                 <div className="dash-empty"><span className="dash-empty-title">No data in this range.</span></div>
               ) : (
-                <ul className="reports-bar-list">
-                  {data.top_services.map((s) => (
-                    <li key={s.name} className="reports-bar-row">
-                      <span className="reports-bar-label" title={s.name}>{s.name}</span>
-                      <div className="reports-bar-track">
-                        <div className="reports-bar-fill reports-bar-fill--blue" style={{ width: `${(s.count / maxServiceCount) * 100}%` }} />
-                      </div>
-                      <span className="reports-bar-count">{s.count}</span>
-                    </li>
-                  ))}
-                </ul>
+                <>
+                  <ul className="reports-bar-list">
+                    {data.top_services.map((s) => (
+                      <li key={s.name} className="reports-bar-row">
+                        <span className="reports-bar-label" title={s.name}>{s.name}</span>
+                        <div className="reports-bar-track">
+                          <div className="reports-bar-fill reports-bar-fill--blue" style={{ width: `${(s.count / maxServiceCount) * 100}%` }} />
+                        </div>
+                        <span className="reports-bar-count">{s.count}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  {/* Print-only — Table 3. Share is of the top 5 shown
+                      here (that's what the backend returns and what this
+                      table lists), not of every appointment in range. */}
+                  <div className="reports-print-table-block">
+                    <p className="reports-print-caption">TABLE 3 — SERVICES RENDERED</p>
+                    {printPeriod}
+                    <table className="reports-print-table">
+                      <thead>
+                        <tr><th>Service</th><th className="reports-print-num">Count</th><th className="reports-print-num">Share</th></tr>
+                      </thead>
+                      <tbody>
+                        {data.top_services.map((s) => (
+                          <tr key={s.name}>
+                            <td>{s.name}</td>
+                            <td className="reports-print-num">{s.count}</td>
+                            <td className="reports-print-num">{pct(s.count, servicesTotal)}%</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot>
+                        <tr><td>Total</td><td className="reports-print-num">{servicesTotal}</td><td className="reports-print-num">100.0%</td></tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                </>
               )}
             </div>
 
@@ -272,19 +350,56 @@ function Reports() {
               ) : data.by_dentist.length === 0 ? (
                 <div className="dash-empty"><span className="dash-empty-title">No data in this range.</span></div>
               ) : (
-                <ul className="reports-bar-list">
-                  {data.by_dentist.map((d) => (
-                    <li key={d.name} className="reports-bar-row">
-                      <span className="reports-bar-label" title={d.name}>{d.name}</span>
-                      <div className="reports-bar-track">
-                        <div className="reports-bar-fill reports-bar-fill--green" style={{ width: `${(d.count / maxDentistCount) * 100}%` }} />
-                      </div>
-                      <span className="reports-bar-count">{d.count}</span>
-                    </li>
-                  ))}
-                </ul>
+                <>
+                  <ul className="reports-bar-list">
+                    {data.by_dentist.map((d) => (
+                      <li key={d.name} className="reports-bar-row">
+                        <span className="reports-bar-label" title={d.name}>{d.name}</span>
+                        <div className="reports-bar-track">
+                          <div className="reports-bar-fill reports-bar-fill--green" style={{ width: `${(d.count / maxDentistCount) * 100}%` }} />
+                        </div>
+                        <span className="reports-bar-count">{d.count}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  {/* Print-only — Table 4. Unlike top_services, by_dentist
+                      isn't capped by the backend, so this share is genuinely
+                      "of every appointment in range" (every appointment has
+                      exactly one dentist). */}
+                  <div className="reports-print-table-block">
+                    <p className="reports-print-caption">TABLE 4 — APPOINTMENTS BY DENTIST</p>
+                    {printPeriod}
+                    <table className="reports-print-table">
+                      <thead>
+                        <tr><th>Dentist</th><th className="reports-print-num">Count</th><th className="reports-print-num">Share</th></tr>
+                      </thead>
+                      <tbody>
+                        {data.by_dentist.map((d) => (
+                          <tr key={d.name}>
+                            <td>{d.name}</td>
+                            <td className="reports-print-num">{d.count}</td>
+                            <td className="reports-print-num">{pct(d.count, dentistTotal)}%</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot>
+                        <tr><td>Total</td><td className="reports-print-num">{dentistTotal}</td><td className="reports-print-num">100.0%</td></tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                </>
               )}
             </div>
+          </div>
+
+          {/* Print-only footer — repeats on every printed page via
+              position: fixed (see Reports.css). No page number: CSS
+              cannot reliably produce one in Chrome/Firefox/Edge without a
+              paged-media library (see the verification report), so this
+              stays a single line rather than a number that might be
+              wrong. */}
+          <div className="reports-print-footer">
+            <span>Smile Bay Dental Clinic · Clinic Operations Report</span>
           </div>
         </>
       )}

@@ -90,6 +90,19 @@
   display: none;
 }
 
+/* Tables 1-4 — same screen-hidden/print-revealed flip as
+   .reports-print-header/.reports-print-summary above, on the outer
+   wrapper only. .reports-print-caption/-caption-date/-table are all
+   descendants of this element in the JSX, so hiding it hides them too —
+   giving each of those three their OWN display: none here would have the
+   same bug this fix is for: their @media print rules only set margin/
+   font-size/color, never display, so a display: none reaching them
+   directly (not just inherited via a hidden ancestor) would never get
+   reversed and they'd stay invisible in print as well as on screen. */
+.reports-print-table-block {
+  display: none;
+}
+
 @media print {
   /* Interactive controls (date pickers, the print button itself) mean
      nothing on paper — the letterhead below already states the exact
@@ -114,21 +127,25 @@
     margin: 4px 0 0;
   }
 
-  .reports-print-summary--list {
-    list-style: none;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-
+  /* Stacked and centred instead of the horizontal row this was — logo,
+     then the title/period/generated-on block, all centred, with the same
+     2px rule still sitting beneath the whole thing since it's on the
+     container itself either way. Gap dropped from 16px (spacing across a
+     horizontal row) to 8px: a tight vertical gap between the logo and the
+     text block reads as one letterhead unit; 16px vertically looked like
+     two unrelated pieces stacked, not a single centred block. */
   .reports-print-header {
     display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 16px;
+    gap: 8px;
     margin-bottom: 20px;
     padding-bottom: 16px;
     border-bottom: 2px solid #111827;
+  }
+
+  .reports-print-meta {
+    text-align: center;
   }
 
   .reports-print-meta h2 {
@@ -171,4 +188,114 @@
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
+
+  /* The dashboard reproductions — cards and bar-lists carry their meaning
+     through colour/length, which is exactly what a formal report
+     shouldn't rely on. .reports-print-table-block below replaces both. */
+  .stat-grid,
+  .reports-bar-list {
+    display: none !important;
+  }
+
+  .reports-print-table-block {
+    display: block;
+    margin: 0 0 22px;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .reports-print-caption {
+    margin: 0;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: #111827;
+  }
+
+  .reports-print-caption-date {
+    margin: 2px 0 8px;
+    font-size: 12.5px;
+    color: #64748b;
+  }
+
+  .reports-print-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12.5px;
+    color: #111827;
+  }
+
+  .reports-print-table th,
+  .reports-print-table td {
+    padding: 6px 4px;
+    text-align: left;
+    font-weight: 400;
+  }
+
+  .reports-print-table .reports-print-num {
+    text-align: right;
+  }
+
+  /* Header row: 1.5px dark rule above and below. With border-collapse,
+     adjacent cell borders merge into one line, so this only needs setting
+     on the th cells, not the table or tr. */
+  .reports-print-table thead th {
+    border-top: 1.5px solid #111827;
+    border-bottom: 1.5px solid #111827;
+    font-weight: 600;
+  }
+
+  /* 1px light rule between body rows only — the last body row's own
+     bottom border and the Total row's 1.5px top border both land on the
+     same line; border-collapse resolves that conflict by keeping the
+     wider (dark) one, so this doesn't need excluding the last row by hand. */
+  .reports-print-table tbody tr td {
+    border-bottom: 1px solid #cbd5e1;
+  }
+
+  .reports-print-table tfoot td {
+    border-top: 1.5px solid #111827;
+    font-weight: 700;
+  }
+
+  /* Table 1 has no header row (label/figure pairs, not name/count/share),
+     so its "dark rule above the first row, below the last" comes from the
+     table element's own border instead of a <thead>. */
+  .reports-print-table--summary {
+    border-top: 1.5px solid #111827;
+    border-bottom: 1.5px solid #111827;
+  }
+
+  /* Repeats on every printed page — CSS Paged Media specifies that
+     position: fixed content is duplicated per page, and Chrome/Firefox/
+     Edge all implement that part. bottom: 0 sits inside the @page margin
+     (15mm, well clear of this line's own height), not at the physical
+     paper edge. No page number here — see the verification report for
+     why that part specifically isn't attempted. */
+  .reports-print-footer {
+    display: block;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding-top: 6px;
+    border-top: 1px solid #cbd5e1;
+    font-size: 10.5px;
+    color: #64748b;
+  }
+}
+
+.reports-print-footer {
+  display: none;
+}
+
+/* A4 portrait, 15mm margins — nothing in this file assumes a fixed pixel
+   width wider than that prints area, so nothing here conflicts with it.
+   Not nested in @media print: @page only ever applies to paginated
+   (print) output regardless, and this rule only reaches the document
+   while this page's own CSS is loaded (a React route-scoped import, same
+   as everything else in this file), so it can't affect any other page's
+   printing. */
+@page {
+  size: A4 portrait;
+  margin: 15mm;
 }
