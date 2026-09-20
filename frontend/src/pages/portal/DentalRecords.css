@@ -69,35 +69,54 @@
   margin: 0 0 16px;
 }
 
+/* Horizontal scroll, not wrap, below the width where 16-per-row stops
+   fitting — a wrapped arch breaks the upper/lower column pairing (tooth 16
+   no longer sits above tooth 17), which makes an anatomical chart read as
+   nonsense. overflow-x lives here, on the shared column wrapper, not on
+   each .tooth-row individually, so both arches always scroll together and
+   stay column-aligned regardless of scroll position. */
 .tooth-chart {
   display: flex;
   flex-direction: column;
   gap: 10px;
   margin-bottom: 20px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
 }
 
 .tooth-row {
   display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+  /* flex-start, not center: center combined with overflow-x can leave the
+     start of an overflowing row unreachable by scroll in some browsers.
+     Rows only overflow below ~700px (16 × ~46px desktop teeth ≈ 736px), so
+     this only changes alignment on widths that weren't scrolling anyway. */
+  justify-content: flex-start;
+  width: max-content;
 }
 
+/* Still a plain rectangle — same click target, same focus ring, same
+   .tooth--selected box-shadow the numbered-square version used. Only the
+   visual content (an SVG shape + the number, stacked) changed; height is
+   no longer fixed since shape + number together are taller than either
+   alone. */
 .tooth {
-  width: 34px;
-  height: 34px;
+  width: 38px;
   flex-shrink: 0;
-  border-radius: 10px;
-  border: 1.5px solid var(--portal-border);
-  background: var(--portal-card);
-  color: var(--portal-slate);
-  font-family: 'Poppins', sans-serif;
-  font-size: 0.74rem;
-  font-weight: 600;
-  cursor: pointer;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 3px;
+  padding: 3px 0;
+  border-radius: 8px;
+  border: 1.5px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  font-family: 'Poppins', sans-serif;
   transition: transform 0.1s ease, box-shadow 0.15s ease;
 }
 
@@ -110,12 +129,86 @@
   border-color: var(--portal-blue);
 }
 
-.tooth--green { background: var(--portal-green-bg); color: var(--portal-green-text); border-color: var(--portal-green-border); }
-.tooth--red { background: var(--portal-red-bg); color: var(--portal-red-text); border-color: var(--portal-red-border); }
-.tooth--blue { background: var(--portal-blue-bg); color: var(--portal-blue-text); border-color: var(--portal-blue-border); }
-.tooth--amber { background: var(--portal-amber-bg); color: var(--portal-amber-text); border-color: var(--portal-amber-border); }
-.tooth--gray { background: var(--portal-gray-bg); color: var(--portal-gray-text); border-color: var(--portal-gray-border); }
-.tooth--indigo { background: var(--portal-indigo-bg); color: var(--portal-indigo-text); border-color: var(--portal-indigo-border); }
+.tooth-number {
+  font-size: 0.7rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+/* Width is left to fill almost the entire 38px button (2px/side), not the
+   25px it was left at from when the tooth was a numbered square — that gap
+   was dead space with no reason to be there once the button stopped being
+   a square. viewBox stays "0 0 24 32"; only these wrapper dimensions grew. */
+.tooth-shape {
+  position: relative;
+  display: flex;
+  width: 34px;
+  height: 45px;
+}
+
+/* pointer-events: none so every click inside the button's box resolves to
+   the button itself, never to the SVG's own path geometry — keeps the full
+   rectangle clickable despite the shape's concave areas (a molar's root
+   gaps, the notch beside a canine's point). */
+.tooth-shape-svg {
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* Base path geometry (PatientRecords.jsx's TOOTH_SHAPE_PATHS, defined once
+   in dentalRecordShared.js) is crown-up/root-down — the lower arch's
+   natural orientation. Flipped here for the upper arch instead of
+   authoring a second set of paths. */
+.tooth-shape-svg--flip {
+  transform: scaleY(-1);
+}
+
+.tooth-shape-svg path {
+  stroke-width: 1.5;
+  /* Keeps stroke width AND dash length constant in screen pixels
+     regardless of how much the shape's fill geometry is scaled down (e.g.
+     at the 480px breakpoint below) — without this, the dashed/solid
+     distinction between decayed/impacted and missing/extracted would
+     shrink proportionally with the shape and risk reading as solid at
+     small sizes. See the verification report for the legibility check. */
+  vector-effect: non-scaling-stroke;
+}
+
+/* Stroke uses -text, not -border — -border sits too close to -bg to read
+   as an outline (a healthy tooth was fill #dcfce7 / stroke #a7f3d0, nearly
+   the same value) and produced a soft blob instead of a shape. -text is
+   the same darker value the legend dots already used before this file had
+   shapes at all, so this is not a new colour, just the existing darker
+   half of each pair. Same rule reaches the legend swatches below — they
+   share this exact selector shape (.tooth--{tone} .tooth-shape-svg path),
+   so both stay in sync automatically. */
+.tooth--green .tooth-shape-svg path { fill: var(--portal-green-bg); stroke: var(--portal-green-text); }
+.tooth--red .tooth-shape-svg path { fill: var(--portal-red-bg); stroke: var(--portal-red-text); }
+.tooth--blue .tooth-shape-svg path { fill: var(--portal-blue-bg); stroke: var(--portal-blue-text); }
+.tooth--amber .tooth-shape-svg path { fill: var(--portal-amber-bg); stroke: var(--portal-amber-text); }
+.tooth--gray .tooth-shape-svg path { fill: var(--portal-gray-bg); stroke: var(--portal-gray-text); }
+.tooth--indigo .tooth-shape-svg path { fill: var(--portal-indigo-bg); stroke: var(--portal-indigo-text); }
+
+.tooth--green .tooth-number { color: var(--portal-green-text); }
+.tooth--red .tooth-number { color: var(--portal-red-text); }
+.tooth--blue .tooth-number { color: var(--portal-blue-text); }
+.tooth--amber .tooth-number { color: var(--portal-amber-text); }
+.tooth--gray .tooth-number { color: var(--portal-gray-text); }
+.tooth--indigo .tooth-number { color: var(--portal-indigo-text); }
+
+/* decayed/impacted share red, missing/extracted share gray — only 6 tone
+   families exist for 9 conditions. Disambiguated by stroke pattern and
+   fill opacity instead of a new colour token. Applied identically to the
+   chart buttons and the legend swatches below (both are just ancestors of
+   a .tooth-shape-svg, so one rule covers both). */
+.tooth--dashed .tooth-shape-svg path {
+  stroke-dasharray: 3.5 2.5;
+}
+
+.tooth--reduced-opacity .tooth-shape-svg path {
+  fill-opacity: 0.4;
+}
 
 .tooth-legend {
   display: flex;
@@ -133,19 +226,11 @@
   color: var(--portal-slate);
 }
 
-.tooth-legend-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 3px;
+.tooth-legend-swatch {
+  width: 14px;
+  height: 19px;
   flex-shrink: 0;
 }
-
-.tooth-legend-dot--green { background: var(--portal-green-text); }
-.tooth-legend-dot--red { background: var(--portal-red-text); }
-.tooth-legend-dot--blue { background: var(--portal-blue-text); }
-.tooth-legend-dot--amber { background: var(--portal-amber-text); }
-.tooth-legend-dot--gray { background: var(--portal-gray-text); }
-.tooth-legend-dot--indigo { background: var(--portal-indigo-text); }
 
 .tooth-detail-panel {
   margin-top: 16px;
@@ -455,12 +540,26 @@
   margin-bottom: 4px;
 }
 
+/* .tooth no longer has a fixed height (it's however tall the shape + number
+   stack naturally is), so the size reduction at this breakpoint is
+   expressed on the shape and number sizes rather than the button's own
+   height. Dash legibility at this size doesn't depend on these values —
+   see vector-effect: non-scaling-stroke above. */
 @media (max-width: 480px) {
   .tooth {
+    width: 28px;
+    border-radius: 6px;
+  }
+
+  /* Same ~0.76 shrink ratio the old 25x33 -> 19x25 pair used, applied to
+     the new 34x45 desktop size instead of staying at the pre-widen value. */
+  .tooth-shape {
     width: 26px;
-    height: 26px;
-    font-size: 0.66rem;
-    border-radius: 8px;
+    height: 34px;
+  }
+
+  .tooth-number {
+    font-size: 0.6rem;
   }
 }
 

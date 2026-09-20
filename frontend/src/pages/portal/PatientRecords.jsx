@@ -17,7 +17,15 @@ import Pagination from './components/Pagination';
 import Skeleton from './components/Skeleton';
 import StatusBadge from './components/StatusBadge';
 import Modal from './components/Modal';
-import { CONDITION_META, PLAN_STATUS_TONE, UPPER_ARCH, LOWER_ARCH, formatRecordDate as formatDate } from './dentalRecordShared';
+import {
+  CONDITION_META,
+  PLAN_STATUS_TONE,
+  UPPER_ARCH,
+  LOWER_ARCH,
+  TOOTH_TYPE,
+  TOOTH_SHAPE_PATHS,
+  formatRecordDate as formatDate,
+} from './dentalRecordShared';
 import { SearchIcon, FileIcon, ClockIcon, UserIcon, ShieldIcon, PrinterIcon, AlertIcon } from './icons';
 import { showSuccessToast, showErrorToast } from '../../utils/toast';
 import './dashboards.css';
@@ -244,24 +252,60 @@ function PatientRecords() {
     }
   };
 
-  const renderArch = (numbers) => (
-    <div className="tooth-row">
-      {numbers.map((n) => {
-        const info = getToothInfo(n);
-        const condMeta = CONDITION_META[info.condition] || CONDITION_META.other;
-        return (
-          <button
-            type="button"
-            key={n}
-            className={`tooth tooth--${condMeta.tone}${selectedTooth === n ? ' tooth--selected' : ''}`}
-            onClick={() => selectTooth(n)}
-            title={`Tooth #${n} — ${condMeta.label}`}
-          >
-            {n}
-          </button>
-        );
-      })}
-    </div>
+  // isUpper only decides two visual things: which side of the shape the
+  // number sits on, and whether the shape gets flipped. Nothing about
+  // selectTooth/getToothInfo/click handling changes with it.
+  //
+  // The <svg><path> here is inline per button, not a <use> referencing a
+  // shared <defs> — a CSS descendant selector like `.tooth--green
+  // .tooth-shape-svg path` cannot match anything inside <use>-generated
+  // content in any browser (that content isn't exposed to author selectors
+  // at all, per spec), so the tone-tinting rules already in DentalRecords
+  // .css never had a real target before. A real, per-instance <path> is
+  // what makes them work. width/height are set explicitly alongside
+  // viewBox so nothing depends on <use>'s default-sizing behaviour either.
+  const renderTooth = (n, isUpper) => {
+    const info = getToothInfo(n);
+    const condMeta = CONDITION_META[info.condition] || CONDITION_META.other;
+    const type = TOOTH_TYPE[n];
+    // Only 6 tone families cover 9 conditions (decayed/impacted share red,
+    // missing/extracted share gray) — disambiguated by stroke pattern and
+    // fill opacity instead of a new colour.
+    const dashed = info.condition === 'impacted' || info.condition === 'extracted';
+    const reduced = info.condition === 'missing' || info.condition === 'extracted';
+    // The number stays a literal text node inside the button (not a
+    // ::before, not only the title attr) so it's part of the button's
+    // accessible name exactly as it is today.
+    const numberEl = <span className="tooth-number">{n}</span>;
+    const shapeEl = (
+      <span className="tooth-shape" aria-hidden="true">
+        <svg
+          className={`tooth-shape-svg${isUpper ? ' tooth-shape-svg--flip' : ''}`}
+          viewBox="0 0 24 32"
+          width="25"
+          height="33"
+          focusable="false"
+        >
+          <path d={TOOTH_SHAPE_PATHS[type]} />
+        </svg>
+      </span>
+    );
+    return (
+      <button
+        type="button"
+        key={n}
+        className={`tooth tooth--${condMeta.tone}${dashed ? ' tooth--dashed' : ''}${reduced ? ' tooth--reduced-opacity' : ''}${selectedTooth === n ? ' tooth--selected' : ''}`}
+        onClick={() => selectTooth(n)}
+        title={`Tooth #${n} — ${condMeta.label}`}
+      >
+        {isUpper ? numberEl : shapeEl}
+        {isUpper ? shapeEl : numberEl}
+      </button>
+    );
+  };
+
+  const renderArch = (numbers, isUpper) => (
+    <div className="tooth-row">{numbers.map((n) => renderTooth(n, isUpper))}</div>
   );
 
   // ---- Clinical note ----
@@ -653,17 +697,26 @@ function PatientRecords() {
                 </p>
 
                 <div className="tooth-chart">
-                  {renderArch(UPPER_ARCH)}
-                  {renderArch(LOWER_ARCH)}
+                  {renderArch(UPPER_ARCH, true)}
+                  {renderArch(LOWER_ARCH, false)}
                 </div>
 
                 <div className="tooth-legend">
-                  {Object.entries(CONDITION_META).map(([key, condMeta]) => (
-                    <span key={key} className="tooth-legend-item">
-                      <span className={`tooth-legend-dot tooth-legend-dot--${condMeta.tone}`} />
-                      {condMeta.label}
-                    </span>
-                  ))}
+                  {Object.entries(CONDITION_META).map(([key, condMeta]) => {
+                    const dashed = key === 'impacted' || key === 'extracted';
+                    const reduced = key === 'missing' || key === 'extracted';
+                    return (
+                      <span
+                        key={key}
+                        className={`tooth-legend-item tooth--${condMeta.tone}${dashed ? ' tooth--dashed' : ''}${reduced ? ' tooth--reduced-opacity' : ''}`}
+                      >
+                        <svg className="tooth-legend-swatch tooth-shape-svg" viewBox="0 0 24 32" width="14" height="19" aria-hidden="true" focusable="false">
+                          <path d={TOOTH_SHAPE_PATHS.incisor} />
+                        </svg>
+                        {condMeta.label}
+                      </span>
+                    );
+                  })}
                 </div>
 
                 {/* Print-only — the colored grid above relies on click-to-select
