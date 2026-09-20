@@ -281,9 +281,9 @@ function PatientRecords() {
       <span className="tooth-shape" aria-hidden="true">
         <svg
           className={`tooth-shape-svg${isUpper ? ' tooth-shape-svg--flip' : ''}`}
-          viewBox="0 0 24 32"
-          width="25"
-          height="33"
+          viewBox="0 0 24 36"
+          width="34"
+          height="45"
           focusable="false"
         >
           <path d={TOOTH_SHAPE_PATHS[type]} />
@@ -702,6 +702,11 @@ function PatientRecords() {
                 </div>
 
                 <div className="tooth-legend">
+                  {/* A flex child with its own full-row basis, not a sibling
+                      before .tooth-legend — keeps this heading inside the one
+                      element the print stylesheet already hides, so nothing
+                      there needs to change to also hide this. */}
+                  <p className="tooth-legend-heading">Condition key</p>
                   {Object.entries(CONDITION_META).map(([key, condMeta]) => {
                     const dashed = key === 'impacted' || key === 'extracted';
                     const reduced = key === 'missing' || key === 'extracted';
@@ -710,8 +715,8 @@ function PatientRecords() {
                         key={key}
                         className={`tooth-legend-item tooth--${condMeta.tone}${dashed ? ' tooth--dashed' : ''}${reduced ? ' tooth--reduced-opacity' : ''}`}
                       >
-                        <svg className="tooth-legend-swatch tooth-shape-svg" viewBox="0 0 24 32" width="14" height="19" aria-hidden="true" focusable="false">
-                          <path d={TOOTH_SHAPE_PATHS.incisor} />
+                        <svg className="tooth-legend-swatch tooth-shape-svg" viewBox="0 0 24 36" width="20" height="30" aria-hidden="true" focusable="false">
+                          <path d={TOOTH_SHAPE_PATHS.centralIncisor} />
                         </svg>
                         {condMeta.label}
                       </span>

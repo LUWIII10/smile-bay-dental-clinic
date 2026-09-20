@@ -83,6 +83,48 @@
   overflow-x: auto;
   overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
+  /* Space between the last row and the scrollbar below it — padding-bottom
+     on the scroll container itself, not margin on the rows, since the
+     scrollbar sits at this element's own bottom edge and padding is what
+     reliably creates a gap before it (margin on the last child doesn't
+     collapse against a scrollbar the way it would against a sibling). */
+  padding-bottom: 8px;
+  /* Same brand-blue, pill-shaped scrollbar as .data-table-wrap/.modal-card
+     in dashboards.css (the one shared scrollbar look already established
+     in this app) — reused verbatim rather than introducing a second,
+     differently-styled one. rgba(41, 82, 227, ...) is --portal-blue's RGB
+     with alpha, matching those rules exactly (not a token reference there
+     either, since the token itself has no alpha channel). */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(41, 82, 227, 0.35) var(--portal-canvas);
+}
+
+.tooth-chart::-webkit-scrollbar {
+  height: 8px;
+}
+
+.tooth-chart::-webkit-scrollbar-track {
+  background: var(--portal-canvas);
+  border-radius: 999px;
+}
+
+.tooth-chart::-webkit-scrollbar-thumb {
+  background: rgba(41, 82, 227, 0.35);
+  border-radius: 999px;
+  transition: background-color 0.15s ease;
+}
+
+.tooth-chart::-webkit-scrollbar-thumb:hover {
+  background: rgba(41, 82, 227, 0.55);
+}
+
+/* Neither .data-table-wrap nor .modal-card needed this explicitly — modern
+   WebKit doesn't draw arrow buttons for a custom-styled scrollbar by
+   default — but it's set here defensively so nothing depends on that. */
+.tooth-chart::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 .tooth-row {
@@ -96,6 +138,13 @@
      this only changes alignment on widths that weren't scrolling anyway. */
   justify-content: flex-start;
   width: max-content;
+  /* Centres the row within .tooth-chart when it's narrower than the card
+     (auto margins split the free space evenly), and — unlike align-items:
+     center on the container — automatically resolves to 0 instead of
+     going negative once the row is wider than its container, so an
+     overflowing row still starts flush at the left edge with tooth 1/32
+     reachable without scrolling backward first. */
+  margin: 0 auto;
 }
 
 /* Still a plain rectangle — same click target, same focus ring, same
@@ -138,12 +187,18 @@
 /* Width is left to fill almost the entire 38px button (2px/side), not the
    25px it was left at from when the tooth was a numbered square — that gap
    was dead space with no reason to be there once the button stopped being
-   a square. viewBox stays "0 0 24 32"; only these wrapper dimensions grew. */
+   a square. Height is 51, not 45 — the 8-shape set's viewBox
+   (dentalRecordShared.js) grew from "0 0 24 32" to "0 0 24 36" for the
+   canine's longer root, and leaving height at 45 would have dropped
+   preserveAspectRatio's scale-to-fit from min(34/24, 45/32) = 1.406 to
+   min(34/24, 45/36) = 1.25 — an ~11% shrink of every shape. 51 restores
+   the original 1.406 scale: min(34/24, 51/36) = 1.406. Width (34/24 =
+   1.417) stays the non-binding side either way, same as before. */
 .tooth-shape {
   position: relative;
   display: flex;
   width: 34px;
-  height: 45px;
+  height: 51px;
 }
 
 /* pointer-events: none so every click inside the button's box resolves to
@@ -173,6 +228,10 @@
      shrink proportionally with the shape and risk reading as solid at
      small sizes. See the verification report for the legibility check. */
   vector-effect: non-scaling-stroke;
+  /* The 8-shape set has sharp interior angles where roots separate (e.g.
+     firstPremolar's two roots, firstMolar's three) — without this they'd
+     render as spikes at those joins. */
+  stroke-linejoin: round;
 }
 
 /* Stroke uses -text, not -border — -border sits too close to -bg to read
@@ -213,9 +272,27 @@
 .tooth-legend {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px 18px;
+  /* No scroll/overflow concern here unlike .tooth-row above — flex-wrap
+     never overflows its container horizontally, it wraps instead, so a
+     plain justify-content: center is safe with no reachability risk. */
+  justify-content: center;
+  gap: 14px 24px;
   padding-top: 16px;
   border-top: 1px solid var(--portal-border-light);
+}
+
+/* flex-basis: 100% forces this onto its own line inside .tooth-legend's
+   flex-wrap row, pushing the swatch items below it — a flex child of
+   .tooth-legend, not a sibling, so it's covered by the print stylesheet's
+   existing .tooth-legend { display: none } without touching that rule. */
+.tooth-legend-heading {
+  flex-basis: 100%;
+  margin: 0;
+  text-align: center;
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  color: var(--portal-muted);
 }
 
 .tooth-legend-item {
@@ -223,12 +300,20 @@
   align-items: center;
   gap: 6px;
   font-size: 0.78rem;
-  color: var(--portal-slate);
+  /* #0f172a/500 is the same pattern dashboards.css's .activity-item-name
+     already uses for "this should read as a real label, not secondary
+     text" — not a new value, the darker half of an existing pairing. */
+  color: #0f172a;
+  font-weight: 500;
 }
 
+/* 20x30 — big enough that the fill reads as a coloured tooth rather than a
+   thin line, and the dashed stroke (Impacted vs Decayed, Extracted vs
+   Missing) is visible for the first time at this size. Shape/viewBox/path
+   are unchanged; only these rendered dimensions grew. */
 .tooth-legend-swatch {
-  width: 14px;
-  height: 19px;
+  width: 20px;
+  height: 30px;
   flex-shrink: 0;
 }
 
@@ -551,15 +636,26 @@
     border-radius: 6px;
   }
 
-  /* Same ~0.76 shrink ratio the old 25x33 -> 19x25 pair used, applied to
-     the new 34x45 desktop size instead of staying at the pre-widen value. */
+  /* Same ~0.76 width ratio the old 25x33 -> 19x25 pair used, applied to
+     the current 34px desktop width. Height (39) keeps the same 26:39
+     proportion as the desktop 34:51, rather than reusing the old 34 value
+     that predates the viewBox growing to "0 0 24 36". */
   .tooth-shape {
     width: 26px;
-    height: 34px;
+    height: 39px;
   }
 
   .tooth-number {
     font-size: 0.6rem;
+  }
+
+  /* 0.8x of the 20x30 desktop swatch — still well above the old 14x19
+     default, just pulled back from full size on a narrow viewport.
+     flex-wrap (unchanged) handles fit on its own regardless of this exact
+     value; there is no overflow-x on .tooth-legend for this to break. */
+  .tooth-legend-swatch {
+    width: 16px;
+    height: 24px;
   }
 }
 
