@@ -12,6 +12,7 @@ import {
   addTreatmentHistory,
 } from '../../api/patientRecords';
 import { completeAppointment } from '../../api/appointments';
+import BrandLogo from '../../components/common/BrandLogo';
 import DataTable from './components/DataTable';
 import Pagination from './components/Pagination';
 import Skeleton from './components/Skeleton';
@@ -26,7 +27,7 @@ import {
   TOOTH_SHAPE_PATHS,
   formatRecordDate as formatDate,
 } from './dentalRecordShared';
-import { SearchIcon, FileIcon, ClockIcon, UserIcon, ShieldIcon, PrinterIcon, AlertIcon } from './icons';
+import { SearchIcon, FileIcon, ClockIcon, UserIcon, ShieldIcon, PrinterIcon, AlertIcon, SyringeIcon, ToothIcon, MailIcon, CalendarIcon } from './icons';
 import { showSuccessToast, showErrorToast } from '../../utils/toast';
 import './dashboards.css';
 import './Appointments.css';
@@ -50,6 +51,67 @@ function getInitials(name) {
   const first = parts[0]?.[0] || '';
   const last = parts.length > 1 ? parts[parts.length - 1][0] : '';
   return (first + last).toUpperCase();
+}
+
+function formatStatusLabel(status) {
+  return String(status).replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase());
+}
+
+// Real age from a real date of birth — not stored anywhere, computed once
+// for the printed header/Section 1. Subtracts a year if this year's
+// birthday hasn't happened yet.
+function calculateAge(dateOfBirth) {
+  if (!dateOfBirth) return null;
+  const dob = new Date(dateOfBirth);
+  const today = new Date();
+  let age = today.getFullYear() - dob.getFullYear();
+  const monthDiff = today.getMonth() - dob.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) age -= 1;
+  return age;
+}
+
+// medical_conditions is the registration wizard's checklist (Pregnant,
+// Breastfeeding, Smoking/Vape, Alcohol Use, Drug Use, among the medical
+// categories) — a JSON array of the exact option strings checked, nothing
+// more granular than "checked or not". Pulled out here rather than
+// invented: no field anywhere records a smoking/drinking *frequency*, so
+// the printed report says only what was actually reported, not a level of
+// detail ("social", "occasional") this app never collected.
+function hasConditionFlag(patient, ...labels) {
+  const list = patient?.medical_conditions || [];
+  return labels.some((label) => list.includes(label));
+}
+
+function pregnancyStatusLabel(patient) {
+  if (patient.sex === 'male') return 'Not applicable';
+  if (hasConditionFlag(patient, 'Pregnant')) return 'Pregnant';
+  if (hasConditionFlag(patient, 'Breastfeeding')) return 'Breastfeeding';
+  return 'Not pregnant';
+}
+
+// Cross-references a charted tooth against this patient's own treatment
+// history (already loaded, same data the Treatment History section
+// lists) for the most recent procedure recorded against that exact tooth
+// number — tooth_conditions itself has no treatment/procedure column of
+// its own, so this is the only honest source for that column rather than
+// a blank or invented value.
+function lastProcedureForTooth(treatmentHistory, toothNumber) {
+  const match = (treatmentHistory || [])
+    .filter((h) => h.tooth_number === toothNumber)
+    .sort((a, b) => (a.performed_at < b.performed_at ? 1 : -1))[0];
+  return match ? match.procedure_name : null;
+}
+
+// Rolling last-12-months window, same defaulting pattern as Reports.jsx's
+// defaultRange() — a starting point the two print date inputs then edit
+// freely. Filtering happens entirely client-side against data already
+// loaded by getPatientRecord(); changing these never refetches anything.
+function defaultPrintRange() {
+  const now = new Date();
+  const from = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  from.setFullYear(from.getFullYear() - 1);
+  const toIso = (d) => d.toISOString().slice(0, 10);
+  return { date_from: toIso(from), date_to: toIso(now) };
 }
 
 // complete()'s exact notes rule (min 20, max 1000), checked ahead of time so
@@ -102,6 +164,12 @@ function PatientRecords() {
   const [selectedTooth, setSelectedTooth] = useState(null);
   const [toothForm, setToothForm] = useState({ condition: 'healthy', notes: '' });
   const [savingTooth, setSavingTooth] = useState(false);
+  // Print-only date filter — scopes Treatment History (by performed_at) and
+  // Clinical Notes (by created_at) in the printed report. Patient info and
+  // the tooth chart are current-state, not dated, and always print in full
+  // regardless of this range; see the printed report for the reasoning on
+  // why Treatment Plans also isn't filtered by it.
+  const [printRange, setPrintRange] = useState(defaultPrintRange());
 
   // ---- Completing a visit (arrived via DentistSchedule's Complete button) ----
   // Only ever true while still viewing the same patient this completing
@@ -535,12 +603,65 @@ function PatientRecords() {
     const noteForVisit = notesForVisit[0] || null;
     const patientFullName = patient ? `${patient.first_name} ${patient.last_name}`.trim() : '';
 
+    // Print-only date filter — performed_at is a plain DATE column (no time
+    // component, so a direct string compare against the Y-m-d range bounds
+    // is exact); created_at is a full timestamp, hence the slice. Treatment
+    // plans and the tooth chart are deliberately not filtered — see the
+    // printed report itself for why.
+    const printHistory = (record?.treatment_history || []).filter(
+      (h) => h.performed_at >= printRange.date_from && h.performed_at <= printRange.date_to
+    );
+    const printNotes = (record?.clinical_notes || []).filter(
+      (n) => n.created_at.slice(0, 10) >= printRange.date_from && n.created_at.slice(0, 10) <= printRange.date_to
+    );
+
+    // Pregnant/Breastfeeding/Smoking/Alcohol already get their own rows in
+    // Medical & Dental History below — excluded here so they aren't also
+    // sitting inside this general list, redundant with their own row right
+    // next to it.
+    const BROKEN_OUT_CONDITIONS = ['Pregnant', 'Breastfeeding', 'Smoking/Vape', 'Alcohol Use'];
+    const medicalConditionsSummary = (() => {
+      const parts = (patient?.medical_conditions || []).filter((c) => !BROKEN_OUT_CONDITIONS.includes(c));
+      if (patient?.medical_conditions_other) parts.push(patient.medical_conditions_other);
+      return parts.length > 0 ? parts.join('; ') : 'None';
+    })();
+    const dentalConcernsSummary = (() => {
+      const parts = [...(patient?.current_dental_symptoms || [])];
+      if (patient?.visit_reason) parts.push(patient.visit_reason);
+      return parts.length > 0 ? parts.join('; ') : 'None reported';
+    })();
+
     return (
       <div>
         <div className="section-card-header appt-page-header">
           <button type="button" className="dash-btn dash-btn--outline" onClick={backToList}>
             &larr; Back to Patient Records
           </button>
+          {/* Visible to all three roles that can reach this page at all —
+              dentist, dental_assistant, admin. Printing a record someone is
+              already allowed to view isn't a clinical-editing action, so
+              it isn't gated by isDentist/isAssistantView the way the
+              on-screen edit affordances below are. */}
+          {patient && record && (
+            <div className="record-print-controls">
+              <input
+                type="date"
+                className="form-input"
+                value={printRange.date_from}
+                onChange={(e) => setPrintRange((p) => ({ ...p, date_from: e.target.value }))}
+              />
+              <span className="filter-date-range-sep" aria-hidden="true" />
+              <input
+                type="date"
+                className="form-input"
+                value={printRange.date_to}
+                onChange={(e) => setPrintRange((p) => ({ ...p, date_to: e.target.value }))}
+              />
+              <button type="button" className="dash-btn dash-btn--outline" onClick={() => window.print()}>
+                <PrinterIcon /> Print Record
+              </button>
+            </div>
+          )}
         </div>
 
         {detailLoading ? (
@@ -563,18 +684,298 @@ function PatientRecords() {
                 <span className="completing-banner-hint">Fill in the record below, then complete</span>
               </div>
             )}
-          <div className="record-detail-print">
-            {/* Print-only — hidden on screen (DentalRecords.css), shown only inside .record-detail-print when printing */}
-            <div className="record-print-header">
-              <h1>Smile Bay Dental Clinic</h1>
-              <p>Patient Dental Record</p>
-              <div className="record-print-header-grid">
-                <span><strong>Patient:</strong> {patient.first_name} {patient.middle_name} {patient.last_name}</span>
-                <span><strong>Record No.:</strong> {record.record_number}</span>
-                <span><strong>Printed:</strong> {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
+
+          {/* Print-only — the entire formal report. Built directly from
+              patient/record/printRange, independent of isDentist/
+              isAssistantView: unlike the interactive on-screen sections
+              below (which hide the tooth chart, treatment plans and
+              clinical notes from dental_assistant), a printed record is
+              informational output any of the three roles that can open
+              this page should be able to produce in full — the same
+              reasoning behind moving the print button out of a
+              dentist-only section in the first place. Supersedes the old
+              .record-print-header/.record-print-tooth-summary entirely;
+              .record-detail-print itself is hidden in print now
+              (DentalRecords.css) since every part of it has an equivalent
+              here. */}
+          <div className="record-print-formal">
+            {/* Centred and stacked — the same layout Reports.jsx's own
+                print header already uses successfully, not the side-by-
+                side two-column version this had briefly: squeezing
+                BrandLogo into half the header's width (competing with a
+                title block on the other side) rendered it visibly smaller
+                than its own natural size. Full-width and centred gives it
+                the same unconstrained space Reports.jsx's header does. */}
+            <div className="record-print-formal-header">
+              {/* Same BrandLogo used by Reports.jsx's own print header —
+                  the real logo image plus "Smile Bay" set in the actual
+                  brand font (Pacifico, see BrandLogo.css), not a plain
+                  bold heading standing in for it. */}
+              <BrandLogo variant="blue" size="md" />
+              <p className="record-print-formal-subtitle">Patient Dental Record</p>
+              {/* Real, already-public clinic contact details — the same
+                  address/phone/email shown on the landing page footer.
+                  Not fetched live: ClinicInfo (which also holds an
+                  editable tagline) only exists behind GET /api/admin/
+                  settings, which is role:admin-only — calling it here
+                  would 403 for the dentist/dental_assistant roles that
+                  also need to print this, and adding a new endpoint or
+                  opening that one to more roles is a backend change this
+                  pass doesn't make. No tagline for the same reason: it's
+                  a real field, just not one this page can reach without
+                  that change, so it's left out rather than guessed at. */}
+              <div className="record-print-clinic-details">
+                <p>Ground Floor, Mega Building, National Highway, Landayan, San Pedro, Laguna, 4023</p>
+                <p>0917 132 3093 &middot; smilebayph@gmail.com</p>
+              </div>
+              <div className="record-print-info-box">
+                <div><FileIcon /><span><strong>Record No.:</strong> {record.record_number}</span></div>
+                <div><UserIcon /><span><strong>Patient No.:</strong> {patient.patient_number}</span></div>
+                <div>
+                  <CalendarIcon />
+                  <span><strong>Date Printed:</strong> {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</span>
+                </div>
               </div>
             </div>
 
+            <p className="record-print-formal-meta">
+              Treatment History &amp; Clinical Notes below cover {formatDate(printRange.date_from)} – {formatDate(printRange.date_to)}. Patient information and the dental chart are current as of the print date, in full, regardless of that range.
+            </p>
+
+            <div className="record-print-section">
+              <div className="record-print-section-header">
+                <span className="record-print-section-icon"><UserIcon /></span>
+                <h3 className="record-print-section-title">Patient Information</h3>
+              </div>
+              <div className="record-print-grid">
+                <div className="record-print-grid-col">
+                  <div className="record-print-grid-item"><span>Patient Name</span><span>{patient.first_name} {patient.middle_name} {patient.last_name}</span></div>
+                  <div className="record-print-grid-item"><span>Patient No.</span><span>{patient.patient_number}</span></div>
+                  <div className="record-print-grid-item"><span>Record No.</span><span>{record.record_number}</span></div>
+                  <div className="record-print-grid-item"><span>Date of Birth</span><span>{patient.date_of_birth ? formatDate(patient.date_of_birth) : '—'}</span></div>
+                  <div className="record-print-grid-item"><span>Age</span><span>{calculateAge(patient.date_of_birth) ?? '—'}</span></div>
+                  <div className="record-print-grid-item"><span>Sex</span><span>{SEX_LABELS[patient.sex] || patient.sex || '—'}</span></div>
+                </div>
+                <div className="record-print-grid-col">
+                  <div className="record-print-grid-item"><span>Contact Number</span><span>{patient.user?.mobile_number || '—'}</span></div>
+                  <div className="record-print-grid-item"><span>Email</span><span>{patient.user?.email || '—'}</span></div>
+                  <div className="record-print-grid-item"><span>Address</span><span>{patient.address_line || '—'}</span></div>
+                  <div className="record-print-grid-item">
+                    <span>Emergency Contact</span>
+                    <span>
+                      {patient.emergency_contact_name || '—'}
+                      {patient.emergency_contact_relationship ? ` (${patient.emergency_contact_relationship})` : ''}
+                    </span>
+                  </div>
+                  <div className="record-print-grid-item"><span>Emergency Contact No.</span><span>{patient.emergency_contact_number || '—'}</span></div>
+                  <div className="record-print-grid-item">
+                    <span>Patient Category</span>
+                    <span>
+                      {patient.patient_type === 'cash' ? 'Cash' : 'HMO'}
+                      {patient.patient_type === 'hmo' && (patient.hmo_provider?.name || patient.hmo_company_name)
+                        ? ` — ${patient.hmo_provider?.name || patient.hmo_company_name}${patient.hmo_number ? ` (#${patient.hmo_number})` : ''}`
+                        : ''}
+                    </span>
+                  </div>
+                  <div className="record-print-grid-item"><span>Primary Dentist</span><span>{record.primary_dentist?.name || 'Not yet assigned'}</span></div>
+                </div>
+              </div>
+            </div>
+
+            <div className="record-print-section">
+              <div className="record-print-section-header">
+                <span className="record-print-section-icon"><SyringeIcon /></span>
+                <h3 className="record-print-section-title">Medical &amp; Dental History</h3>
+              </div>
+              <div className="record-print-grid">
+                <div className="record-print-grid-col">
+                  <div className="record-print-grid-item"><span>Allergies</span><span>{patient.allergies || 'None known'}</span></div>
+                  <div className="record-print-grid-item"><span>Current Medications</span><span>{patient.current_medications || 'None'}</span></div>
+                  <div className="record-print-grid-item"><span>Medical Conditions</span><span>{medicalConditionsSummary}</span></div>
+                  <div className="record-print-grid-item"><span>Previous Surgeries / Hospitalization</span><span>{patient.previous_surgeries || 'None'}</span></div>
+                  <div className="record-print-grid-item"><span>Pregnancy Status</span><span>{pregnancyStatusLabel(patient)}</span></div>
+                </div>
+                {/* Smoking/Alcohol here can only ever say whether the
+                    registration checklist had that box ticked — not a
+                    level of detail ("social", "occasional") this app
+                    never collected. See hasConditionFlag's own comment. */}
+                <div className="record-print-grid-col">
+                  <div className="record-print-grid-item"><span>Smoking History</span><span>{hasConditionFlag(patient, 'Smoking/Vape') ? 'Smoker' : 'Non-smoker'}</span></div>
+                  <div className="record-print-grid-item"><span>Alcohol History</span><span>{hasConditionFlag(patient, 'Alcohol Use') ? 'Reported' : 'None reported'}</span></div>
+                  <div className="record-print-grid-item"><span>Previous Dental Treatment</span><span>{patient.last_dental_treatment || 'None on file'}</span></div>
+                  <div className="record-print-grid-item"><span>Last Dental Visit</span><span>{patient.last_dental_visit || 'Not on file'}</span></div>
+                  <div className="record-print-grid-item"><span>Dental Concerns</span><span>{dentalConcernsSummary}</span></div>
+                </div>
+              </div>
+            </div>
+
+            {/* Never date-filtered. tooth_conditions is current-state (one
+                row per tooth, overwritten in place by setToothCondition),
+                not a log of dated events — a "chart as of August" reading
+                is meaningless when the table only ever stores each
+                tooth's latest condition. Treatment / Procedure has no
+                column of its own on tooth_conditions — it's derived via
+                lastProcedureForTooth, cross-referencing this same
+                patient's own treatment history by tooth number, rather
+                than left blank or invented. */}
+            <div className="record-print-section">
+              <div className="record-print-section-header">
+                <span className="record-print-section-icon"><ToothIcon /></span>
+                <h3 className="record-print-section-title">Dental Chart Summary</h3>
+              </div>
+              {record.tooth_conditions.length === 0 ? (
+                <p className="record-print-empty">No tooth conditions charted yet.</p>
+              ) : (
+                <table className="record-print-table">
+                  <thead>
+                    <tr><th>Tooth No.</th><th>Condition</th><th>Treatment / Procedure</th><th>Notes</th><th>Last Updated By</th></tr>
+                  </thead>
+                  <tbody>
+                    {record.tooth_conditions.map((tc) => (
+                      <tr key={tc.tooth_number}>
+                        <td>{tc.tooth_number}</td>
+                        <td>{CONDITION_META[tc.condition]?.label || tc.condition}</td>
+                        <td>{lastProcedureForTooth(record.treatment_history, tc.tooth_number) || '—'}</td>
+                        <td>{tc.notes || '—'}</td>
+                        <td>{tc.updated_by?.name || '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            {/* Also not date-filtered. target_date is a future target for
+                finishing the plan, not when the plan itself was authored
+                or worked on — filtering "plans active in this period"
+                against a single future date doesn't cleanly match either
+                a created-in-period or completed-in-period reading (a plan
+                made in January targeting December belongs to neither
+                month). Printed in full rather than guess. */}
+            <div className="record-print-section">
+              <div className="record-print-section-header">
+                <span className="record-print-section-icon"><FileIcon /></span>
+                <h3 className="record-print-section-title">Treatment Plans</h3>
+              </div>
+              {record.treatment_plans.length === 0 ? (
+                <p className="record-print-empty">No treatment plans on file.</p>
+              ) : (
+                <table className="record-print-table">
+                  <thead>
+                    <tr><th>Plan Title</th><th>Dentist</th><th>Status</th><th>Target Date</th><th>Planned Procedures / Items</th></tr>
+                  </thead>
+                  <tbody>
+                    {record.treatment_plans.map((plan) => (
+                      <tr key={plan.id}>
+                        <td>{plan.title}</td>
+                        <td>{plan.dentist?.name || '—'}</td>
+                        <td>{formatStatusLabel(plan.status)}</td>
+                        <td>{plan.target_date ? formatDate(plan.target_date) : '—'}</td>
+                        <td>
+                          {plan.items.length > 0
+                            ? plan.items.map((it) => `${it.procedure_name}${it.tooth_number ? ` (Tooth #${it.tooth_number})` : ''}`).join('; ')
+                            : '—'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            <div className="record-print-section">
+              <div className="record-print-section-header">
+                <span className="record-print-section-icon"><ClockIcon /></span>
+                <h3 className="record-print-section-title">Treatment History</h3>
+              </div>
+              {printHistory.length === 0 ? (
+                <p className="record-print-empty">No entries in the selected period.</p>
+              ) : (
+                <table className="record-print-table">
+                  <thead>
+                    <tr><th>Date</th><th>Tooth / Area</th><th>Procedure</th><th>Dentist</th><th>Notes</th></tr>
+                  </thead>
+                  <tbody>
+                    {printHistory.map((h) => (
+                      <tr key={h.id}>
+                        <td>{formatDate(h.performed_at)}</td>
+                        <td>{h.tooth_number || '—'}</td>
+                        <td>{h.procedure_name}</td>
+                        <td>{h.performed_by?.name || '—'}</td>
+                        <td>{h.notes || '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            <div className="record-print-section">
+              <div className="record-print-section-header">
+                <span className="record-print-section-icon"><MailIcon /></span>
+                <h3 className="record-print-section-title">Clinical Notes</h3>
+              </div>
+              {printNotes.length === 0 ? (
+                <p className="record-print-empty">No entries in the selected period.</p>
+              ) : (
+                <table className="record-print-table">
+                  <thead>
+                    <tr><th>Date</th><th>Dentist</th><th>Note</th></tr>
+                  </thead>
+                  <tbody>
+                    {printNotes.map((note) => (
+                      <tr key={note.id}>
+                        <td>{formatDate(note.created_at)}</td>
+                        <td>{note.dentist?.name || '—'}</td>
+                        <td>{note.note}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            {/* Blank signature lines — a real consent/verification block
+                is meant to be filled in by hand after printing, so there's
+                no data to bind here; that's the point of this section. */}
+            <div className="record-print-section">
+              <div className="record-print-section-header">
+                <span className="record-print-section-icon"><ShieldIcon /></span>
+                <h3 className="record-print-section-title">Consent &amp; Record Verification</h3>
+              </div>
+              <p className="record-print-consent-text">
+                I certify that the information in this record is accurate to the best of my knowledge and consent to its use for dental care at Smile Bay Dental Clinic.
+              </p>
+              <div className="record-print-signature-row">
+                <div className="record-print-signature-block">
+                  <span className="record-print-signature-line" />
+                  <span className="record-print-signature-label">Patient / Guardian Signature</span>
+                </div>
+                <div className="record-print-signature-block">
+                  <span className="record-print-signature-line" />
+                  <span className="record-print-signature-label">Dentist Signature</span>
+                </div>
+              </div>
+              <div className="record-print-signature-row">
+                <div className="record-print-signature-block">
+                  <span className="record-print-signature-line" />
+                  <span className="record-print-signature-label">Date</span>
+                </div>
+                <div className="record-print-signature-block">
+                  <span className="record-print-signature-line" />
+                  <span className="record-print-signature-label">Record Verified By</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Repeats on every printed page — see the verification report
+                for why this stays a single line with no page number. */}
+            <div className="record-print-footer">
+              <span>Smile Bay Dental Clinic · Patient Dental Record · Confidential Medical Record</span>
+            </div>
+          </div>
+
+          <div className="record-detail-print">
             <div className="section-card">
               <div className="section-card-header">
                 <h3 className="section-card-title">
@@ -724,38 +1125,6 @@ function PatientRecords() {
                   })}
                 </div>
 
-                {/* Print-only — the colored grid above relies on click-to-select
-                    for per-tooth detail and on color alone for condition, neither
-                    of which survives onto paper. This text summary stands in for
-                    it when printing; hidden on screen (DentalRecords.css). */}
-                <div className="record-print-tooth-summary">
-                  <h4>Tooth Chart Summary</h4>
-                  {record.tooth_conditions.length === 0 ? (
-                    <p>No tooth conditions charted yet.</p>
-                  ) : (
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>Tooth #</th>
-                          <th>Condition</th>
-                          <th>Notes</th>
-                          <th>Last Updated By</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {record.tooth_conditions.map((tc) => (
-                          <tr key={tc.tooth_number}>
-                            <td>{tc.tooth_number}</td>
-                            <td>{CONDITION_META[tc.condition]?.label || tc.condition}</td>
-                            <td>{tc.notes || '—'}</td>
-                            <td>{tc.updated_by?.name || '—'}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  )}
-                </div>
-
                 {selectedInfo && (
                   <div className="tooth-detail-panel">
                     <div className="tooth-detail-header">
@@ -872,11 +1241,6 @@ function PatientRecords() {
               <div className="section-card-header">
                 <h3 className="section-card-title">{isAssistantView ? 'Dental Treatment History' : 'Treatment History'}</h3>
                 <div className="history-header-actions">
-                  {record.treatment_history.length > 0 && (
-                    <button type="button" className="dash-btn dash-btn--outline" onClick={() => window.print()}>
-                      <PrinterIcon /> Print History
-                    </button>
-                  )}
                   {isDentist && (
                     <button type="button" className="dash-btn dash-btn--outline" onClick={() => setHistoryModalOpen(true)}>
                       + Log Procedure

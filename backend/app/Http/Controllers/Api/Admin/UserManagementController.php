@@ -25,9 +25,21 @@ class UserManagementController extends Controller
             'status' => ['nullable', 'in:active,inactive'],
             'search' => ['nullable', 'string', 'max:100'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
+            // 'cancellations_desc' backs the Cancellations column's sort
+            // control (patient role only, in the frontend) — see the
+            // 'frequent canceller' suspend-decision feature this exists for.
+            'sort' => ['nullable', 'in:name_asc,cancellations_desc'],
         ]);
 
-        $query = User::query();
+        $query = User::query()
+            ->withCount([
+                'patientAppointments as cancellation_count' => fn ($q) => $q->where('status', 'cancelled'),
+            ])
+            // Surfaces the automatic 3-strike restriction (see
+            // CancellationPolicyService) alongside the manual Deactivate
+            // action, so admin sees both the count AND whether the system
+            // already auto-restricted new bookings for this patient.
+            ->with('patient:id,user_id,booking_restricted_at');
 
         if (! empty($validated['role'])) {
             $query->where('role', $validated['role']);
@@ -40,9 +52,15 @@ class UserManagementController extends Controller
             $query->where(fn ($q) => $q->where('name', 'like', "%{$search}%")->orWhere('email', 'like', "%{$search}%"));
         }
 
+        if (($validated['sort'] ?? null) === 'cancellations_desc') {
+            $query->orderByDesc('cancellation_count')->orderBy('name');
+        } else {
+            $query->orderBy('name');
+        }
+
         $perPage = $validated['per_page'] ?? 10;
 
-        return response()->json($query->orderBy('name')->paginate($perPage)->withQueryString());
+        return response()->json($query->paginate($perPage)->withQueryString());
     }
 
     /**

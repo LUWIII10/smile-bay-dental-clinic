@@ -961,116 +961,311 @@
   margin-bottom: 14px;
 }
 
-/* ============ Print — patient record detail (PatientRecords.jsx ONLY) ============
-   Everything below is scoped under .record-detail-print, a wrapper class
-   that exists nowhere else in the app — not on any other portal page, and
-   not on PatientDentalRecords.jsx (the patient's own read-only view), even
-   though this stylesheet is also loaded there. Nothing here can match
-   outside that one wrapper, on screen or in print.
+/* ============ Print controls (PatientRecords.jsx header row) ============
+   On-screen only — same shape as Reports.jsx's .reports-date-range, hidden
+   in print below since interactive controls mean nothing on paper (the
+   formal header states the applied range in plain text instead). */
+.record-print-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
 
-   .record-print-header and .record-print-tooth-summary are new, uniquely
-   named blocks that also exist only inside that wrapper. They're hidden on
-   screen unconditionally (no @media needed for that half — the classes
-   can't collide with anything) and revealed only inside @media print. */
+.record-print-controls .form-input {
+  width: 150px;
+}
 
-.record-print-header,
-.record-print-tooth-summary {
+/* ============ Print — patient record (PatientRecords.jsx ONLY) ============
+   .record-print-formal is a new, standalone print block — not nested
+   inside any of the isDentist/isAssistantView-gated on-screen sections, so
+   it always has the full record to draw from regardless of role. Hidden on
+   screen at the top level only (no @media needed for that half); its
+   children (header, numbered sections, tables) have no display rules of
+   their own outside @media print — hiding the wrapper already hides them,
+   and giving a child its own display: none here without an equal-and-
+   opposite reveal inside @media print is exactly the bug this pattern
+   already caused once (see Reports.css's fix and its own comment on this).
+   .record-detail-print (the old on-screen-mirroring print output) is
+   superseded entirely and hidden wholesale in print below — every part of
+   it now has an equivalent in .record-print-formal. */
+.record-print-formal {
   display: none;
 }
 
 @media print {
-  .record-detail-print .record-print-header {
-    display: block;
-    margin-bottom: 20px;
-    padding-bottom: 12px;
-    border-bottom: 2px solid #000;
-  }
-
-  .record-detail-print .record-print-header h1 {
-    margin: 0 0 2px;
-    font-size: 1.3rem;
-    color: #000;
-  }
-
-  .record-detail-print .record-print-header p {
-    margin: 0 0 10px;
-    font-size: 0.95rem;
-    color: #000;
-  }
-
-  .record-detail-print .record-print-header-grid {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px 28px;
-    font-size: 0.85rem;
-    color: #000;
-  }
-
-  .record-detail-print .record-print-tooth-summary {
-    display: block;
-    margin: 12px 0;
-  }
-
-  .record-detail-print .record-print-tooth-summary h4 {
-    margin: 0 0 6px;
-    font-size: 0.95rem;
-    color: #000;
-  }
-
-  .record-detail-print .record-print-tooth-summary table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.8rem;
-  }
-
-  .record-detail-print .record-print-tooth-summary th,
-  .record-detail-print .record-print-tooth-summary td {
-    border: 1px solid #000;
-    padding: 4px 6px;
-    text-align: left;
-    color: #000;
-  }
-
-  /* The interactive chart is color-coded and click-to-select-to-reveal —
-     neither survives paper. The summary table above stands in for it. */
-  .record-detail-print .tooth-chart,
-  .record-detail-print .tooth-legend,
-  .record-detail-print .tooth-chart-note,
-  .record-detail-print .tooth-detail-panel {
+  .record-print-controls {
     display: none !important;
   }
 
-  /* Status/condition pills already carry their label as text, not color
-     alone — but a pale fill can wash out on a black-and-white printer.
-     Force a solid border and black text so they stay legible either way. */
-  .record-detail-print .status-badge {
-    background: none !important;
-    border: 1px solid #000 !important;
-    color: #000 !important;
+  .record-detail-print {
+    display: none !important;
   }
 
-  /* The editable plan-status <select> (dentist view) — strip its form-
-     control chrome so it reads as plain text instead of an interactive
-     control; it still shows its selected option's text either way. */
-  .record-detail-print .plan-status-select {
-    appearance: none;
-    -webkit-appearance: none;
-    border: none !important;
-    background: none !important;
-    padding: 0 !important;
-    color: #000 !important;
-    font-weight: 600;
+  /* Colour, not black-on-white — a deliberate reversal of this section's
+     earlier formal-report look, per an explicit visual reference. Every
+     colour below is one of the portal's own --portal-blue-* tokens
+     (portalTokens.css, untouched), reused, not new. */
+  .record-print-formal {
+    display: block;
+    color: var(--portal-slate);
   }
 
-  /* Don't split a single entry across a page break. Sections themselves
-     are left free to flow across pages — only the entry, not the section,
-     is protected. */
-  .record-detail-print .note-item,
-  .record-detail-print .plan-card,
-  .record-detail-print .history-item,
-  .record-detail-print .timeline-entry,
-  .record-detail-print .record-print-tooth-summary tbody tr {
+  /* Stacked and centred — the same letterhead layout Reports.jsx's own
+     print header uses (.reports-print-header in Reports.css): logo, then
+     the title/contact/info-box text, all centred beneath it, instead of
+     splitting the width into two side-by-side columns. That two-column
+     version squeezed BrandLogo into half the header's width (competing
+     with the title block on the other side), which rendered it visibly
+     smaller than its own natural size — this restores the original,
+     approved, unconstrained rendering. */
+  .record-print-formal-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding-bottom: 14px;
+    border-bottom: 3px solid var(--portal-blue);
+    text-align: center;
+  }
+
+  .record-print-formal-subtitle {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--portal-navy);
+  }
+
+  .record-print-clinic-details {
+    font-size: 10px;
+    color: var(--portal-muted);
+    line-height: 1.5;
+  }
+
+  .record-print-clinic-details p {
+    margin: 0;
+  }
+
+  /* The bordered info box called for in the spec — three quick-reference
+     lines (record no., patient no., print date), not the full demographic
+     sheet; that's Patient Information's job, once, below. */
+  .record-print-info-box {
+    border: 1px solid var(--portal-blue-border);
+    border-radius: 8px;
+    background: var(--portal-blue-tint);
+    padding: 8px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 4px;
+    font-size: 10.5px;
+    color: var(--portal-slate);
+    text-align: left;
+  }
+
+  .record-print-info-box > div {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .record-print-info-box svg {
+    width: 12px;
+    height: 12px;
+    color: var(--portal-blue);
+    flex-shrink: 0;
+  }
+
+  .record-print-formal-meta {
+    margin: 10px 0 16px;
+    font-size: 10px;
+    color: var(--portal-muted);
+    text-align: center;
+  }
+
+  .record-print-section {
+    margin: 0 0 16px;
+    border: 1px solid var(--portal-border-light);
+    border-radius: 10px;
+    overflow: hidden;
     break-inside: avoid;
     page-break-inside: avoid;
   }
+
+  .record-print-section-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    background: var(--portal-blue-tint);
+    border-bottom: 1px solid var(--portal-blue-border);
+  }
+
+  .record-print-section-icon {
+    flex-shrink: 0;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: var(--portal-blue);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .record-print-section-icon svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .record-print-section-title {
+    margin: 0;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--portal-navy);
+  }
+
+  /* Patient Information / Medical & Dental History — label/value pairs in
+     two columns, matching the reference layout exactly. */
+  .record-print-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 24px;
+    padding: 4px 14px 8px;
+  }
+
+  .record-print-grid-col {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .record-print-grid-item {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 7px 0;
+    border-bottom: 1px solid var(--portal-border-light);
+    font-size: 11px;
+  }
+
+  .record-print-grid-item:last-child {
+    border-bottom: none;
+  }
+
+  .record-print-grid-item span:first-child {
+    color: var(--portal-muted);
+    font-weight: 500;
+  }
+
+  .record-print-grid-item span:last-child {
+    color: var(--portal-navy);
+    font-weight: 600;
+    text-align: right;
+  }
+
+  .record-print-empty {
+    margin: 0;
+    padding: 16px 14px;
+    font-size: 11px;
+    color: var(--portal-muted);
+    text-align: center;
+  }
+
+  .record-print-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+    color: var(--portal-slate);
+  }
+
+  .record-print-table th,
+  .record-print-table td {
+    padding: 8px 14px;
+    text-align: left;
+    font-weight: 400;
+    vertical-align: top;
+  }
+
+  .record-print-table thead th {
+    background: var(--portal-canvas);
+    color: var(--portal-muted);
+    font-weight: 600;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    border-bottom: 1px solid var(--portal-border-light);
+  }
+
+  .record-print-table tbody tr td {
+    border-bottom: 1px solid var(--portal-border-light);
+  }
+
+  .record-print-table tbody tr:last-child td {
+    border-bottom: none;
+  }
+
+  .record-print-consent-text {
+    margin: 0;
+    padding: 10px 14px 0;
+    font-size: 10.5px;
+    color: var(--portal-slate);
+    line-height: 1.5;
+  }
+
+  .record-print-signature-row {
+    display: flex;
+    gap: 24px;
+    padding: 20px 14px 4px;
+  }
+
+  .record-print-signature-block {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .record-print-signature-line {
+    display: block;
+    border-bottom: 1px solid var(--portal-slate);
+    height: 26px;
+  }
+
+  .record-print-signature-label {
+    font-size: 9.5px;
+    color: var(--portal-muted);
+    text-align: center;
+  }
+
+  /* Repeats on every printed page (position: fixed content is duplicated
+     per page in Chrome/Firefox/Edge). No page number — CSS has no
+     reliable way to produce one in these browsers without a paged-media
+     library (see the verification report), so this stays a single line
+     rather than a number that might be wrong, same call made for the
+     Reports print footer. */
+  .record-print-footer {
+    display: block;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding-top: 6px;
+    border-top: 1px solid var(--portal-border-light);
+    font-size: 9.5px;
+    color: var(--portal-muted);
+    text-align: center;
+  }
+}
+
+/* A4 portrait, 15mm margins — same values as Reports.css's @page rule.
+   Not a conflict: this file and Reports.css are loaded by different
+   route-mounted page components, so only one is ever active for a given
+   print job, and even in the hypothetical where both were loaded at once,
+   two @page rules with identical values simply agree rather than clash. */
+@page {
+  size: A4 portrait;
+  margin: 15mm;
 }

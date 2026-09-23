@@ -17,6 +17,7 @@ use App\Models\Service;
 use App\Models\TreatmentHistory;
 use App\Models\User;
 use App\Services\AppointmentSlotService;
+use App\Services\FollowUpRecommendationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -24,7 +25,10 @@ use Illuminate\Support\Facades\Mail;
 
 class AppointmentController extends Controller
 {
-    public function __construct(private AppointmentSlotService $slots) {}
+    public function __construct(
+        private AppointmentSlotService $slots,
+        private FollowUpRecommendationService $followUps,
+    ) {}
 
     /**
      * Book a new appointment.
@@ -45,6 +49,16 @@ class AppointmentController extends Controller
 
         if (! $patient) {
             return response()->json(['message' => 'No patient profile is linked to this account.'], 422);
+        }
+
+        // 3-strike cancellation policy (CancellationPolicyService) —
+        // self-service booking only. Staff can still book this patient in
+        // directly (StaffAppointmentController::assignWalkIn()), since that
+        // path is a human staff judgment call, not automated.
+        if ($patient->isBookingRestricted()) {
+            return response()->json([
+                'message' => 'New bookings are currently restricted on this account due to repeated cancellations. Please contact the clinic directly to book an appointment.',
+            ], 403);
         }
 
         $service = Service::findOrFail($validated['service_id']);
@@ -68,6 +82,17 @@ class AppointmentController extends Controller
         $isPediatric = $service->isPediatric();
 
         $appointment = DB::transaction(function () use ($validated, $patient, $service, $request, $isPediatric) {
+            // Locked lookup/validation first, still inside this same
+            // transaction. Two modes — see FollowUpRecommendationService:
+            // fulfills_appointment_id present (BookFollowUp.jsx) means this
+            // booking MUST consume that exact recommendation, and throws
+            // (422, transaction rolled back) if it's already gone; omitted
+            // (the regular wizard) means best-effort — consume a match if
+            // one exists, otherwise just book normally.
+            $recommendation = isset($validated['fulfills_appointment_id'])
+                ? $this->followUps->lockAndValidate($validated['fulfills_appointment_id'], $patient->id, $service->id)
+                : $this->followUps->findOpenRecommendation($patient->id, $service->id);
+
             // Re-check availability inside the transaction (with the service's
             // row lock) — the slot grid the patient picked from could be stale
             // by the time they submit, and this is the authoritative check.
@@ -90,11 +115,16 @@ class AppointmentController extends Controller
                 'patient_id' => $patient->id,
                 'dentist_id' => $validated['dentist_id'],
                 'service_id' => $service->id,
+                'patient_notes' => $validated['notes'],
                 'appointment_date' => $validated['appointment_date'],
                 'appointment_time' => $validated['appointment_time'],
                 'status' => $status,
                 'patient_type_snapshot' => $patient->patient_type,
             ]);
+
+            if ($recommendation) {
+                $this->followUps->markFulfilled($recommendation, $appointment);
+            }
 
             AppointmentStatusLog::create([
                 'appointment_id' => $appointment->id,

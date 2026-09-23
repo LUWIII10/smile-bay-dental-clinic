@@ -59,10 +59,33 @@ function PatientDashboard() {
   const stats = summary?.stats;
   const activity = summary?.recentActivity ?? [];
   const nextDate = nextAppointment ? toLocalDate(nextAppointment.appointment_date) : null;
+  const cancellationPolicy = summary?.cancellationPolicy;
 
   return (
     <div>
       <DashGreeting firstName={firstName} />
+
+      {/* 3-strike cancellation policy (CancellationPolicyService, backend) —
+          'restricted' already blocks the actual booking pages themselves;
+          this is just making sure the patient sees WHY before they even
+          try, rather than only discovering it after clicking through. */}
+      {(cancellationPolicy?.warning || cancellationPolicy?.restricted) && (
+        <div className="suggestion-banner" style={{ marginBottom: 20 }}>
+          <span className="suggestion-banner-icon"><AlertIcon /></span>
+          <div className="suggestion-banner-text">
+            <p className="suggestion-banner-title">
+              {cancellationPolicy.restricted
+                ? 'New bookings are restricted on your account'
+                : `You've had ${cancellationPolicy.cancellation_count} cancelled appointments`}
+            </p>
+            <p className="suggestion-banner-subtitle">
+              {cancellationPolicy.restricted
+                ? 'This is due to repeated cancellations. Please contact the clinic to resolve this.'
+                : `Reaching ${cancellationPolicy.restriction_threshold} will restrict new bookings on this account.`}
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="section-card">
         <div className="section-card-header">

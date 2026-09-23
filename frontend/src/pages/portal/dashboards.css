@@ -1491,6 +1491,89 @@
   }
 }
 
+/* ============ Suggestion / warning banner ============
+   Moved here from BookAppointment.css — originally just the doctor-switch
+   suggestion, now also the 3-strike cancellation-policy warning shown on
+   PatientDashboard.jsx (which doesn't import BookAppointment.css) as well
+   as both booking wizards. Same amber-warning language as the pediatric
+   payment-card-subnote and the shared status-badge--amber tokens. */
+
+.suggestion-banner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  background: var(--portal-amber-bg);
+  border: 1.5px solid var(--portal-amber-border);
+  border-radius: var(--portal-radius-lg);
+  padding: 14px 16px;
+  margin-bottom: 16px;
+}
+
+.suggestion-banner-icon {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--portal-card);
+  color: var(--portal-amber-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.suggestion-banner-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.suggestion-banner-text {
+  flex: 1 1 200px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.suggestion-banner-title {
+  margin: 0;
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--portal-navy);
+}
+
+.suggestion-banner-subtitle {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--portal-slate);
+}
+
+.suggestion-banner-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 16px;
+  background: var(--portal-blue);
+  color: #ffffff;
+  border: none;
+  border-radius: var(--portal-radius-sm);
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.suggestion-banner-btn:hover {
+  background: var(--portal-blue-hover);
+}
+
+.suggestion-banner-btn svg {
+  width: 15px;
+  height: 15px;
+}
+
 /* ============ Shared print-chrome reset ============
    Every printable page (Patient Records' treatment history, Reports) needs
    the exact same thing — the sidebar/topbar/action buttons are useless on

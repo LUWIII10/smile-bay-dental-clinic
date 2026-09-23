@@ -14,6 +14,7 @@ use App\Models\Patient;
 use App\Models\Service;
 use App\Models\User;
 use App\Services\AppointmentSlotService;
+use App\Services\FollowUpRecommendationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -32,7 +33,10 @@ use Illuminate\Validation\Rule;
  */
 class StaffAppointmentController extends Controller
 {
-    public function __construct(private AppointmentSlotService $slots) {}
+    public function __construct(
+        private AppointmentSlotService $slots,
+        private FollowUpRecommendationService $followUps,
+    ) {}
 
     /**
      * Full appointment listing with optional filters, a single free-text
@@ -164,8 +168,51 @@ class StaffAppointmentController extends Controller
             'service',
             'verifiedBy:id,name',
             'pediatricConfirmedBy:id,name',
+            'recommendedFollowUpService:id,name,duration_minutes',
+            'followUpRecommendedBy:id,name',
             'statusLogs' => fn ($q) => $q->with('changedBy:id,name')->orderBy('created_at'),
         ]);
+
+        return response()->json(['data' => $appointment]);
+    }
+
+    /**
+     * Dental assistant (or admin) flags a specific procedure this patient
+     * can now self-book as a "Book a Follow-up" — per the dentist's
+     * assessment during this (completed) visit. Only one open
+     * recommendation at a time per appointment: re-enabling replaces it
+     * (e.g. staff picked the wrong service) rather than stacking silently.
+     * Booking itself still goes through the real doctor + date/time wizard
+     * and the normal slot-conflict check — this only unlocks which service
+     * the patient is allowed to pick there.
+     */
+    public function enableFollowUp(Request $request, Appointment $appointment)
+    {
+        if ($appointment->status !== 'completed') {
+            return response()->json([
+                'message' => 'A follow-up can only be enabled from a completed appointment.',
+            ], 422);
+        }
+
+        $validated = $request->validate([
+            'service_id' => ['required', 'integer', 'exists:services,id'],
+        ]);
+
+        $appointment->update([
+            'recommended_follow_up_service_id' => $validated['service_id'],
+            'follow_up_recommended_by' => $request->user()->id,
+            'follow_up_recommended_at' => now(),
+            'follow_up_fulfilled_at' => null,
+        ]);
+
+        $appointment->load(['patient:id,user_id', 'recommendedFollowUpService:id,name,duration_minutes', 'followUpRecommendedBy:id,name']);
+
+        Notification::notifyUser(
+            $appointment->patient->user_id,
+            'Follow-up available',
+            "You can now book a follow-up for {$appointment->recommendedFollowUpService->name}.",
+            '/patient/appointments'
+        );
 
         return response()->json(['data' => $appointment]);
     }
@@ -381,6 +428,15 @@ class StaffAppointmentController extends Controller
         $isPediatric = $service->isPediatric();
 
         $appointment = DB::transaction(function () use ($validated, $patient, $service, $request, $isPediatric) {
+            // Same automatic recommendation consumption as the patient's own
+            // AppointmentController::store() — a patient may have an open
+            // "Book a Follow-up" recommendation for this exact service that
+            // staff is now booking directly (e.g. over the phone); this
+            // marks it fulfilled so the patient's portal doesn't still show
+            // it as bookable, and so the patient can't separately book a
+            // duplicate for the same recommendation online.
+            $recommendation = $this->followUps->findOpenRecommendation($patient->id, $service->id);
+
             $available = $this->slots->isSlotAvailable(
                 $validated['dentist_id'],
                 $validated['appointment_date'],
@@ -405,6 +461,10 @@ class StaffAppointmentController extends Controller
                 'status' => $status,
                 'patient_type_snapshot' => $patient->patient_type,
             ]);
+
+            if ($recommendation) {
+                $this->followUps->markFulfilled($recommendation, $appointment);
+            }
 
             AppointmentStatusLog::create([
                 'appointment_id' => $appointment->id,

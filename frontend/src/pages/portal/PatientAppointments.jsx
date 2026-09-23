@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { getPatientAppointments, cancelAppointment } from '../../api/appointments';
+import { getPatientAppointments, cancelAppointment, getFollowUpRecommendations } from '../../api/appointments';
 import StatusBadge from './components/StatusBadge';
 import Modal from './components/Modal';
-import { UserIcon, ClockIcon } from './icons';
-import { formatDateLong, formatTime12h, toLocalDate } from './dateTimeUtils';
+import DataTable from './components/DataTable';
+import { PlusIcon, CalendarPlusIcon } from './icons';
+import { formatDateLong, formatDateShort, formatTime12h, toLocalDate } from './dateTimeUtils';
 import './dashboards.css';
 import './Appointments.css';
 
@@ -14,21 +15,6 @@ import './Appointments.css';
 // wouldn't show up here without a manual refresh. Added as part of this pass
 // since the target design explicitly requires it to keep working.
 const POLL_INTERVAL_MS = 9000;
-
-const MONTH_ABBR = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
-
-// Date-chip tint per status — spec calls out blue (confirmed/upcoming) and
-// amber (pending) explicitly; gray/red extend the same established
-// StatusBadge color mapping to the Past/Cancelled tabs' chips so they don't
-// clash with a red or gray badge sitting right next to a blue/amber chip.
-const CHIP_TONE = {
-  confirmed: 'blue',
-  pending_verification: 'amber',
-  completed: 'gray',
-  no_show: 'gray',
-  cancelled: 'red',
-  rejected: 'red',
-};
 
 const TABS = [
   {
@@ -55,67 +41,6 @@ const TABS = [
 const CANCELLABLE_STATUSES = ['confirmed', 'pending_verification'];
 const REASON_VISIBLE_STATUSES = ['cancelled', 'rejected'];
 
-function AppointmentCard({ appointment, onCancelClick }) {
-  const [reasonOpen, setReasonOpen] = useState(false);
-  const dentistName = appointment.dentist?.name || 'Unassigned';
-  const isCancellable = CANCELLABLE_STATUSES.includes(appointment.status);
-  const hasReason = REASON_VISIBLE_STATUSES.includes(appointment.status) && !!appointment.cancellation_reason;
-  const date = toLocalDate(appointment.appointment_date);
-  const chipTone = CHIP_TONE[appointment.status] || 'blue';
-
-  return (
-    <div className="appt-card">
-      <div className={`appt-card-date-chip appt-card-date-chip--${chipTone}`}>
-        <span className="appt-card-date-day">{date.getDate()}</span>
-        <span className="appt-card-date-month">{MONTH_ABBR[date.getMonth()]}</span>
-      </div>
-
-      <div className="appt-card-body">
-        <div className="appt-card-top">
-          <span className="appt-card-title">{appointment.service?.name}</span>
-          <StatusBadge status={appointment.status} />
-        </div>
-
-        <div className="appt-card-meta">
-          <span><UserIcon /> {dentistName}</span>
-          <span><ClockIcon /> {formatDateLong(appointment.appointment_date)} at {formatTime12h(appointment.appointment_time)}</span>
-        </div>
-
-        {appointment.status === 'pending_verification' && appointment.hmo_status_label && (
-          <div className="appt-hmo-status">
-            <span className="appt-hmo-status-label">{appointment.hmo_status_label}</span>
-            {appointment.hmo_status_note && <span className="appt-hmo-status-note">{appointment.hmo_status_note}</span>}
-            {appointment.hmo_status_updated_at && (
-              <span className="appt-hmo-status-time">
-                Updated {new Date(appointment.hmo_status_updated_at).toLocaleString('en-US', {
-                  month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
-                })}
-              </span>
-            )}
-          </div>
-        )}
-
-        {hasReason && (
-          <>
-            <button type="button" className="appt-reason-toggle" onClick={() => setReasonOpen((v) => !v)}>
-              {reasonOpen ? 'Hide reason' : 'View reason'}
-            </button>
-            {reasonOpen && <p className="appt-reason-note">{appointment.cancellation_reason}</p>}
-          </>
-        )}
-
-        {isCancellable && (
-          <div className="appt-card-actions">
-            <button type="button" className="dash-btn dash-btn--outline" onClick={() => onCancelClick(appointment)}>
-              Cancel Appointment
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
 function PatientAppointments() {
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -126,6 +51,12 @@ function PatientAppointments() {
   const [cancelReason, setCancelReason] = useState('');
   const [cancelling, setCancelling] = useState(false);
   const [cancelError, setCancelError] = useState('');
+
+  const [followUpRecommendations, setFollowUpRecommendations] = useState([]);
+
+  useEffect(() => {
+    getFollowUpRecommendations().then(setFollowUpRecommendations).catch(() => {});
+  }, []);
 
   // silent=true (the periodic poll) never touches loading/error state, so a
   // background refetch can't flash the skeleton or bump a stale error away —
@@ -193,12 +124,110 @@ function PatientAppointments() {
   const currentTab = TABS.find((t) => t.key === activeTab);
   const currentRows = grouped[activeTab] || [];
 
+  // One column set for all three tabs — Details/Actions just render
+  // differently (or blank) per row's own status, rather than branching the
+  // column definitions themselves per tab. Reuses the exact same
+  // .cell-appointment/.cell-dentist-name/.cell-service classes AllAppointments.jsx
+  // already established, and the same .appt-hmo-status/.appt-reason-note
+  // boxes this page's own card layout used before — same content, table shape.
+  const columns = [
+    {
+      key: 'appointment',
+      label: 'Appointment',
+      minWidth: '15%',
+      minWidthPx: '120px',
+      render: (row) => (
+        <span className="cell-appointment">
+          <span className="cell-appointment-date">{formatDateShort(row.appointment_date)}</span>
+          <span className="cell-appointment-time">{formatTime12h(row.appointment_time)}</span>
+        </span>
+      ),
+    },
+    {
+      key: 'service',
+      label: 'Service',
+      minWidth: '19%',
+      minWidthPx: '160px',
+      clampLines: 2,
+      render: (row) => <span className="cell-service" title={row.service?.name}>{row.service?.name}</span>,
+    },
+    {
+      key: 'dentist',
+      label: 'Doctor',
+      minWidth: '15%',
+      minWidthPx: '140px',
+      render: (row) => {
+        const name = row.dentist?.name || 'Unassigned';
+        return <span className="cell-dentist-name" title={name}>{name}</span>;
+      },
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      minWidth: '11%',
+      minWidthPx: '110px',
+      align: 'center',
+      render: (row) => <StatusBadge status={row.status} />,
+    },
+    {
+      key: 'details',
+      label: 'Details',
+      minWidth: '26%',
+      minWidthPx: '190px',
+      render: (row) => {
+        if (row.status === 'pending_verification' && row.hmo_status_label) {
+          return (
+            <div className="appt-hmo-status" style={{ margin: 0 }}>
+              <span className="appt-hmo-status-label">{row.hmo_status_label}</span>
+              {row.hmo_status_note && <span className="appt-hmo-status-note">{row.hmo_status_note}</span>}
+              {row.hmo_status_updated_at && (
+                <span className="appt-hmo-status-time">
+                  Updated {new Date(row.hmo_status_updated_at).toLocaleString('en-US', {
+                    month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+                  })}
+                </span>
+              )}
+            </div>
+          );
+        }
+        if (REASON_VISIBLE_STATUSES.includes(row.status) && row.cancellation_reason) {
+          return <p className="appt-reason-note" style={{ margin: 0 }}>{row.cancellation_reason}</p>;
+        }
+        return <span style={{ color: 'var(--portal-muted)' }}>—</span>;
+      },
+    },
+    {
+      key: 'actions',
+      label: '',
+      minWidth: '14%',
+      minWidthPx: '140px',
+      align: 'right',
+      render: (row) =>
+        CANCELLABLE_STATUSES.includes(row.status) ? (
+          <button type="button" className="dash-btn dash-btn--danger row-btn" onClick={() => openCancel(row)}>
+            Cancel
+          </button>
+        ) : null,
+    },
+  ];
+
   return (
     <div>
-      <div className="section-card-header" style={{ marginBottom: 24 }}>
+      <div className="section-card-header appt-page-header" style={{ marginBottom: 24 }}>
         <div>
           <h1 className="appt-page-title">My Appointments</h1>
           <p className="appt-page-subtitle">View and manage your upcoming, past, and cancelled visits.</p>
+        </div>
+        <div className="appt-page-actions">
+          <Link to="/patient/book-appointment" className="dash-btn">
+            <PlusIcon /> Book Appointment
+          </Link>
+          {followUpRecommendations.length > 0 && (
+            <Link to="/patient/book-follow-up" className="dash-btn appt-followup-btn">
+              <CalendarPlusIcon /> Book a Follow-up
+              <span className="appt-followup-badge">{followUpRecommendations.length}</span>
+            </Link>
+          )}
         </div>
       </div>
 
@@ -231,9 +260,9 @@ function PatientAppointments() {
             )}
           </div>
         ) : (
-          currentRows.map((appointment) => (
-            <AppointmentCard key={appointment.id} appointment={appointment} onCancelClick={openCancel} />
-          ))
+          <div className="appt-master-table">
+            <DataTable columns={columns} rows={currentRows} emptyMessage={currentTab.empty} />
+          </div>
         )}
       </div>
 

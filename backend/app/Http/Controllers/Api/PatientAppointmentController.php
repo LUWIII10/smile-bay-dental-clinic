@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Appointment;
 use App\Models\AppointmentStatusLog;
 use App\Models\Notification;
+use App\Services\CancellationPolicyService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -18,6 +19,8 @@ use Illuminate\Support\Facades\DB;
  */
 class PatientAppointmentController extends Controller
 {
+    public function __construct(private CancellationPolicyService $cancellationPolicy) {}
+
     /**
      * Dashboard-overview data for the logged-in patient — mirrors
      * DentistScheduleController::summary()'s pattern (real query results,
@@ -88,6 +91,7 @@ class PatientAppointmentController extends Controller
                 ],
                 'nextAppointment' => $nextAppointment,
                 'recentActivity' => $recentActivity,
+                'cancellationPolicy' => $this->cancellationPolicy->statusFor($patient),
             ],
         ]);
     }
@@ -111,6 +115,34 @@ class PatientAppointmentController extends Controller
             ->get();
 
         return response()->json(['data' => $appointments]);
+    }
+
+    /**
+     * Open "Book a Follow-up" recommendations for the logged-in patient —
+     * staff-enabled (StaffAppointmentController::enableFollowUp()), not yet
+     * booked (Appointment::scopeWithOpenFollowUpRecommendation()). Drives
+     * both the "Book a Follow-up" badge count on My Appointments and the
+     * locked procedure shown in BookFollowUp.jsx's first step.
+     */
+    public function followUpRecommendations(Request $request)
+    {
+        $patient = $request->user()->patient;
+
+        if (! $patient) {
+            return response()->json(['data' => []]);
+        }
+
+        $recommendations = Appointment::where('patient_id', $patient->id)
+            ->withOpenFollowUpRecommendation()
+            ->with([
+                'recommendedFollowUpService:id,name,duration_minutes',
+                'followUpRecommendedBy:id,name',
+                'dentist:id,name',
+            ])
+            ->orderByDesc('follow_up_recommended_at')
+            ->get(['id', 'dentist_id', 'appointment_date', 'recommended_follow_up_service_id', 'follow_up_recommended_by', 'follow_up_recommended_at']);
+
+        return response()->json(['data' => $recommendations]);
     }
 
     /**
@@ -171,6 +203,12 @@ class PatientAppointmentController extends Controller
                 '/dentist/schedule'
             );
         }
+
+        // After the cancellation itself is safely committed — the 3-strike
+        // policy escalation (see CancellationPolicyService) is a secondary
+        // consequence, not something that should ever block or roll back
+        // the cancel it's reacting to.
+        $this->cancellationPolicy->evaluateAfterCancellation($patient);
 
         return response()->json(['message' => 'Appointment cancelled.', 'data' => $appointment]);
     }

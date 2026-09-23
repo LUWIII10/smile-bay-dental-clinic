@@ -1,8 +1,11 @@
 import api from '../api';
 
-export async function searchUsers({ search = '', role = '', status = '', page = 1, per_page = 10 } = {}) {
+// sort is optional — 'cancellations_desc' backs the patient-only
+// Cancellations column's sort control; omitted (or any other value) keeps
+// the default alphabetical-by-name order.
+export async function searchUsers({ search = '', role = '', status = '', sort = '', page = 1, per_page = 10 } = {}) {
   const params = Object.fromEntries(
-    Object.entries({ search, role, status, page, per_page }).filter(([, v]) => v !== '' && v != null)
+    Object.entries({ search, role, status, sort, page, per_page }).filter(([, v]) => v !== '' && v != null)
   );
   const response = await api.get('/api/admin/users', { params });
   return response.data;

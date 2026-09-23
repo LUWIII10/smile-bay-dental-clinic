@@ -51,6 +51,7 @@ class Patient extends Model
         'hmo_number',
         'hmo_company_name',
         'consent_certified',
+        'booking_restricted_at',
     ];
 
     protected function casts(): array
@@ -61,6 +62,7 @@ class Patient extends Model
             'dental_procedures_history' => 'array',
             'current_dental_symptoms' => 'array',
             'consent_certified' => 'boolean',
+            'booking_restricted_at' => 'datetime',
         ];
     }
 
@@ -99,5 +101,13 @@ class Patient extends Model
     public static function formatPatientNumber(int $id, \DateTimeInterface $registeredAt): string
     {
         return 'PT-'.$registeredAt->format('Y').'-'.str_pad((string) $id, 4, '0', STR_PAD_LEFT);
+    }
+
+    // See the 2026_09_21_000400 migration's own doc comment — a lighter,
+    // earlier stage than users.status: blocks new self-service bookings
+    // only, login and everything else keeps working normally.
+    public function isBookingRestricted(): bool
+    {
+        return $this->booking_restricted_at !== null;
     }
 }

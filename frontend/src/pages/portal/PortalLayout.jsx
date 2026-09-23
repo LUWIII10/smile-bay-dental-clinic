@@ -36,10 +36,14 @@ function PortalLayout() {
   // credentialed for pediatric bookings — Ramirez/Castro are role=dentist
   // too but aren't pediatric dentists, so the raw role alone can't gate this
   // the way it gates every other nav item.
-  const navItems = (NAV_CONFIG[role] || []).filter(
-    (item) => item.path !== '/dentist/pediatric-queue' || user?.is_pediatric_dentist
+  const allNavItems = NAV_CONFIG[role] || [];
+  const navItems = allNavItems.filter(
+    (item) => !item.hidden && (item.path !== '/dentist/pediatric-queue' || user?.is_pediatric_dentist)
   );
-  const activeItem = navItems.find((item) => item.path === location.pathname);
+  // Looked up from allNavItems (not the filtered navItems the sidebar
+  // renders) so a hidden-from-sidebar page like Book a Follow-up still gets
+  // its correct topbar title instead of falling back to "Dashboard".
+  const activeItem = allNavItems.find((item) => item.path === location.pathname);
   const pageTitle = activeItem ? activeItem.label : 'Dashboard';
 
   const handleLogout = async () => {

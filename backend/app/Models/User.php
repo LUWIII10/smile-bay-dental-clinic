@@ -7,6 +7,7 @@ use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -68,6 +69,17 @@ class User extends Authenticatable
     public function dentistAppointments(): HasMany
     {
         return $this->hasMany(Appointment::class, 'dentist_id');
+    }
+
+    // Appointments booked BY this user (role=patient), through their one
+    // patients row — used by Admin\UserManagementController::index() to
+    // surface each patient's cancellation count (frequent-canceller
+    // visibility ahead of a suspend decision). A dentist/assistant/admin
+    // account has no patients row, so this relation is simply always empty
+    // for them, never an error.
+    public function patientAppointments(): HasManyThrough
+    {
+        return $this->hasManyThrough(Appointment::class, Patient::class, 'user_id', 'patient_id');
     }
 
     // Services this dentist is credentialed to perform (role=dentist) —

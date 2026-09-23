@@ -14,6 +14,12 @@ class Appointment extends Model
         'patient_id',
         'dentist_id',
         'service_id',
+        'patient_notes',
+        'recommended_follow_up_service_id',
+        'follow_up_recommended_by',
+        'follow_up_recommended_at',
+        'follow_up_fulfilled_at',
+        'fulfills_appointment_id',
         'appointment_date',
         'appointment_time',
         'status',
@@ -35,6 +41,8 @@ class Appointment extends Model
             'verified_at' => 'datetime',
             'pediatric_confirmed_at' => 'datetime',
             'hmo_status_updated_at' => 'datetime',
+            'follow_up_recommended_at' => 'datetime',
+            'follow_up_fulfilled_at' => 'datetime',
         ];
     }
 
@@ -61,6 +69,30 @@ class Appointment extends Model
     public function pediatricConfirmedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'pediatric_confirmed_by');
+    }
+
+    public function recommendedFollowUpService(): BelongsTo
+    {
+        return $this->belongsTo(Service::class, 'recommended_follow_up_service_id');
+    }
+
+    public function followUpRecommendedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'follow_up_recommended_by');
+    }
+
+    // The NEW appointment that actually books the recommendation this
+    // appointment carries — the inverse of fulfillsAppointment() below.
+    public function fulfilledByAppointment(): HasOne
+    {
+        return $this->hasOne(Appointment::class, 'fulfills_appointment_id');
+    }
+
+    // On the NEW appointment: the earlier (completed) appointment whose
+    // follow-up recommendation this one satisfies, if any.
+    public function fulfillsAppointment(): BelongsTo
+    {
+        return $this->belongsTo(Appointment::class, 'fulfills_appointment_id');
     }
 
     public function statusLogs(): HasMany
@@ -97,6 +129,15 @@ class Appointment extends Model
         return $query->where('dentist_id', $dentistId)
             ->where('status', 'pending_verification')
             ->whereNull('pediatric_confirmed_at');
+    }
+
+    // A follow-up recommendation this appointment carries that hasn't been
+    // booked yet — used by the patient's "Book a Follow-up" entry point and
+    // by FollowUpRecommendationService's own re-check before consuming one.
+    public function scopeWithOpenFollowUpRecommendation(Builder $query): Builder
+    {
+        return $query->whereNotNull('recommended_follow_up_service_id')
+            ->whereNull('follow_up_fulfilled_at');
     }
 
     // The other direction of TreatmentHistory::appointment(). Only ever

@@ -58,6 +58,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/dentists', [DentistController::class, 'index']);
     Route::get('/schedules/available-slots', [ScheduleController::class, 'availableSlots']);
     Route::get('/schedules/day-availability', [ScheduleController::class, 'dayAvailability']);
+    Route::get('/schedules/resolve-dentist', [ScheduleController::class, 'resolveDentist']);
 
     // My Profile — every role's own account, scoped to the authenticated
     // user inside the controller, so this deliberately has no role: gate.
@@ -76,6 +77,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::middleware('role:patient')->group(function () {
         Route::post('/appointments', [AppointmentController::class, 'store']);
         Route::get('/patient/appointments', [PatientAppointmentController::class, 'index']);
+        Route::get('/patient/follow-up-recommendations', [PatientAppointmentController::class, 'followUpRecommendations']);
         Route::patch('/patient/appointments/{appointment}/cancel', [PatientAppointmentController::class, 'cancel']);
         Route::get('/patient/dental-record', [PatientDentalRecordController::class, 'show']);
         Route::get('/patient/dashboard-summary', [PatientAppointmentController::class, 'summary']);
@@ -134,6 +136,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/staff/appointments/walk-in', [StaffAppointmentController::class, 'assignWalkIn']);
         Route::get('/staff/appointments/{appointment}', [StaffAppointmentController::class, 'show']);
         Route::patch('/staff/appointments/{appointment}/cancel', [StaffAppointmentController::class, 'cancel']);
+        Route::post('/staff/appointments/{appointment}/enable-follow-up', [StaffAppointmentController::class, 'enableFollowUp']);
 
         Route::get('/staff/dashboard-summary', [DashboardController::class, 'staffSummary']);
         Route::get('/staff/recent-activity', [DashboardController::class, 'recentActivity']);

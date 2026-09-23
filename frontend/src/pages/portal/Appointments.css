@@ -35,6 +35,47 @@
   margin-bottom: 18px;
 }
 
+.appt-page-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.appt-followup-btn {
+  position: relative;
+}
+
+.appt-followup-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #ffffff;
+  color: var(--portal-blue);
+  font-size: 0.62rem;
+  font-weight: 800;
+}
+
+@media (max-width: 560px) {
+  .appt-page-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .appt-page-actions {
+    width: 100%;
+  }
+
+  .appt-page-actions .dash-btn {
+    flex: 1;
+  }
+}
+
 /* ============ Filter inputs ============ */
 
 .form-input,
@@ -565,6 +606,90 @@
 .detail-value {
   font-size: 0.9rem;
   color: var(--portal-slate);
+}
+
+/* ============ Follow-up section (Enable Follow-up) ============ */
+
+.detail-followup-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 18px;
+  margin-bottom: 24px;
+  background: var(--portal-canvas);
+  border: 1px solid var(--portal-border-light);
+  border-radius: var(--portal-radius-sm);
+}
+
+.detail-followup-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--portal-navy);
+}
+
+.detail-followup-header svg {
+  width: 16px;
+  height: 16px;
+  color: var(--portal-blue);
+}
+
+.detail-followup-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: var(--portal-radius-sm);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.detail-followup-status svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.detail-followup-status--open {
+  background: var(--portal-green-bg);
+  color: var(--portal-green-text);
+  border: 1px solid var(--portal-green-border);
+}
+
+.detail-followup-status--fulfilled {
+  background: var(--portal-gray-bg);
+  color: var(--portal-gray-text);
+  border: 1px solid var(--portal-gray-border);
+}
+
+.detail-followup-note {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--portal-muted);
+}
+
+.detail-followup-controls {
+  display: flex;
+  gap: 10px;
+}
+
+.detail-followup-controls .form-select {
+  flex: 1;
+  min-width: 0;
+}
+
+.detail-followup-error {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--portal-red-text);
+}
+
+@media (max-width: 560px) {
+  .detail-followup-controls {
+    flex-direction: column;
+  }
 }
 
 .detail-history-title {

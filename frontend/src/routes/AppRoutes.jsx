@@ -14,6 +14,7 @@ import DentistDashboard from '../pages/portal/DentistDashboard';
 import AssistantDashboard from '../pages/portal/AssistantDashboard';
 import AdminDashboard from '../pages/portal/AdminDashboard';
 import BookAppointment from '../pages/portal/BookAppointment';
+import BookFollowUp from '../pages/portal/BookFollowUp';
 import PatientAppointments from '../pages/portal/PatientAppointments';
 import PatientDentalRecords from '../pages/portal/PatientDentalRecords';
 import PatientRecords from '../pages/portal/PatientRecords';
@@ -64,6 +65,7 @@ function AppRoutes() {
                 {roleRoutes('patient', {
                     '/patient/dashboard': PatientDashboard,
                     '/patient/book-appointment': BookAppointment,
+                    '/patient/book-follow-up': BookFollowUp,
                     '/patient/appointments': PatientAppointments,
                     '/patient/dental-records': PatientDentalRecords,
                     '/patient/profile': MyProfile,

@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react';
 import Modal from './Modal';
 import StatusBadge from './StatusBadge';
 import Skeleton from './Skeleton';
-import { getAppointmentDetail } from '../../../api/appointments';
+import { getAppointmentDetail, getServices, enableFollowUp } from '../../../api/appointments';
 import { formatDateLong, formatTime12h } from '../dateTimeUtils';
 import { KNOWN_DENTIST_PHOTOS } from '../dentistPhotos';
+import { CalendarPlusIcon, CheckCircleIcon } from '../icons';
 
 function getInitials(name) {
   if (!name) return '?';
@@ -25,16 +26,47 @@ function AppointmentDetailModal({ appointmentId, onClose }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  const [services, setServices] = useState([]);
+  const [selectedServiceId, setSelectedServiceId] = useState('');
+  const [enabling, setEnabling] = useState(false);
+  const [enableError, setEnableError] = useState('');
+
   useEffect(() => {
     if (!appointmentId) return;
     setLoading(true);
     setError('');
     setDetail(null);
+    setEnableError('');
     getAppointmentDetail(appointmentId)
-      .then(setDetail)
+      .then((data) => {
+        setDetail(data);
+        setSelectedServiceId(data.recommended_follow_up_service?.id ?? '');
+      })
       .catch(() => setError('Could not load this appointment.'))
       .finally(() => setLoading(false));
   }, [appointmentId]);
+
+  // Full staff-facing catalog (not the patient-trimmed is_patient_bookable
+  // list) — only fetched once a completed appointment is open, since that's
+  // the only state "Enable Follow-up" is ever shown in.
+  useEffect(() => {
+    if (detail?.status !== 'completed' || services.length > 0) return;
+    getServices().then(setServices).catch(() => {});
+  }, [detail?.status, services.length]);
+
+  const handleEnableFollowUp = async () => {
+    if (!selectedServiceId) return;
+    setEnabling(true);
+    setEnableError('');
+    try {
+      const response = await enableFollowUp(appointmentId, selectedServiceId);
+      setDetail((prev) => ({ ...prev, ...response.data }));
+    } catch (err) {
+      setEnableError(err.response?.data?.message || 'Could not enable this follow-up. Please try again.');
+    } finally {
+      setEnabling(false);
+    }
+  };
 
   const isHmo = detail?.patient_type_snapshot === 'hmo';
   const hmoProviderName = detail?.patient?.hmo_provider?.name || detail?.patient?.hmo_company_name;
@@ -124,6 +156,12 @@ function AppointmentDetailModal({ appointmentId, onClose }) {
                 <span className="detail-value">{detail.pediatric_confirmed_by.name}</span>
               </div>
             )}
+            {detail.patient_notes && (
+              <div className="detail-field detail-field--full">
+                <span className="detail-label">Additional Information</span>
+                <span className="detail-value">{detail.patient_notes}</span>
+              </div>
+            )}
             {detail.cancellation_reason && (
               <div className="detail-field detail-field--full">
                 <span className="detail-label">Notes</span>
@@ -131,6 +169,59 @@ function AppointmentDetailModal({ appointmentId, onClose }) {
               </div>
             )}
           </div>
+
+          {detail.status === 'completed' && (
+            <div className="detail-followup-section">
+              <div className="detail-followup-header">
+                <CalendarPlusIcon />
+                <span>Follow-up</span>
+              </div>
+
+              {detail.recommended_follow_up_service && (
+                <div className={`detail-followup-status${detail.follow_up_fulfilled_at ? ' detail-followup-status--fulfilled' : ' detail-followup-status--open'}`}>
+                  <CheckCircleIcon />
+                  {detail.follow_up_fulfilled_at ? (
+                    <span>Fulfilled — {detail.recommended_follow_up_service.name}, already booked.</span>
+                  ) : (
+                    <span>
+                      Enabled — {detail.recommended_follow_up_service.name}
+                      {detail.follow_up_recommended_by ? ` · by ${detail.follow_up_recommended_by.name}` : ''} · not yet booked
+                    </span>
+                  )}
+                </div>
+              )}
+
+              <p className="detail-followup-note">
+                Select the procedure this patient can now self-book as a follow-up, per the dentist's assessment.
+              </p>
+
+              <div className="detail-followup-controls">
+                <select
+                  className="form-select"
+                  value={selectedServiceId}
+                  onChange={(e) => setSelectedServiceId(e.target.value)}
+                  disabled={enabling}
+                >
+                  <option value="">Select a procedure…</option>
+                  {services.map((service) => (
+                    <option key={service.id} value={service.id}>
+                      {service.name} ({service.duration_minutes} min)
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  className="dash-btn"
+                  onClick={handleEnableFollowUp}
+                  disabled={enabling || !selectedServiceId}
+                >
+                  {enabling ? 'Enabling…' : 'Enable Follow-up'}
+                </button>
+              </div>
+
+              {enableError && <p className="detail-followup-error">{enableError}</p>}
+            </div>
+          )}
 
           <h4 className="detail-history-title">Status History</h4>
           <ul className="detail-history-list">

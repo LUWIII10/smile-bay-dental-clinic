@@ -21,6 +21,11 @@ export const NAV_CONFIG = {
   patient: [
     { label: 'Dashboard', path: '/patient/dashboard', icon: 'dashboard' },
     { label: 'Book Appointment', path: '/patient/book-appointment', icon: 'calendarPlus' },
+    // Not shown in the sidebar (see PortalLayout.jsx's navItems filter) —
+    // patients only reach this via the "Book a Follow-up" button on My
+    // Appointments, which only appears once staff has enabled one. Still
+    // listed here so the topbar's page title resolves correctly.
+    { label: 'Book a Follow-up', path: '/patient/book-follow-up', icon: 'calendarPlus', hidden: true },
     { label: 'My Appointments', path: '/patient/appointments', icon: 'calendar' },
     { label: 'My Dental Records', path: '/patient/dental-records', icon: 'tooth' },
     { label: 'My Profile', path: '/patient/profile', icon: 'user' },

@@ -15,6 +15,7 @@ class Service extends Model
         'duration_minutes',
         'is_active',
         'is_pediatric',
+        'is_patient_bookable',
     ];
 
     protected function casts(): array
@@ -22,6 +23,7 @@ class Service extends Model
         return [
             'is_active' => 'boolean',
             'is_pediatric' => 'boolean',
+            'is_patient_bookable' => 'boolean',
         ];
     }
 

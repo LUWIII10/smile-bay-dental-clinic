@@ -6,8 +6,13 @@ import api from '../api';
 // data. CSRF cookie + error normalization follow the same pattern as
 // AuthContext.jsx.
 
-export async function getServices() {
-  const response = await api.get('/api/services');
+// patientBookable is optional — when true, only the short list of common,
+// self-service-appropriate procedures come back (services.is_patient_bookable).
+// Omit it for the full staff-facing catalog.
+export async function getServices(patientBookable) {
+  const response = await api.get('/api/services', {
+    params: patientBookable ? { patient_bookable: 1 } : {},
+  });
   return response.data.data;
 }
 
@@ -21,35 +26,63 @@ export async function getDentists(serviceId) {
   return response.data.data;
 }
 
+// dentistId is optional — omit it (or pass the 'any' sentinel BookAppointment.jsx
+// uses for its "Any Available Doctor" card) for the union of every dentist
+// credentialed for the service, instead of one dentist's own slots.
 export async function getAvailableSlots(dentistId, serviceId, date) {
   const response = await api.get('/api/schedules/available-slots', {
-    params: { dentist_id: dentistId, service_id: serviceId, date },
+    params: { dentist_id: dentistId === 'any' ? undefined : dentistId, service_id: serviceId, date },
   });
   return response.data.data;
 }
 
 // month: 'YYYY-MM'. Returns { 'YYYY-MM-DD': 'available'|'limited'|'full'|'unavailable', ... }
 // for every day in that month — what the calendar colors each cell by.
+// dentistId optional the same way as getAvailableSlots() above.
 export async function getDayAvailability(dentistId, serviceId, month) {
   const response = await api.get('/api/schedules/day-availability', {
-    params: { dentist_id: dentistId, service_id: serviceId, month },
+    params: { dentist_id: dentistId === 'any' ? undefined : dentistId, service_id: serviceId, month },
   });
   return response.data.data;
 }
 
-export async function createAppointment({ dentistId, serviceId, date, time }) {
+// Called once the patient picks a specific time while "Any Available
+// Doctor" is selected — resolves and returns exactly which dentist they
+// got (load-balanced across whoever's actually free then), same load-
+// bearing check the eventual createAppointment() call re-verifies.
+export async function resolveDentist(serviceId, date, time) {
+  const response = await api.get('/api/schedules/resolve-dentist', {
+    params: { service_id: serviceId, date, time },
+  });
+  return response.data.data;
+}
+
+// fulfillsAppointmentId is optional — set only by BookFollowUp.jsx, the
+// completed appointment whose recommendation this booking must fulfill.
+// Omit it for a regular booking.
+export async function createAppointment({ dentistId, serviceId, notes, date, time, fulfillsAppointmentId }) {
   await api.get('/sanctum/csrf-cookie');
   const response = await api.post('/api/appointments', {
     dentist_id: dentistId,
     service_id: serviceId,
+    notes,
     appointment_date: date,
     appointment_time: time,
+    fulfills_appointment_id: fulfillsAppointmentId,
   });
   return response.data;
 }
 
 export async function getPatientAppointments() {
   const response = await api.get('/api/patient/appointments');
+  return response.data.data;
+}
+
+// Open "Book a Follow-up" recommendations for the logged-in patient — each
+// carries the recommended service, who enabled it, and when. Empty array
+// means nothing to show ("Book a Follow-up" stays hidden).
+export async function getFollowUpRecommendations() {
+  const response = await api.get('/api/patient/follow-up-recommendations');
   return response.data.data;
 }
 
@@ -197,6 +230,16 @@ export async function getAppointmentDetail(appointmentId) {
 export async function cancelAppointmentAsStaff(appointmentId, reason) {
   await api.get('/sanctum/csrf-cookie');
   const response = await api.patch(`/api/staff/appointments/${appointmentId}/cancel`, { reason });
+  return response.data;
+}
+
+// appointmentId is the completed visit the recommendation is enabled from,
+// not the future follow-up itself (that doesn't exist yet).
+export async function enableFollowUp(appointmentId, serviceId) {
+  await api.get('/sanctum/csrf-cookie');
+  const response = await api.post(`/api/staff/appointments/${appointmentId}/enable-follow-up`, {
+    service_id: serviceId,
+  });
   return response.data;
 }
 

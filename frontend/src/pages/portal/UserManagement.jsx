@@ -41,6 +41,10 @@ function UserManagement() {
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  // '' = default alphabetical order; 'cancellations_desc' = worst
+  // cancellers first — only meaningful (and only shown as a column) while
+  // roleFilter === 'patient', see the Cancellations column below.
+  const [sort, setSort] = useState('');
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
   const debounceRef = useRef(null);
@@ -65,13 +69,20 @@ function UserManagement() {
 
   useEffect(() => {
     setPage(1);
-  }, [search, roleFilter, statusFilter, perPage]);
+  }, [search, roleFilter, statusFilter, sort, perPage]);
+
+  // Switching away from the patient filter drops a stale cancellations-sort
+  // — that column disappears with the filter, so the sort backing it
+  // shouldn't silently keep applying to the next role's list.
+  useEffect(() => {
+    if (roleFilter !== 'patient') setSort('');
+  }, [roleFilter]);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
-      const result = await searchUsers({ search, role: roleFilter, status: statusFilter, page, per_page: perPage });
+      const result = await searchUsers({ search, role: roleFilter, status: statusFilter, sort, page, per_page: perPage });
       setUsers(result.data);
       setMeta({
         current_page: result.current_page,
@@ -86,7 +97,7 @@ function UserManagement() {
     } finally {
       setLoading(false);
     }
-  }, [search, roleFilter, statusFilter, page, perPage]);
+  }, [search, roleFilter, statusFilter, sort, page, perPage]);
 
   useEffect(() => {
     load();
@@ -159,6 +170,8 @@ function UserManagement() {
     }
   };
 
+  const toggleCancellationSort = () => setSort((s) => (s === 'cancellations_desc' ? '' : 'cancellations_desc'));
+
   const columns = [
     {
       key: 'name',
@@ -197,8 +210,43 @@ function UserManagement() {
       label: 'Status',
       minWidth: '12%',
       align: 'center',
-      render: (row) => <StatusBadge status={row.status === 'active' ? 'Active' : 'Inactive'} tone={row.status === 'active' ? 'green' : 'red'} />,
+      render: (row) => (
+        <span style={{ display: 'inline-flex', flexDirection: 'column', gap: 4, alignItems: 'center' }}>
+          <StatusBadge status={row.status === 'active' ? 'Active' : 'Inactive'} tone={row.status === 'active' ? 'green' : 'red'} />
+          {/* Automatic 3-strike policy (CancellationPolicyService) — a
+              lighter, earlier state than Inactive: still logged-in-able,
+              just blocked from new self-service bookings. Redundant to
+              show once already fully Inactive, so only shown for a still-
+              active-but-restricted account. */}
+          {row.status === 'active' && row.patient?.booking_restricted_at && (
+            <StatusBadge status="Booking Restricted" tone="amber" />
+          )}
+        </span>
+      ),
     },
+    // Patient-only — a dentist/assistant/admin never has a cancellation
+    // count worth showing (their patientAppointments relation is always
+    // empty). Lets an admin spot frequent cancellers and, per row, jump
+    // straight to the existing Deactivate action below — no separate page,
+    // no new suspend mechanism, just visibility into the one that's already
+    // there.
+    ...(roleFilter === 'patient' ? [{
+      key: 'cancellations',
+      label: (
+        <button type="button" className="th-sort-btn" onClick={toggleCancellationSort}>
+          Cancellations
+          <span className={`th-sort-arrow${sort === 'cancellations_desc' ? ' th-sort-arrow--asc' : ''}`}>&#9662;</span>
+        </button>
+      ),
+      mobileLabel: 'Cancellations',
+      minWidth: '12%',
+      align: 'center',
+      render: (row) => {
+        const count = row.cancellation_count ?? 0;
+        const tone = count >= 3 ? 'red' : count >= 1 ? 'amber' : 'gray';
+        return <StatusBadge status={String(count)} tone={tone} />;
+      },
+    }] : []),
     {
       key: 'actions',
       label: '',

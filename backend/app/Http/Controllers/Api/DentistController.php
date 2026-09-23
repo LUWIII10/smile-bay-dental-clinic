@@ -5,10 +5,13 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Service;
 use App\Models\User;
+use App\Services\AppointmentSlotService;
 use Illuminate\Http\Request;
 
 class DentistController extends Controller
 {
+    public function __construct(private AppointmentSlotService $slots) {}
+
     /**
      * List active dentists for the booking wizard's doctor-selection step.
      * Open selection within whatever `service_id` allows — every active
@@ -40,6 +43,8 @@ class DentistController extends Controller
             $query->whereHas('services', fn ($q) => $q->where('services.id', $service->id));
         }
 
+        $today = now()->toDateString();
+
         $dentists = $query->orderBy('name')
             ->get()
             ->map(fn (User $dentist) => [
@@ -52,6 +57,13 @@ class DentistController extends Controller
                 // consumes; not renamed to avoid a breaking field-name change.
                 'photo_path' => $dentist->dentistProfile?->photo_path,
                 'years_experience' => $dentist->dentistProfile?->years_experience,
+                // Informational only, scoped to TODAY specifically (the one
+                // date this step can honestly know before the patient picks
+                // one) — see AppointmentSlotService::isDentistOnDuty(). The
+                // frontend shows this as a hint on the card, never disables
+                // it: a dentist off today may still be exactly who the
+                // patient should pick for a future date.
+                'on_duty_today' => $this->slots->isDentistOnDuty($dentist->id, $today),
             ]);
 
         return response()->json(['data' => $dentists]);

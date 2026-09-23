@@ -60,6 +60,123 @@ class AppointmentSlotService
     }
 
     /**
+     * Public wrapper around operatingHoursFor() — is this dentist working AT
+     * ALL on this date (day-off, weekly-hours-inactive day, or no schedule
+     * seeded at all)? Doesn't care about existing bookings, only their
+     * working hours. Used by DentistController::index() to hint "not on
+     * duty today" on the booking wizard's Doctor step — informational only,
+     * never blocks picking that dentist, since the Doctor step happens
+     * before the patient chooses a date, so "today" may not even be the
+     * date they end up booking.
+     */
+    public function isDentistOnDuty(int $dentistId, string $date): bool
+    {
+        return $this->operatingHoursFor($dentistId, $date) !== null;
+    }
+
+    /**
+     * "Any Available Doctor" — the union of getAvailableSlots() across every
+     * dentist credentialed for the service: a time is offered if AT LEAST
+     * ONE of them can take it. Display only — which specific dentist a
+     * chosen slot actually goes to is decided by resolveDentistForSlot()
+     * below, never assumed here (two dentists could each individually cover
+     * different parts of the same displayed time, or the same one).
+     */
+    public function getAvailableSlotsAnyDentist(int $serviceId, string $date, int $durationMinutes): array
+    {
+        $union = [];
+
+        foreach ($this->credentialedDentistIds($serviceId) as $dentistId) {
+            foreach ($this->getAvailableSlots($dentistId, $date, $durationMinutes) as $slot) {
+                $union[$slot->format('H:i')] = $slot;
+            }
+        }
+
+        ksort($union);
+
+        return array_values($union);
+    }
+
+    /**
+     * Same as getDayAvailabilitySummary() below, but day-level union across
+     * every dentist credentialed for the service — backs the calendar when
+     * "Any Available Doctor" is selected.
+     */
+    public function getDayAvailabilitySummaryAnyDentist(
+        int $serviceId,
+        string $startDate,
+        string $endDate,
+        int $durationMinutes
+    ): array {
+        $summary = [];
+        $cursor = Carbon::parse($startDate)->startOfDay();
+        $end = Carbon::parse($endDate)->startOfDay();
+        $today = Carbon::today();
+
+        while ($cursor->lte($end)) {
+            $dateKey = $cursor->toDateString();
+
+            if ($cursor->lt($today)) {
+                $summary[$dateKey] = 'unavailable';
+            } else {
+                $count = count($this->getAvailableSlotsAnyDentist($serviceId, $dateKey, $durationMinutes));
+                $summary[$dateKey] = match (true) {
+                    $count === 0 => 'full',
+                    $count <= self::LIMITED_THRESHOLD => 'limited',
+                    default => 'available',
+                };
+            }
+
+            $cursor->addDay();
+        }
+
+        return $summary;
+    }
+
+    /**
+     * "Any Available Doctor" resolution: among every dentist credentialed
+     * for the service, whoever is genuinely free at this exact date+time+
+     * duration AND has the fewest appointments already on the books that
+     * same date wins — load-balances new "any doctor" patients across
+     * dentists instead of always filling whichever one sorts first. Null
+     * means nobody is actually free any more (the slot grid the patient saw
+     * went stale — another booking landed in the meantime); the caller
+     * re-checks via isSlotAvailable() before committing regardless, same as
+     * every other booking path, so this never itself risks a double-booking.
+     */
+    public function resolveDentistForSlot(int $serviceId, string $date, string $time, int $durationMinutes): ?User
+    {
+        $freeIds = array_values(array_filter(
+            $this->credentialedDentistIds($serviceId),
+            fn (int $id) => $this->isSlotAvailable($id, $date, $time, $durationMinutes)
+        ));
+
+        if (empty($freeIds)) {
+            return null;
+        }
+
+        $loadCounts = Appointment::whereIn('dentist_id', $freeIds)
+            ->where('appointment_date', $date)
+            ->whereIn('status', self::OCCUPYING_STATUSES)
+            ->selectRaw('dentist_id, count(*) as c')
+            ->groupBy('dentist_id')
+            ->pluck('c', 'dentist_id');
+
+        usort($freeIds, fn ($a, $b) => ($loadCounts[$a] ?? 0) <=> ($loadCounts[$b] ?? 0));
+
+        return User::find($freeIds[0]);
+    }
+
+    private function credentialedDentistIds(int $serviceId): array
+    {
+        return User::where('role', 'dentist')
+            ->where('status', 'active')
+            ->whereHas('services', fn ($q) => $q->where('services.id', $serviceId))
+            ->pluck('id')
+            ->all();
+    }
+
+    /**
      * Day-level availability status for every date from $startDate through
      * $endDate inclusive, for the given dentist + procedure duration — what
      * the booking calendar colors each cell by. Computed from the exact same

@@ -203,6 +203,143 @@
   font-size: 0.85rem;
 }
 
+/* ============ Follow-up recommendation list (BookFollowUp.jsx Step 1) ============
+   Same visual language as .service-card above (border, selected-tint,
+   check badge) — a vertical list rather than a grid, since there's rarely
+   more than one or two recommendations open at once. */
+
+.followup-recommend-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.followup-recommend-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  background: var(--portal-card);
+  border: 2px solid var(--portal-border-light);
+  border-radius: var(--portal-radius-lg);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.followup-recommend-card:hover {
+  border-color: var(--portal-blue);
+}
+
+.followup-recommend-card--selected {
+  border-color: var(--portal-blue);
+  background: var(--portal-blue-tint);
+}
+
+.followup-recommend-icon {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--portal-radius-sm);
+  background: var(--portal-blue-tint);
+  color: var(--portal-blue);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.followup-recommend-card--selected .followup-recommend-icon {
+  background: var(--portal-card);
+}
+
+.followup-recommend-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.followup-recommend-name {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--portal-navy);
+}
+
+.followup-recommend-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: var(--portal-muted);
+}
+
+.followup-recommend-meta svg {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+}
+
+.followup-recommend-check {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--portal-blue);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.followup-recommend-check svg {
+  width: 15px;
+  height: 15px;
+}
+
+@media (max-width: 480px) {
+  .followup-recommend-card {
+    align-items: flex-start;
+  }
+
+  .followup-recommend-meta {
+    flex-wrap: wrap;
+  }
+}
+
+.followup-doctor-note {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  margin-top: 4px;
+  background: var(--portal-canvas);
+  border: 1px solid var(--portal-border-light);
+  border-radius: var(--portal-radius-sm);
+  font-size: 0.82rem;
+  color: var(--portal-slate);
+}
+
+.followup-doctor-photo {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--portal-blue-tint);
+  color: var(--portal-blue);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  overflow: hidden;
+}
+
+.followup-doctor-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 /* ============ Step heading pattern (Steps 2/3/5) ============
    Step 1 still uses dashboards.css's smaller .section-card-title (16px) —
    left as-is since it was explicitly out of scope for this pass. Flagged
@@ -317,6 +454,18 @@
   font-size: 0.74rem;
   color: var(--portal-muted);
   line-height: 1.45;
+}
+
+/* "Any Available Doctor" — same card shell, indigo instead of blue on the
+   icon circle only, so it reads as a distinct "smart match" option next to
+   the named-dentist cards without introducing a new color family. */
+.doctor-card-photo--any {
+  background: var(--portal-indigo-bg);
+  color: var(--portal-indigo-text);
+}
+
+.doctor-card--any.doctor-card--selected .doctor-card-photo--any {
+  background: var(--portal-card);
 }
 
 /* ============ Payment info card (Step 3, read-only) ============ */
@@ -677,41 +826,44 @@
   color: var(--portal-muted);
 }
 
-/* ============ Smart doctor-switch suggestion banner ============
-   Same amber-warning language as the pediatric payment-card-subnote and the
-   shared status-badge--amber tokens — full amber-tint background here since
-   this is a standalone banner, not an inline note. */
+/* .suggestion-banner and its sub-classes moved to dashboards.css — now
+   used by PatientDashboard.jsx too (which doesn't import this file), not
+   just the doctor-switch suggestion here. See dashboards.css for the rules. */
 
-.suggestion-banner {
+/* ============ Service step — initial-consult notice ============
+   Same standalone-banner structure as .suggestion-banner above, but blue
+   (informational) instead of amber (warning/actionable) — this is just
+   setting expectations, not flagging something that needs a decision. */
+
+.service-step-notice {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 14px;
-  flex-wrap: wrap;
-  background: var(--portal-amber-bg);
-  border: 1.5px solid var(--portal-amber-border);
+  background: var(--portal-blue-tint);
+  border: 1.5px solid var(--portal-blue-border);
   border-radius: var(--portal-radius-lg);
   padding: 14px 16px;
-  margin-bottom: 16px;
+  margin-top: 16px;
 }
 
-.suggestion-banner-icon {
+.service-step-notice-icon {
   flex-shrink: 0;
   width: 36px;
   height: 36px;
   border-radius: 50%;
   background: var(--portal-card);
-  color: var(--portal-amber-text);
+  color: var(--portal-blue);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.suggestion-banner-icon svg {
+.service-step-notice-icon svg {
   width: 18px;
   height: 18px;
 }
 
-.suggestion-banner-text {
+.service-step-notice-text {
   flex: 1 1 200px;
   min-width: 0;
   display: flex;
@@ -719,43 +871,18 @@
   gap: 2px;
 }
 
-.suggestion-banner-title {
+.service-step-notice-title {
   margin: 0;
   font-size: 0.86rem;
   font-weight: 700;
   color: var(--portal-navy);
 }
 
-.suggestion-banner-subtitle {
+.service-step-notice-subtitle {
   margin: 0;
   font-size: 0.78rem;
   color: var(--portal-slate);
-}
-
-.suggestion-banner-btn {
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 9px 16px;
-  background: var(--portal-blue);
-  color: #ffffff;
-  border: none;
-  border-radius: var(--portal-radius-sm);
-  font-family: 'Poppins', sans-serif;
-  font-size: 0.8rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background-color 0.15s ease;
-}
-
-.suggestion-banner-btn:hover {
-  background: var(--portal-blue-hover);
-}
-
-.suggestion-banner-btn svg {
-  width: 15px;
-  height: 15px;
+  line-height: 1.5;
 }
 
 /* ============ Wizard nav (Back / Next) ============ */
