@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getCompletedPatients } from '../../api/appointments';
 import Skeleton from './components/Skeleton';
+import PageHeader from './components/PageHeader';
 import { CheckCircleIcon } from './icons';
 import { toLocalDate } from './dateTimeUtils';
 import './dashboards.css';
@@ -42,16 +43,15 @@ function CompletedPatients() {
 
   return (
     <div>
-      <div className="section-card-header appt-page-header">
-        <div>
-          <h1 className="appt-page-title">Completed patients</h1>
-          <p className="appt-page-subtitle">
-            {loading
-              ? 'Loading…'
-              : `${entries.length} procedure${entries.length === 1 ? '' : 's'} across ${distinctPatientCount} patient${distinctPatientCount === 1 ? '' : 's'}.`}
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        icon={CheckCircleIcon}
+        title="Completed patients"
+        subtitle={
+          loading
+            ? 'Loading…'
+            : `${entries.length} procedure${entries.length === 1 ? '' : 's'} across ${distinctPatientCount} patient${distinctPatientCount === 1 ? '' : 's'}.`
+        }
+      />
 
       {loading ? (
         <Skeleton variant="block" height="90px" count={4} />

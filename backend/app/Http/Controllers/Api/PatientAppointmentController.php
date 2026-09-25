@@ -109,6 +109,14 @@ class PatientAppointmentController extends Controller
                 'dentist:id,name',
                 'dentist.dentistProfile:id,user_id,photo_path',
                 'service:id,name,duration_minutes',
+                // Lets My Appointments show "what was actually done" for a
+                // completed visit without sending the patient to a separate
+                // My Dental Records page to find it — reuses the same
+                // treatment_history row that page's own Treatment Details
+                // modal already reads, just surfaced here too. Null for any
+                // appointment nobody has logged a procedure against yet
+                // (see Appointment::treatmentHistoryEntry()'s own comment).
+                'treatmentHistoryEntry.performedBy:id,name',
             ])
             ->orderBy('appointment_date')
             ->orderBy('appointment_time')

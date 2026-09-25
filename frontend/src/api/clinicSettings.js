@@ -35,15 +35,37 @@ export async function toggleServiceActive(serviceId) {
   return response.data.data;
 }
 
+// payload.logo, when present, is a File from the modal's file input — sent
+// as multipart so the backend can store it (ClinicSettingsController::
+// storeHmoProvider()); a plain JSON body otherwise. Sending FormData either
+// way (even with no file appended) works too, but this skips the encoding
+// entirely for the common no-logo case.
+function hmoProviderFormData({ name, logo }) {
+  const formData = new FormData();
+  formData.append('name', name);
+  if (logo) formData.append('logo', logo);
+  return formData;
+}
+
 export async function createHmoProvider(payload) {
   await api.get('/sanctum/csrf-cookie');
-  const response = await api.post('/api/admin/settings/hmo-providers', payload);
+  const body = payload.logo ? hmoProviderFormData(payload) : { name: payload.name };
+  const response = await api.post('/api/admin/settings/hmo-providers', body);
   return response.data.data;
 }
 
 export async function updateHmoProvider(hmoProviderId, payload) {
   await api.get('/sanctum/csrf-cookie');
-  const response = await api.patch(`/api/admin/settings/hmo-providers/${hmoProviderId}`, payload);
+  if (payload.logo) {
+    // PHP never parses a multipart body on PATCH — Laravel's documented
+    // workaround is a POST carrying _method=PATCH, to the same URL
+    // (same pattern the framework expects for any file-upload update).
+    const formData = hmoProviderFormData(payload);
+    formData.append('_method', 'PATCH');
+    const response = await api.post(`/api/admin/settings/hmo-providers/${hmoProviderId}`, formData);
+    return response.data.data;
+  }
+  const response = await api.patch(`/api/admin/settings/hmo-providers/${hmoProviderId}`, { name: payload.name });
   return response.data.data;
 }
 

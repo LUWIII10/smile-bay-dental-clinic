@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { getHmoQueue, verifyHmoAppointment, sendHmoStatusUpdate } from '../../api/appointments';
+import api from '../../api';
+import { getHmoQueue, verifyHmoAppointment, sendHmoStatusUpdate, updatePatientHmoInfo } from '../../api/appointments';
 import StatusBadge from './components/StatusBadge';
 import RejectionModal from './components/RejectionModal';
 import Modal from './components/Modal';
 import Skeleton from './components/Skeleton';
+import PageHeader from './components/PageHeader';
 import { ShieldIcon, CheckCircleIcon, MailIcon } from './icons';
 import { formatDateLong, formatTime12h } from './dateTimeUtils';
 import { showSuccessToast } from '../../utils/toast';
@@ -34,7 +36,7 @@ function formatSubmitted(isoTimestamp) {
   });
 }
 
-function QueueCard({ appointment, actingId, sendingId, onApprove, onReject, onSendUpdate }) {
+function QueueCard({ appointment, actingId, sendingId, onApprove, onReject, onSendUpdate, onEditHmoInfo }) {
   const isPediatricApproved = appointment.service?.name?.includes('Pediatric') && appointment.pediatric_confirmed_at;
   const hmoProviderName = appointment.patient?.hmo_provider?.name || appointment.patient?.hmo_company_name || 'HMO';
   const isActing = actingId === appointment.id;
@@ -87,6 +89,9 @@ function QueueCard({ appointment, actingId, sendingId, onApprove, onReject, onSe
         <button type="button" className="dash-btn dash-btn--outline" disabled={isActing} onClick={() => onReject(appointment)}>
           Reject
         </button>
+        <button type="button" className="dash-btn dash-btn--outline" disabled={isActing} onClick={() => onEditHmoInfo(appointment)}>
+          Edit HMO Info
+        </button>
         <button
           type="button"
           className="dash-btn dash-btn--outline"
@@ -122,6 +127,15 @@ function HmoVerificationQueue() {
   const [statusNote, setStatusNote] = useState('');
   const [statusUpdateError, setStatusUpdateError] = useState('');
 
+  // Same public, admin-managed active-providers list MyProfile.jsx's own
+  // HMO section already fetches the same way — only active providers are
+  // ever selectable here either, for the same reason.
+  const [hmoProviders, setHmoProviders] = useState([]);
+  const [editTarget, setEditTarget] = useState(null);
+  const [editForm, setEditForm] = useState({ hmoProviderId: '', hmoNumber: '', hmoCompanyName: '' });
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [editError, setEditError] = useState('');
+
   const mountedRef = useRef(true);
 
   const load = useCallback(async ({ silent = false } = {}) => {
@@ -149,6 +163,12 @@ function HmoVerificationQueue() {
       clearInterval(interval);
     };
   }, [load]);
+
+  useEffect(() => {
+    api.get('/api/hmo-providers')
+      .then((response) => { if (mountedRef.current) setHmoProviders(response.data.data); })
+      .catch(() => {});
+  }, []);
 
   const handleApprove = async (appointment) => {
     setActingId(appointment.id);
@@ -208,14 +228,43 @@ function HmoVerificationQueue() {
     }
   };
 
+  const openEditHmoInfo = (appointment) => {
+    setEditError('');
+    setEditForm({
+      hmoProviderId: appointment.patient?.hmo_provider_id ? String(appointment.patient.hmo_provider_id) : '',
+      hmoNumber: appointment.patient?.hmo_number || '',
+      hmoCompanyName: appointment.patient?.hmo_company_name || '',
+    });
+    setEditTarget(appointment);
+  };
+
+  const handleSaveHmoInfo = async () => {
+    if (!editTarget) return;
+    setSavingEdit(true);
+    setEditError('');
+    try {
+      const result = await updatePatientHmoInfo(editTarget.id, editForm);
+      // Merge the corrected patient info straight back into this one card
+      // (the response already carries it) instead of waiting for the next
+      // silent poll — same instant-feedback expectation Approve/Reject
+      // already give by removing the card immediately.
+      setAppointments((prev) => prev.map((a) => (a.id === editTarget.id ? result.data : a)));
+      setEditTarget(null);
+      showSuccessToast('HMO details updated.');
+    } catch (err) {
+      setEditError(err.response?.data?.message || 'Could not update these HMO details.');
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
   return (
     <div>
-      <div className="section-card-header appt-page-header">
-        <div>
-          <h1 className="appt-page-title">HMO Verification Queue</h1>
-          <p className="appt-page-subtitle">HMO bookings awaiting coverage verification before they're confirmed.</p>
-        </div>
-      </div>
+      <PageHeader
+        icon={ShieldIcon}
+        title="HMO Verification Queue"
+        subtitle="HMO bookings awaiting coverage verification before they're confirmed."
+      />
 
       {actionError && <div className="profile-alert profile-alert--error">{actionError}</div>}
 
@@ -241,6 +290,7 @@ function HmoVerificationQueue() {
             onApprove={handleApprove}
             onReject={openReject}
             onSendUpdate={openStatusUpdate}
+            onEditHmoInfo={openEditHmoInfo}
           />
         ))
       )}
@@ -297,6 +347,61 @@ function HmoVerificationQueue() {
             onClick={handleSendUpdate}
           >
             {sendingId === statusUpdateTarget?.id ? 'Sending…' : 'Send Update'}
+          </button>
+        </div>
+      </Modal>
+
+      <Modal open={!!editTarget} onClose={() => setEditTarget(null)} title="Edit HMO Details">
+        <p style={{ margin: '0 0 12px', fontSize: '0.85rem', color: 'var(--portal-muted)' }}>
+          {editTarget && (
+            <>
+              Corrects {editTarget.patient?.first_name} {editTarget.patient?.last_name}&rsquo;s own HMO info on file —
+              useful if it was mistyped at booking, before you call the provider to verify coverage.
+            </>
+          )}
+        </p>
+
+        <label className="modal-field-label">HMO Provider</label>
+        <select
+          className="form-select"
+          value={editForm.hmoProviderId}
+          onChange={(e) => setEditForm((p) => ({ ...p, hmoProviderId: e.target.value }))}
+        >
+          <option value="">Select a provider…</option>
+          {hmoProviders.map((provider) => (
+            <option key={provider.id} value={provider.id}>{provider.name}</option>
+          ))}
+        </select>
+
+        <label className="modal-field-label">Card Number</label>
+        <input
+          className="form-input"
+          value={editForm.hmoNumber}
+          onChange={(e) => setEditForm((p) => ({ ...p, hmoNumber: e.target.value }))}
+        />
+
+        <label className="modal-field-label">Company Name (optional)</label>
+        <input
+          className="form-input"
+          value={editForm.hmoCompanyName}
+          onChange={(e) => setEditForm((p) => ({ ...p, hmoCompanyName: e.target.value }))}
+        />
+
+        {editError && (
+          <p style={{ margin: '10px 0 0', fontSize: '0.82rem', color: 'var(--portal-red-text)' }}>{editError}</p>
+        )}
+
+        <div className="modal-actions">
+          <button type="button" className="dash-btn dash-btn--outline" onClick={() => setEditTarget(null)}>
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="dash-btn"
+            disabled={savingEdit || !editForm.hmoProviderId || !editForm.hmoNumber.trim()}
+            onClick={handleSaveHmoInfo}
+          >
+            {savingEdit ? 'Saving…' : 'Save Changes'}
           </button>
         </div>
       </Modal>

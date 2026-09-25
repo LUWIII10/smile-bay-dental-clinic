@@ -768,6 +768,7 @@
 
 .record-history-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   gap: 14px;
   padding: 14px 4px;
@@ -838,11 +839,21 @@
   color: var(--portal-muted);
 }
 
+/* flex-shrink: 0 previously made this refuse to shrink even once it wrapped
+   to its own line below .record-history-body — a flex item's hypothetical
+   size (used for both the outer row's line-breaking AND its own no-shrink
+   floor) is its full one-line content width, dentist name + badge + button
+   together, regardless of its own flex-wrap. min-width: 0 removes the
+   other half of that floor (the default min-width: auto content minimum),
+   so once this drops to its own line it can actually compress down and let
+   its own flex-wrap reflow the button onto a line of its own instead of
+   pinning the row open wider than the viewport. */
 .record-history-meta {
-  flex-shrink: 0;
+  min-width: 0;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
+  gap: 8px 12px;
   padding-top: 2px;
 }
 
@@ -852,7 +863,7 @@
   gap: 5px;
   font-size: 0.8rem;
   color: var(--portal-slate);
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .record-history-dentist svg {
@@ -868,12 +879,12 @@
 }
 
 @media (max-width: 720px) {
-  .record-history-row {
-    flex-wrap: wrap;
-  }
-
+  /* Row-wrapping itself is unconditional now (see .record-history-row /
+     .record-history-meta above — it needs to kick in at any width, not
+     just below a guessed threshold). This indent is purely cosmetic: it
+     lines .record-history-meta back up under the title/description text
+     once it's dropped to its own line, past the date column + dot. */
   .record-history-meta {
-    flex-wrap: wrap;
     padding-left: 66px;
   }
 }
@@ -940,7 +951,11 @@
   line-height: 1.5;
 }
 
-/* ============ Treatment-detail modal (PatientDentalRecords.jsx only) ============ */
+/* ============ Treatment-detail modal (shared by PatientDentalRecords.jsx
+   and PatientAppointments.jsx's "View Treatment" — same markup/classes on
+   both, kept in sync deliberately so a patient sees an identical, formal
+   chart-note layout for a completed visit no matter which page they
+   reached it from) ============ */
 
 .record-history-detail-badges {
   display: flex;
@@ -950,15 +965,62 @@
 
 .record-history-detail-title {
   margin: 0 0 14px;
-  font-size: 1rem;
+  font-size: 1.05rem;
+  font-weight: 700;
   color: var(--portal-navy);
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--portal-border-light);
 }
 
 .record-history-detail-grid {
   display: flex;
   flex-wrap: wrap;
   gap: 14px 24px;
-  margin-bottom: 14px;
+  margin-bottom: 18px;
+}
+
+.record-history-detail-grid .record-info-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.record-history-detail-grid .record-info-label svg {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+}
+
+/* Clinical Notes — set apart from the plain label/value fields above as a
+   distinct chart-note callout (left accent bar, tinted background) instead
+   of looking like just another grid field, since this is usually the part
+   a patient actually came here to read. */
+.record-history-detail-notes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: var(--portal-gray-bg);
+  border-left: 3px solid var(--portal-blue-border);
+  border-radius: 0 var(--portal-radius-sm) var(--portal-radius-sm) 0;
+  padding: 12px 14px;
+}
+
+.record-history-detail-notes .record-info-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.record-history-detail-notes .record-info-label svg {
+  width: 12px;
+  height: 12px;
+}
+
+.record-history-detail-notes-text {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.55;
+  color: var(--portal-slate);
 }
 
 /* ============ Print controls (PatientRecords.jsx header row) ============
@@ -1010,72 +1072,10 @@
     color: var(--portal-slate);
   }
 
-  /* Stacked and centred — the same letterhead layout Reports.jsx's own
-     print header uses (.reports-print-header in Reports.css): logo, then
-     the title/contact/info-box text, all centred beneath it, instead of
-     splitting the width into two side-by-side columns. That two-column
-     version squeezed BrandLogo into half the header's width (competing
-     with the title block on the other side), which rendered it visibly
-     smaller than its own natural size — this restores the original,
-     approved, unconstrained rendering. */
-  .record-print-formal-header {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-    padding-bottom: 14px;
-    border-bottom: 3px solid var(--portal-blue);
-    text-align: center;
-  }
-
-  .record-print-formal-subtitle {
-    margin: 0;
-    font-size: 14px;
-    font-weight: 700;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    color: var(--portal-navy);
-  }
-
-  .record-print-clinic-details {
-    font-size: 10px;
-    color: var(--portal-muted);
-    line-height: 1.5;
-  }
-
-  .record-print-clinic-details p {
-    margin: 0;
-  }
-
-  /* The bordered info box called for in the spec — three quick-reference
-     lines (record no., patient no., print date), not the full demographic
-     sheet; that's Patient Information's job, once, below. */
-  .record-print-info-box {
-    border: 1px solid var(--portal-blue-border);
-    border-radius: 8px;
-    background: var(--portal-blue-tint);
-    padding: 8px 12px;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    margin-top: 4px;
-    font-size: 10.5px;
-    color: var(--portal-slate);
-    text-align: left;
-  }
-
-  .record-print-info-box > div {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-
-  .record-print-info-box svg {
-    width: 12px;
-    height: 12px;
-    color: var(--portal-blue);
-    flex-shrink: 0;
-  }
+  /* The old per-page letterhead (logo/title/contact/info-box) lived here —
+     superseded by the shared PrintLetterhead component (see
+     components/PrintLetterhead.css), which now renders that whole block
+     for this page too. */
 
   .record-print-formal-meta {
     margin: 10px 0 16px;

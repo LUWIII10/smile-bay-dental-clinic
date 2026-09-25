@@ -8,6 +8,16 @@
   color: var(--portal-navy);
 }
 
+/* Sits directly under the tab bar now (My Schedule's tabs — see
+   DentistSchedule.jsx) instead of under a per-section heading, so this
+   needs a normal top margin, not the negative one that used to tuck it
+   against that heading's own bottom margin. */
+.schedule-overdue-hint {
+  margin: 0 0 14px;
+  font-size: 0.85rem;
+  color: var(--portal-muted);
+}
+
 .schedule-row {
   background: var(--portal-card);
   border: 1.5px solid var(--portal-border-light);
@@ -23,11 +33,26 @@
   background: var(--portal-blue-tint);
 }
 
+/* Needs Update tab only — a confirmed visit whose date already passed
+   without an outcome is more urgent than a plain upcoming row, so it
+   keeps a light red tint even while collapsed (expanding still switches
+   to the normal --expanded blue, same as any other row). */
+.schedule-row--danger {
+  border-color: var(--portal-red-border);
+  background: var(--portal-red-bg);
+}
+
+.schedule-row--danger.schedule-row--expanded {
+  border-color: var(--portal-blue);
+  background: var(--portal-blue-tint);
+}
+
 .schedule-row-main {
   width: 100%;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 14px;
+  gap: 8px 14px;
   padding: 16px 18px;
   background: none;
   border: none;
@@ -83,17 +108,13 @@
   font-weight: 600;
   font-size: 0.92rem;
   color: var(--portal-navy);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .schedule-row-meta {
   font-size: 0.8rem;
   color: var(--portal-muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .schedule-row-more {
@@ -170,10 +191,6 @@
 }
 
 @media (max-width: 560px) {
-  .schedule-row-main {
-    flex-wrap: wrap;
-  }
-
   .schedule-row-actions {
     flex-direction: column;
   }
@@ -210,9 +227,7 @@
   font-weight: 600;
   font-size: 0.88rem;
   color: var(--portal-navy);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .completed-today-notes {

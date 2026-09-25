@@ -13,9 +13,27 @@ import { formatTime12h, toLocalDate } from './dateTimeUtils';
 import './dashboards.css';
 import './Appointments.css';
 
+function getInitials(name) {
+  if (!name) return '?';
+  const parts = name.trim().split(/\s+/);
+  const first = parts[0]?.[0] || '';
+  const last = parts.length > 1 ? parts[parts.length - 1][0] : '';
+  return (first + last).toUpperCase();
+}
+
+function patientCell(row) {
+  const name = `${row.patient?.first_name || ''} ${row.patient?.last_name || ''}`.trim();
+  return (
+    <span className="cell-person">
+      <span className="cell-avatar">{getInitials(name)}</span>
+      <span className="cell-person-name">{name}</span>
+    </span>
+  );
+}
+
 const APPOINTMENT_COLUMNS = [
   { key: 'time', label: 'Time', render: (row) => formatTime12h(row.appointment_time) },
-  { key: 'patient', label: 'Patient', render: (row) => `${row.patient?.first_name} ${row.patient?.last_name}` },
+  { key: 'patient', label: 'Patient', render: patientCell },
   { key: 'service', label: 'Service', render: (row) => row.service?.name },
   { key: 'status', label: 'Status', render: (row) => <StatusBadge status={row.status} /> },
 ];
@@ -38,11 +56,14 @@ function buildTaskColumns(todayDate) {
       key: 'task',
       label: 'Task',
       render: (row) => (
-        <span className="cell-person-text">
-          <span className="cell-person-name">
-            Verify HMO — {row.patient?.first_name} {row.patient?.last_name}
+        <span className="cell-person">
+          <span className="cell-avatar">{getInitials(`${row.patient?.first_name || ''} ${row.patient?.last_name || ''}`)}</span>
+          <span className="cell-person-text">
+            <span className="cell-person-name">
+              Verify HMO — {row.patient?.first_name} {row.patient?.last_name}
+            </span>
+            <span className="cell-person-sub">{row.service?.name}</span>
           </span>
-          <span className="cell-person-sub">{row.service?.name}</span>
         </span>
       ),
     },
@@ -156,7 +177,10 @@ function AssistantDashboard() {
 
       <div className="section-card">
         <div className="section-card-header">
-          <h3 className="section-card-title">Today's Tasks</h3>
+          <div className="section-card-heading">
+            <span className="section-card-icon"><ShieldIcon /></span>
+            <h3 className="section-card-title">Today's Tasks</h3>
+          </div>
         </div>
 
         {loading ? (
@@ -176,7 +200,10 @@ function AssistantDashboard() {
 
       <div className="section-card">
         <div className="section-card-header">
-          <h3 className="section-card-title">Today's Appointments</h3>
+          <div className="section-card-heading">
+            <span className="section-card-icon"><CalendarIcon /></span>
+            <h3 className="section-card-title">Today's Appointments</h3>
+          </div>
         </div>
 
         {loading ? (

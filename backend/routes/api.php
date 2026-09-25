@@ -88,6 +88,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/dentist/dashboard-summary', [DentistScheduleController::class, 'summary']);
         Route::get('/dentist/completed-patients', [DentistScheduleController::class, 'completedPatients']);
         Route::patch('/appointments/{appointment}/complete', [AppointmentController::class, 'complete']);
+        Route::patch('/appointments/{appointment}/backfill-record', [AppointmentController::class, 'backfillRecord']);
         Route::patch('/appointments/{appointment}/reschedule', [AppointmentController::class, 'reschedule']);
         Route::patch('/appointments/{appointment}/cancel', [AppointmentController::class, 'cancel']);
 
@@ -119,6 +120,10 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::middleware('role:dentist,dental_assistant,admin')->group(function () {
         Route::get('/patient-records', [PatientRecordController::class, 'index']);
+        // Must resolve before /patient-records/{patient} below, or Laravel
+        // tries (and fails) to route-model-bind "by-date" as a patient id —
+        // same reasoning as /staff/appointments/stats above {appointment}.
+        Route::get('/patient-records/by-date', [PatientRecordController::class, 'appointmentsByDate']);
         Route::get('/patient-records/{patient}', [PatientRecordController::class, 'show']);
     });
 
@@ -126,6 +131,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/staff/verification-queue', [StaffVerificationController::class, 'index']);
         Route::patch('/staff/appointments/{appointment}/verify', [StaffVerificationController::class, 'verify']);
         Route::post('/staff/appointments/{appointment}/notify-status', [StaffVerificationController::class, 'sendStatusUpdate']);
+        Route::patch('/staff/appointments/{appointment}/hmo-info', [StaffVerificationController::class, 'updateHmoInfo']);
 
         Route::get('/staff/appointments', [StaffAppointmentController::class, 'index']);
         // /stats must resolve before the {appointment} route below, or Laravel
@@ -136,6 +142,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/staff/appointments/walk-in', [StaffAppointmentController::class, 'assignWalkIn']);
         Route::get('/staff/appointments/{appointment}', [StaffAppointmentController::class, 'show']);
         Route::patch('/staff/appointments/{appointment}/cancel', [StaffAppointmentController::class, 'cancel']);
+        Route::patch('/staff/appointments/{appointment}/no-show', [StaffAppointmentController::class, 'noShow']);
         Route::post('/staff/appointments/{appointment}/enable-follow-up', [StaffAppointmentController::class, 'enableFollowUp']);
 
         Route::get('/staff/dashboard-summary', [DashboardController::class, 'staffSummary']);
@@ -147,6 +154,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/admin/users', [UserManagementController::class, 'store']);
         Route::patch('/admin/users/{user}', [UserManagementController::class, 'update']);
         Route::patch('/admin/users/{user}/status', [UserManagementController::class, 'updateStatus']);
+        Route::patch('/admin/users/{user}/unrestrict-booking', [UserManagementController::class, 'unrestrictBooking']);
 
         Route::get('/admin/settings', [ClinicSettingsController::class, 'show']);
         Route::put('/admin/settings/clinic-info', [ClinicSettingsController::class, 'updateClinicInfo']);

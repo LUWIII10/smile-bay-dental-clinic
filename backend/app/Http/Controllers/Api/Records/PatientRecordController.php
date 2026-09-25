@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Records;
 
 use App\Http\Controllers\Controller;
+use App\Models\Appointment;
 use App\Models\ClinicalNote;
 use App\Models\DentalRecord;
 use App\Models\Patient;
@@ -51,6 +52,36 @@ class PatientRecordController extends Controller
         $perPage = $validated['per_page'] ?? 10;
 
         return response()->json($query->orderBy('last_name')->paginate($perPage)->withQueryString());
+    }
+
+    /**
+     * Every appointment scheduled on one specific date, across all
+     * patients — the "who's actually on the books for this day" list an
+     * admin/staff wants to print rather than the full patient directory
+     * above. Deliberately appointment-centric, not patient-centric (a
+     * patient with two visits the same day shows up as two rows, each
+     * with its own real time/service/dentist) — unpaginated, since a
+     * single day's schedule is small enough to always fit on one printed
+     * page. Cancelled/rejected are excluded: a report of who "had an
+     * appointment" that day shouldn't include ones that didn't happen.
+     */
+    public function appointmentsByDate(Request $request)
+    {
+        $validated = $request->validate([
+            'date' => ['required', 'date'],
+        ]);
+
+        $appointments = Appointment::whereDate('appointment_date', $validated['date'])
+            ->whereIn('status', ['confirmed', 'pending_verification', 'completed'])
+            ->with([
+                'patient:id,patient_number,first_name,last_name',
+                'service:id,name',
+                'dentist:id,name',
+            ])
+            ->orderBy('appointment_time')
+            ->get();
+
+        return response()->json(['data' => $appointments]);
     }
 
     /**

@@ -21,14 +21,20 @@ import StatCard from './components/StatCard';
 import Skeleton from './components/Skeleton';
 import DataTable from './components/DataTable';
 import StatusBadge from './components/StatusBadge';
-import { UsersIcon, CalendarIcon, UserIcon, ShieldIcon, CheckCircleIcon } from './icons';
+import { UsersIcon, CalendarIcon, UserIcon, ShieldIcon, CheckCircleIcon, ActivityIcon, TrendingUpIcon, ChartIcon } from './icons';
 import './dashboards.css';
+import './Appointments.css';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, ArcElement, Title, Tooltip, Legend, Filler);
+
+// Explicit rather than relying on Chart.js's own defaults — same values as
+// Reports.jsx's charts, so the entrance feels consistent across both pages.
+const CHART_ANIMATION = { duration: 900, easing: 'easeOutQuart' };
 
 const LINE_OPTIONS = {
   responsive: true,
   maintainAspectRatio: false,
+  animation: CHART_ANIMATION,
   plugins: { legend: { display: false } },
   scales: {
     x: { grid: { display: false }, ticks: { color: '#64748b', font: { family: 'Poppins', size: 11 } } },
@@ -43,6 +49,11 @@ const LINE_OPTIONS = {
 const DOUGHNUT_OPTIONS = {
   responsive: true,
   maintainAspectRatio: false,
+  // animateScale is off by default for a doughnut/pie in Chart.js — without
+  // it, only the slices' rotation animates in, the ring stays full-size the
+  // whole time. Both on together is what actually reads as "the pie chart
+  // grows in" rather than just a quick sweep.
+  animation: { ...CHART_ANIMATION, animateRotate: true, animateScale: true },
   plugins: {
     legend: {
       position: 'bottom',
@@ -58,12 +69,29 @@ function formatDayLabel(dateStr) {
   return `${Number(month)}/${Number(day)}`;
 }
 
+function getInitials(name) {
+  if (!name) return '?';
+  const parts = name.trim().split(/\s+/);
+  const first = parts[0]?.[0] || '';
+  const last = parts.length > 1 ? parts[parts.length - 1][0] : '';
+  return (first + last).toUpperCase();
+}
+
 // Recent Activity, one column per field — DashboardController::
 // recentActivity() sends these alongside its old pre-built `description`
 // sentence (kept, unused here) specifically so this table can be reverted
 // to the old <ul> sentence list in one line without a backend change.
 const ACTIVITY_COLUMNS = [
-  { key: 'patient', label: 'Patient', render: (row) => row.patient_name },
+  {
+    key: 'patient',
+    label: 'Patient',
+    render: (row) => (
+      <span className="cell-person">
+        <span className="cell-avatar">{getInitials(row.patient_name)}</span>
+        <span className="cell-person-name">{row.patient_name}</span>
+      </span>
+    ),
+  },
   { key: 'service', label: 'Service', render: (row) => row.service_name, noWrap: true },
   { key: 'status', label: 'Status', render: (row) => <StatusBadge status={row.status} /> },
   { key: 'changed_by', label: 'Changed By', render: (row) => row.changed_by },
@@ -177,7 +205,10 @@ function AdminDashboard() {
           <div className="chart-grid">
             <div className="section-card">
               <div className="section-card-header">
-                <h3 className="section-card-title">Appointments Over Time</h3>
+                <div className="section-card-heading">
+                  <span className="section-card-icon"><TrendingUpIcon /></span>
+                  <h3 className="section-card-title">Appointments Over Time</h3>
+                </div>
               </div>
               {loading ? (
                 <Skeleton variant="block" />
@@ -190,7 +221,10 @@ function AdminDashboard() {
 
             <div className="section-card">
               <div className="section-card-header">
-                <h3 className="section-card-title">Appointment Breakdown</h3>
+                <div className="section-card-heading">
+                  <span className="section-card-icon"><ChartIcon /></span>
+                  <h3 className="section-card-title">Appointment Breakdown</h3>
+                </div>
               </div>
               {loading ? (
                 <Skeleton variant="block" />
@@ -204,7 +238,10 @@ function AdminDashboard() {
 
           <div className="section-card">
             <div className="section-card-header">
-              <h3 className="section-card-title">Recent Activity</h3>
+              <div className="section-card-heading">
+                <span className="section-card-icon"><ActivityIcon /></span>
+                <h3 className="section-card-title">Recent Activity</h3>
+              </div>
             </div>
 
             {loading ? (

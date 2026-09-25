@@ -6,7 +6,8 @@ import {
   deleteDentistDayOff,
 } from '../../api/appointments';
 import Modal from './components/Modal';
-import { CalendarXIcon, TrashIcon } from './icons';
+import PageHeader from './components/PageHeader';
+import { CalendarXIcon, TrashIcon, ClockIcon } from './icons';
 import { formatDateLong, formatTime12h } from './dateTimeUtils';
 import './dashboards.css';
 import './Appointments.css';
@@ -189,12 +190,11 @@ function MyAvailability() {
 
   return (
     <div>
-      <div className="section-card-header" style={{ marginBottom: 24 }}>
-        <div>
-          <h1 className="appt-page-title">My Availability</h1>
-          <p className="appt-page-subtitle">Set your regular weekly hours and mark specific days off.</p>
-        </div>
-      </div>
+      <PageHeader
+        icon={ClockIcon}
+        title="My Availability"
+        subtitle="Set your regular weekly hours and mark specific days off."
+      />
 
       {error && (
         <div className="dash-empty" style={{ marginBottom: 16 }}>

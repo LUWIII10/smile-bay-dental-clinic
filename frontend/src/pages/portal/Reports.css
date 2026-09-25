@@ -5,12 +5,14 @@
 
 .reports-date-range {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
 }
 
 .reports-date-range .form-input {
   width: 150px;
+  max-width: 100%;
 }
 
 .reports-bar-list {
@@ -75,13 +77,6 @@
 
 /* ============ Print ============ */
 
-/* Screen: invisible — this is the letterhead that only exists for the
-   printed page (see the @media print block below, which reveals it and
-   hides the on-screen date-range controls it replaces). */
-.reports-print-header {
-  display: none;
-}
-
 /* The Line/Doughnut numeric summaries — same visibility flip as the
    letterhead: invisible on screen (the actual Chart.js canvas is what
    renders there), shown only in print (where the canvas is hidden instead;
@@ -91,7 +86,8 @@
 }
 
 /* Tables 1-4 — same screen-hidden/print-revealed flip as
-   .reports-print-header/.reports-print-summary above, on the outer
+   .reports-print-summary above (and PrintLetterhead's own .print-letterhead),
+   on the outer
    wrapper only. .reports-print-caption/-caption-date/-table are all
    descendants of this element in the JSX, so hiding it hides them too —
    giving each of those three their OWN display: none here would have the
@@ -125,40 +121,6 @@
     font-size: 13px;
     color: #334155;
     margin: 4px 0 0;
-  }
-
-  /* Stacked and centred instead of the horizontal row this was — logo,
-     then the title/period/generated-on block, all centred, with the same
-     2px rule still sitting beneath the whole thing since it's on the
-     container itself either way. Gap dropped from 16px (spacing across a
-     horizontal row) to 8px: a tight vertical gap between the logo and the
-     text block reads as one letterhead unit; 16px vertically looked like
-     two unrelated pieces stacked, not a single centred block. */
-  .reports-print-header {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 20px;
-    padding-bottom: 16px;
-    border-bottom: 2px solid #111827;
-  }
-
-  .reports-print-meta {
-    text-align: center;
-  }
-
-  .reports-print-meta h2 {
-    margin: 0 0 4px;
-    font-size: 18px;
-    font-weight: 700;
-    color: #111827;
-  }
-
-  .reports-print-meta p {
-    margin: 0;
-    font-size: 12px;
-    color: #475569;
   }
 
   /* Two-column charts squeeze illegibly on a portrait page — one per row

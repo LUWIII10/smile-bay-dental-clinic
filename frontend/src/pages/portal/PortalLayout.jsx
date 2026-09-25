@@ -1,35 +1,18 @@
 import { useState } from 'react';
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import BrandLogo from '../../components/common/BrandLogo';
 import { NAV_CONFIG, ROLE_LABELS } from './navConfig';
 import { ICONS, LogoutIcon, MenuIcon, CloseIcon } from './icons';
-import { getAvatarUrl } from './avatarUtils';
 import NotificationBell from './components/NotificationBell';
+import Avatar from './components/Avatar';
+import AvatarMenu from './components/AvatarMenu';
 import './portalTokens.css';
 import './PortalLayout.css';
-
-function getInitials(name) {
-  if (!name) return '?';
-  const parts = name.trim().split(/\s+/);
-  const first = parts[0]?.[0] || '';
-  const last = parts.length > 1 ? parts[parts.length - 1][0] : '';
-  return (first + last).toUpperCase();
-}
-
-function Avatar({ user, small }) {
-  const photoUrl = getAvatarUrl(user);
-  return (
-    <span className={`portal-avatar${small ? ' portal-avatar--sm' : ''}`}>
-      {photoUrl ? <img src={photoUrl} alt="" className="portal-avatar-img" /> : getInitials(user?.name)}
-    </span>
-  );
-}
 
 function PortalLayout() {
   const { user, role, logout } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   // "Pediatric Queue" only makes sense for the one dentist account actually
@@ -40,12 +23,6 @@ function PortalLayout() {
   const navItems = allNavItems.filter(
     (item) => !item.hidden && (item.path !== '/dentist/pediatric-queue' || user?.is_pediatric_dentist)
   );
-  // Looked up from allNavItems (not the filtered navItems the sidebar
-  // renders) so a hidden-from-sidebar page like Book a Follow-up still gets
-  // its correct topbar title instead of falling back to "Dashboard".
-  const activeItem = allNavItems.find((item) => item.path === location.pathname);
-  const pageTitle = activeItem ? activeItem.label : 'Dashboard';
-
   const handleLogout = async () => {
     await logout();
     navigate('/login', { replace: true });
@@ -107,12 +84,11 @@ function PortalLayout() {
             >
               {drawerOpen ? <CloseIcon /> : <MenuIcon />}
             </button>
-            <h1 className="portal-page-title">{pageTitle}</h1>
           </div>
 
           <div className="portal-topbar-right">
             <NotificationBell />
-            <Avatar user={user} small />
+            <AvatarMenu user={user} role={role} onLogout={handleLogout} />
           </div>
         </header>
 

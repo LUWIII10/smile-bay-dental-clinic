@@ -81,6 +81,16 @@ class AppointmentController extends Controller
 
         $isPediatric = $service->isPediatric();
 
+        // Clinic-operations rule: the pediatric dentist accepts Cash
+        // patients only, no HMO — enforced here (not just the booking
+        // wizard's own Step 1 warning) since this is the authoritative
+        // check every other business rule on this endpoint gets.
+        if ($isPediatric && $patient->patient_type === 'hmo') {
+            return response()->json([
+                'message' => 'Pediatric Dentistry accepts Cash patients only — our pediatric dentist does not accept HMO coverage. Please contact the clinic directly to arrange a Cash visit.',
+            ], 422);
+        }
+
         $appointment = DB::transaction(function () use ($validated, $patient, $service, $request, $isPediatric) {
             // Locked lookup/validation first, still inside this same
             // transaction. Two modes — see FollowUpRecommendationService:
@@ -297,6 +307,76 @@ class AppointmentController extends Controller
         ]);
 
         return response()->json(['message' => 'Appointment marked as completed.', 'data' => $appointment]);
+    }
+
+    /**
+     * Retroactively logs what was actually done for an appointment that's
+     * already marked completed but has no treatment_history row — visits
+     * completed before this per-visit record was required, or one the
+     * dentist genuinely never wrote up. Deliberately separate from
+     * complete() above (which also transitions status) rather than loosening
+     * complete()'s own status check: this never touches `status` (already
+     * 'completed'), and only ever fires once per appointment — an existing
+     * record is never overwritten, so a dentist can't use this to quietly
+     * rewrite history.
+     */
+    public function backfillRecord(Request $request, Appointment $appointment)
+    {
+        if ($appointment->dentist_id !== $request->user()->id) {
+            return response()->json(['message' => 'This appointment is not assigned to you.'], 403);
+        }
+
+        if ($appointment->status !== 'completed') {
+            return response()->json([
+                'message' => 'Only a completed appointment can have its treatment record added.',
+            ], 422);
+        }
+
+        if ($appointment->treatmentHistoryEntry()->exists()) {
+            return response()->json([
+                'message' => 'This visit already has a treatment record on file.',
+            ], 422);
+        }
+
+        $validated = $request->validate([
+            'procedure_name' => ['required', 'string', 'max:255'],
+            'tooth_number' => ['nullable', 'integer', 'between:1,32'],
+            'performed_at' => ['required', 'date'],
+            'notes' => ['required', 'string', 'min:20', 'max:1000'],
+        ]);
+
+        DB::transaction(function () use ($appointment, $request, $validated) {
+            // Same lazy-provisioning shape as complete() above — a patient
+            // whose only appointment is this one may still have no
+            // dental_records row yet.
+            $record = $appointment->patient->dentalRecord;
+            if (! $record) {
+                $record = DentalRecord::create([
+                    'patient_id' => $appointment->patient_id,
+                    'opened_at' => now(),
+                    'record_number' => 'PENDING-'.$appointment->patient_id,
+                ]);
+                $record->update(['record_number' => DentalRecord::formatRecordNumber($record->id, $record->opened_at)]);
+            }
+
+            TreatmentHistory::create([
+                'dental_record_id' => $record->id,
+                'appointment_id' => $appointment->id,
+                'tooth_number' => $validated['tooth_number'] ?? null,
+                'procedure_name' => $validated['procedure_name'],
+                'performed_by' => $request->user()->id,
+                'performed_at' => $validated['performed_at'],
+                'notes' => $validated['notes'],
+            ]);
+        });
+
+        $appointment->load([
+            'service:id,name,duration_minutes',
+            'patient:id,patient_number,first_name,last_name',
+            'treatmentHistoryEntry',
+        ]);
+
+        return response()->json(['message' => 'Treatment record added.', 'data' => $appointment]);
     }
 
     /**

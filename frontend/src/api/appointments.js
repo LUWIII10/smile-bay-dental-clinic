@@ -118,6 +118,21 @@ export async function completeAppointment(appointmentId, { procedureName, toothN
   return response.data;
 }
 
+// Retroactively logs what was done for an already-completed appointment
+// that has no treatment_history row yet — a separate action from
+// completeAppointment() above, which also transitions status. Fails with a
+// 422 if this visit already has a record (never overwrites one).
+export async function backfillTreatmentRecord(appointmentId, { procedureName, toothNumber, performedAt, notes }) {
+  await api.get('/sanctum/csrf-cookie');
+  const response = await api.patch(`/api/appointments/${appointmentId}/backfill-record`, {
+    procedure_name: procedureName,
+    tooth_number: toothNumber || null,
+    performed_at: performedAt,
+    notes,
+  });
+  return response.data;
+}
+
 export async function rescheduleAppointment(appointmentId, date, time) {
   await api.get('/sanctum/csrf-cookie');
   const response = await api.patch(`/api/appointments/${appointmentId}/reschedule`, {
@@ -200,6 +215,28 @@ export async function sendHmoStatusUpdate(appointmentId, statusLabel, note) {
     status_label: statusLabel,
     note,
   });
+  return response.data;
+}
+
+// Corrects the PATIENT's own hmo_provider_id/hmo_number/hmo_company_name
+// (not anything on the appointment itself) — scoped to one queue card so
+// staff can only reach it from a booking that's still actually awaiting
+// verification (StaffVerificationController::updateHmoInfo()'s own guard).
+export async function updatePatientHmoInfo(appointmentId, { hmoProviderId, hmoNumber, hmoCompanyName }) {
+  await api.get('/sanctum/csrf-cookie');
+  const response = await api.patch(`/api/staff/appointments/${appointmentId}/hmo-info`, {
+    hmo_provider_id: hmoProviderId,
+    hmo_number: hmoNumber,
+    hmo_company_name: hmoCompanyName || null,
+  });
+  return response.data;
+}
+
+// Marks a past confirmed/pending appointment that never actually happened as
+// a missed visit. Server-guarded to past dates only.
+export async function markNoShow(appointmentId) {
+  await api.get('/sanctum/csrf-cookie');
+  const response = await api.patch(`/api/staff/appointments/${appointmentId}/no-show`);
   return response.data;
 }
 

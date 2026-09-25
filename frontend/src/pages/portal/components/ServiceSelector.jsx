@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ClockIcon, CheckCircleIcon, ToothIcon, SparkleIcon, BracesIcon, SyringeIcon, BabyIcon, SmileIcon } from '../icons';
+import { ClockIcon, CheckCircleIcon, ToothIcon, SparkleIcon, BracesIcon, SyringeIcon, PediatricToothIcon } from '../icons';
 
 // Matches the thesis's category order (General Dentistry -> Cosmetic ->
 // Orthodontics -> Specialist Services), not alphabetical — chips render in
@@ -20,12 +20,18 @@ const CATEGORY_CHIP_LABELS = {
 // plain tooth. Name-based rather than a stored icon key on the service
 // row, matching how Service::isPediatric() already works server-side —
 // avoids a schema change for something purely decorative.
+//
+// Every icon here is dental-specific (a tooth, a sparkle, a braces wire, a
+// syringe) rather than a face or generic emoji-style pictogram — gum/
+// denture/TMJ/cleaning/consultation and everything else without a real
+// distinct pictogram fall through to the plain tooth default below, since
+// a forced "close enough" icon for those would be less honest than a
+// shared, accurate one.
 const SERVICE_ICON_MATCHERS = [
-  [/pediatric/i, BabyIcon],
+  [/pediatric/i, PediatricToothIcon],
   [/whitening|veneer/i, SparkleIcon],
   [/braces|aligner|retainer|orthodontic/i, BracesIcon],
   [/extraction|root canal|implant|sedation/i, SyringeIcon],
-  [/gum|denture|tmj|cleaning/i, SmileIcon],
 ];
 
 function iconForService(name) {

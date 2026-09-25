@@ -6,6 +6,7 @@ import {
   getDentists,
   getServices,
   cancelAppointmentAsStaff,
+  markNoShow,
 } from '../../api/appointments';
 import StatusBadge from './components/StatusBadge';
 import StatCard from './components/StatCard';
@@ -16,11 +17,12 @@ import AppointmentDetailModal from './components/AppointmentDetailModal';
 import ActionMenu from './components/ActionMenu';
 import Pagination from './components/Pagination';
 import RejectionModal from './components/RejectionModal';
+import PageHeader from './components/PageHeader';
 import {
   CalendarIcon, CheckCircleIcon, ClockIcon, XCircleIcon, SearchIcon, EyeIcon, CashIcon, ShieldIcon,
 } from './icons';
 import { formatDateShort, formatTime12h, toLocalDate } from './dateTimeUtils';
-import { showSuccessToast, showErrorToast } from '../../utils/toast';
+import { showSuccessToast, showErrorToast, confirmAction } from '../../utils/toast';
 import './dashboards.css';
 import './Appointments.css';
 
@@ -70,6 +72,18 @@ function formatDateRangeLabel(from, to) {
   return full(from || to);
 }
 
+// A confirmed/pending appointment whose date has already passed — the
+// dentist/staff never recorded what actually happened. Mirrors the same
+// "Awaiting Update" rule used on the patient-facing My Appointments page,
+// so this file's own definition stays in sync with that one rather than
+// importing across the patient/staff boundary.
+function isOverdueUnresolved(row) {
+  if (!['confirmed', 'pending_verification'].includes(row.status)) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return toLocalDate(row.appointment_date) < today;
+}
+
 function AllAppointments() {
   const [appointments, setAppointments] = useState([]);
   const [meta, setMeta] = useState(null);
@@ -86,6 +100,7 @@ function AllAppointments() {
   const [paymentType, setPaymentType] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [overdueOnly, setOverdueOnly] = useState(false);
 
   // Date-range popover — draft values only; dateFrom/dateTo (the ones that
   // actually drive the fetch below) are only touched by Apply/Clear, never
@@ -124,7 +139,7 @@ function AllAppointments() {
   // page 4 of a now-3-page result set would just render empty.
   useEffect(() => {
     setPage(1);
-  }, [status, dentistId, paymentType, dateFrom, dateTo, search, sort, perPage]);
+  }, [status, dentistId, paymentType, dateFrom, dateTo, overdueOnly, search, sort, perPage]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -136,6 +151,7 @@ function AllAppointments() {
         payment_type: paymentType,
         date_from: dateFrom,
         date_to: dateTo,
+        overdue: overdueOnly || undefined,
         search,
         sort,
         per_page: perPage,
@@ -155,7 +171,7 @@ function AllAppointments() {
     } finally {
       setLoading(false);
     }
-  }, [status, dentistId, paymentType, dateFrom, dateTo, search, sort, perPage, page]);
+  }, [status, dentistId, paymentType, dateFrom, dateTo, overdueOnly, search, sort, perPage, page]);
 
   useEffect(() => {
     load();
@@ -199,11 +215,12 @@ function AllAppointments() {
     setPaymentType('');
     setDateFrom('');
     setDateTo('');
+    setOverdueOnly(false);
     setSearchInput('');
     setSearch('');
   };
 
-  const hasActiveFilters = status || dentistId || paymentType || dateFrom || dateTo || search;
+  const hasActiveFilters = status || dentistId || paymentType || dateFrom || dateTo || overdueOnly || search;
 
   const openDateRange = () => {
     // Seed the draft from whatever's currently applied, not from whatever
@@ -211,7 +228,15 @@ function AllAppointments() {
     setDraftDateFrom(dateFrom);
     setDraftDateTo(dateTo);
     const rect = dateRangeTriggerRef.current.getBoundingClientRect();
-    setDateRangePosition({ top: rect.bottom + 6, left: rect.left });
+    // Unlike NotificationBell/AvatarMenu (right-anchored off the topbar's
+    // own right edge, so they can never overflow), this trigger sits inside
+    // a left-to-right toolbar — left-anchoring it the same way it's always
+    // been would push the popover off the right edge of a narrow viewport
+    // whenever the trigger itself sits close to that edge. Clamp instead of
+    // just anchoring to rect.left so it visually lands exactly where it
+    // always has on any width wide enough to fit it.
+    const left = Math.max(12, Math.min(rect.left, window.innerWidth - 264 - 12));
+    setDateRangePosition({ top: rect.bottom + 6, left });
     setDateRangeOpen(true);
   };
 
@@ -296,6 +321,24 @@ function AllAppointments() {
   };
 
   const toggleSort = () => setSort((s) => (s === 'date_desc' ? 'date_asc' : 'date_desc'));
+
+  const handleNoShow = async (row) => {
+    const confirmed = await confirmAction({
+      title: 'Mark as No Show?',
+      text: `Appointment #${row.id} will be recorded as a missed visit. The patient will be notified.`,
+      confirmButtonText: 'Mark No Show',
+      confirmButtonColor: '#dc2626',
+    });
+    if (!confirmed) return;
+    try {
+      await markNoShow(row.id);
+      load();
+      loadStats();
+      showSuccessToast('Appointment marked as no-show.');
+    } catch (err) {
+      showErrorToast(err.response?.data?.message || 'Could not mark this appointment as no-show.');
+    }
+  };
 
   const columns = [
     {
@@ -384,11 +427,11 @@ function AllAppointments() {
       minWidthPx: '140px',
       align: 'center',
       render: (row) => (
-        <StatusBadge
-          status={row.status}
-          tone={row.status === 'completed' ? 'blue' : undefined}
-          icon={STATUS_ICON[row.status]}
-        />
+        isOverdueUnresolved(row) ? (
+          <StatusBadge status="Awaiting Update" tone="amber" icon={ClockIcon} />
+        ) : (
+          <StatusBadge status={row.status} icon={STATUS_ICON[row.status]} />
+        )
       ),
     },
     {
@@ -405,6 +448,7 @@ function AllAppointments() {
           <ActionMenu
             items={[
               row.status === 'cancelled' && { label: 'Assign Walk-In', onClick: () => openWalkInForRow(row) },
+              isOverdueUnresolved(row) && { label: 'Mark No Show', onClick: () => handleNoShow(row), danger: true },
               ['confirmed', 'pending_verification'].includes(row.status) && {
                 label: 'Cancel Appointment', onClick: () => openCancel(row), danger: true,
               },
@@ -417,15 +461,11 @@ function AllAppointments() {
 
   return (
     <div>
-      <div className="section-card-header appt-page-header">
-        <div>
-          <h1 className="appt-page-title">Appointments</h1>
-          <p className="appt-page-subtitle">Manage and monitor all patient appointments</p>
-        </div>
+      <PageHeader icon={CalendarIcon} title="Appointments" subtitle="Manage and monitor all patient appointments">
         <button type="button" className="dash-btn" onClick={openBlankWalkIn}>
           + Add Appointment
         </button>
-      </div>
+      </PageHeader>
 
       <div className="stat-grid stat-grid--4">
         {statsLoading ? (
@@ -544,6 +584,18 @@ function AllAppointments() {
               <option value="cash">Cash</option>
               <option value="hmo">HMO</option>
             </select>
+          </div>
+          <div className="filter-field">
+            <button
+              type="button"
+              className={`filter-search filter-date-trigger${overdueOnly ? ' filter-date-trigger--active' : ''}`}
+              onClick={() => setOverdueOnly((v) => !v)}
+              aria-pressed={overdueOnly}
+              title="Confirmed/pending appointments whose date has already passed"
+            >
+              <ClockIcon />
+              <span className="filter-date-trigger-label">Overdue Only</span>
+            </button>
           </div>
           {hasActiveFilters && (
             <button type="button" className="dash-btn dash-btn--outline" onClick={clearFilters}>

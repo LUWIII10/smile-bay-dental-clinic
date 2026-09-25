@@ -1,19 +1,19 @@
 // Pill-shaped status badge — the one semantic-color mapping shared by every
 // appointment/verification list across all four dashboards.
 //
-// "completed" was green until the appointment-scheduling module's spec
-// called for a neutral gray specifically (bg-slate-100/text-slate-700),
-// to visually separate "finished/archival" from "confirmed/upcoming" —
-// green now means only active/good-to-go states. This changes the color of
-// existing "Completed" entries on the patient/dentist activity lists too,
-// not just the new appointment screens, since it's the one shared mapping.
+// "completed" went gray for a while (bg-slate-100/text-slate-700) to keep
+// green reserved for "confirmed/upcoming" only, then back to green by
+// explicit request — a finished visit reads as a positive/successful
+// outcome, same as the modal's own hardcoded green "Completed" badge
+// already did. Changes every "Completed" entry across the portal at once,
+// since it's the one shared mapping.
 const STATUS_TONE = {
   confirmed: 'green',
   active: 'green',
   pending: 'amber',
   'pending verification': 'amber',
   pending_verification: 'amber',
-  completed: 'gray',
+  completed: 'green',
   cancelled: 'red',
   rejected: 'red',
   no_show: 'red',
@@ -48,12 +48,17 @@ const CUSTOM_LABELS = {
 // icon is optional (a component reference, e.g. CheckCircleIcon) — every
 // existing caller omits it and renders exactly as before; only All
 // Appointments' pills opt into the icon+pill treatment.
-function StatusBadge({ status, tone, icon: Icon }) {
+// className is likewise optional and purely additive — every existing
+// caller omits it and gets the exact same two classes as before; it exists
+// for the rare longer-than-usual label (e.g. "Restricted Account" in
+// UserManagement.jsx) that needs to wrap instead of forcing its column
+// wide enough to hold it on one line.
+function StatusBadge({ status, tone, icon: Icon, className }) {
   const key = String(status).toLowerCase();
   const resolvedTone = tone || STATUS_TONE[key] || 'blue';
   const label = CUSTOM_LABELS[key] || String(status).replace(/_/g, ' ');
   return (
-    <span className={`status-badge status-badge--${resolvedTone}`}>
+    <span className={`status-badge status-badge--${resolvedTone}${className ? ` ${className}` : ''}`}>
       {Icon && <span className="status-badge-icon"><Icon /></span>}
       {label}
     </span>

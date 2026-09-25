@@ -1,3 +1,5 @@
+import { ToothIcon } from '../icons';
+
 function getGreeting() {
   const hour = new Date().getHours();
   if (hour < 12) return 'Good morning';
@@ -17,6 +19,9 @@ function formatToday() {
 function DashGreeting({ firstName }) {
   return (
     <div className="dash-greeting">
+      <span className="dash-greeting-decoration" aria-hidden="true">
+        <ToothIcon />
+      </span>
       <h2>{getGreeting()}, {firstName}</h2>
       <p>{formatToday()}</p>
     </div>

@@ -93,7 +93,7 @@ function AppointmentDetailModal({ appointmentId, onClose }) {
                 <span className="cell-person-sub">Dentist</span>
               </span>
             </div>
-            <StatusBadge status={detail.status} tone={detail.status === 'completed' ? 'blue' : undefined} />
+            <StatusBadge status={detail.status} />
           </div>
 
           <div className="detail-grid">

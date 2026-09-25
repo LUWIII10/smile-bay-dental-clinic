@@ -58,6 +58,13 @@ class StaffAppointmentController extends Controller
             'search' => ['nullable', 'string', 'max:100'],
             'sort' => ['nullable', 'in:date_asc,date_desc'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
+            // Confirmed/pending, but the date already passed and nobody
+            // ever completed or no-showed it — the same "Awaiting Update"
+            // concept PatientAppointments.jsx already shows the patient,
+            // surfaced here so staff has one filter to find every such
+            // appointment clinic-wide instead of combining status+date_to
+            // by hand for each status separately.
+            'overdue' => ['nullable', 'boolean'],
         ]);
 
         $query = Appointment::query()->with([
@@ -86,6 +93,11 @@ class StaffAppointmentController extends Controller
 
         if (! empty($validated['date_to'])) {
             $query->whereDate('appointment_date', '<=', $validated['date_to']);
+        }
+
+        if ($request->boolean('overdue')) {
+            $query->whereIn('status', ['confirmed', 'pending_verification'])
+                ->whereDate('appointment_date', '<', now()->toDateString());
         }
 
         if (! empty($validated['search'])) {
@@ -279,6 +291,58 @@ class StaffAppointmentController extends Controller
     }
 
     /**
+     * Staff marks a past confirmed/pending appointment as a no-show — the
+     * resolution for exactly the "Awaiting Update" gap PatientAppointments.jsx
+     * surfaces to the patient (a date that's already passed with nobody
+     * ever recording what happened). Deliberately staff-only, not dentist-
+     * only like complete(): whether a patient walked in is a front-desk
+     * observation, not a clinical judgment, so it belongs with the same
+     * actor who already has cancel() here — and staff's own "All
+     * Appointments" is clinic-wide, covering every dentist, not just one's
+     * own schedule. Only ever the enum value flip — never invents what
+     * procedure would have happened, since nothing did.
+     */
+    public function noShow(Request $request, Appointment $appointment)
+    {
+        if (! in_array($appointment->status, ['confirmed', 'pending_verification'], true)) {
+            return response()->json([
+                'message' => 'Only a confirmed or pending appointment can be marked as no-show.',
+            ], 422);
+        }
+
+        if ($appointment->appointment_date->toDateString() >= now()->toDateString()) {
+            return response()->json([
+                'message' => 'Only a past appointment can be marked as no-show.',
+            ], 422);
+        }
+
+        DB::transaction(function () use ($appointment, $request) {
+            $oldStatus = $appointment->status;
+
+            $appointment->update(['status' => 'no_show']);
+
+            AppointmentStatusLog::create([
+                'appointment_id' => $appointment->id,
+                'old_status' => $oldStatus,
+                'new_status' => 'no_show',
+                'changed_by' => $request->user()->id,
+                'note' => 'Marked as no-show by staff.',
+            ]);
+        });
+
+        $appointment->load(['patient.user', 'dentist:id,name', 'service:id,name']);
+
+        Notification::notifyUser(
+            $appointment->patient->user_id,
+            'Missed appointment recorded',
+            'Your '.$appointment->service->name.' appointment on '.$appointment->appointment_date->format('M j').' was marked as a missed visit. Contact the clinic if this is a mistake.',
+            '/patient/appointments'
+        );
+
+        return response()->json(['message' => 'Appointment marked as no-show.', 'data' => $appointment]);
+    }
+
+    /**
      * Lightweight patient lookup for the walk-in modal's patient picker —
      * matches by name or account email. No dedicated patient-search surface
      * exists yet (Patient Records is still a ComingSoon stub), so this is
@@ -426,6 +490,15 @@ class StaffAppointmentController extends Controller
         }
 
         $isPediatric = $service->isPediatric();
+
+        // Same rule as AppointmentController::store() — the pediatric
+        // dentist accepts Cash only, no HMO, whether the patient books
+        // themselves or staff books it in for them over the phone/in person.
+        if ($isPediatric && $patient->patient_type === 'hmo') {
+            return response()->json([
+                'message' => 'Pediatric Dentistry accepts Cash patients only — our pediatric dentist does not accept HMO coverage.',
+            ], 422);
+        }
 
         $appointment = DB::transaction(function () use ($validated, $patient, $service, $request, $isPediatric) {
             // Same automatic recommendation consumption as the patient's own

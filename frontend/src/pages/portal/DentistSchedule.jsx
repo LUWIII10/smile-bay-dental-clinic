@@ -6,7 +6,8 @@ import StatusBadge from './components/StatusBadge';
 import Skeleton from './components/Skeleton';
 import RescheduleModal from './components/RescheduleModal';
 import RejectionModal from './components/RejectionModal';
-import { CalendarIcon, CheckCircleIcon, ClockIcon, MoreIcon, CalendarXIcon, SwapIcon, FileIcon } from './icons';
+import PageHeader from './components/PageHeader';
+import { CalendarIcon, CheckCircleIcon, ClockIcon, MoreIcon, CalendarXIcon, SwapIcon, FileIcon, AlertIcon, ShieldIcon } from './icons';
 import { formatTime12h, toLocalDate } from './dateTimeUtils';
 import './dashboards.css';
 import './DentistSchedule.css';
@@ -37,7 +38,10 @@ function dayHeading(dateStr, today) {
   return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
 }
 
-function ScheduleRow({ appointment, expanded, onToggle, completingId, onComplete, onReschedule, onCancel, onAddRecord }) {
+// variant: 'danger' tints the collapsed row for the Needs Update tab (a
+// confirmed visit whose date already passed) — omitted everywhere else,
+// same default look as before this prop existed.
+function ScheduleRow({ appointment, expanded, onToggle, completingId, onComplete, onReschedule, onCancel, onAddRecord, variant }) {
   const patientName = `${appointment.patient.first_name} ${appointment.patient.last_name}`.trim();
   const isCash = appointment.patient_type_snapshot === 'cash';
   const canAct = appointment.status === 'confirmed';
@@ -48,7 +52,9 @@ function ScheduleRow({ appointment, expanded, onToggle, completingId, onComplete
   const [timeValue, timePeriod] = formatTime12h(appointment.appointment_time).split(' ');
 
   return (
-    <div className={`schedule-row${expanded ? ' schedule-row--expanded' : ''}`}>
+    <div
+      className={`schedule-row${variant === 'danger' ? ' schedule-row--danger' : ''}${expanded ? ' schedule-row--expanded' : ''}`}
+    >
       <button type="button" className="schedule-row-main" onClick={() => canExpand && onToggle(appointment.id)}>
         <span className="schedule-row-time">
           <span className="schedule-row-time-value">{timeValue}</span>
@@ -112,6 +118,10 @@ function DentistSchedule() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [expandedId, setExpandedId] = useState(null);
+  // Today first — a dentist opening this page wants to see today's own
+  // visits immediately, not scroll past however many Needs Update rows
+  // happen to exist (the whole reason this page moved to tabs).
+  const [activeTab, setActiveTab] = useState('today');
 
   const [rescheduleTarget, setRescheduleTarget] = useState(null);
 
@@ -161,6 +171,24 @@ function DentistSchedule() {
     });
   };
 
+  // For a completed visit that never got a treatment_history row — writes
+  // real notes retroactively, same Patient Records screen as handleComplete
+  // above, just a different arrival mode since status is already
+  // 'completed' and nothing about it changes here.
+  const handleBackfill = (appointment) => {
+    navigate('/dentist/patient-records', {
+      state: {
+        patientId: appointment.patient.id,
+        appointmentId: appointment.id,
+        visitLabel: `${appointment.appointment_date.slice(0, 10)} at ${formatTime12h(appointment.appointment_time)}`,
+        serviceName: appointment.service.name,
+        appointmentDate: appointment.appointment_date.slice(0, 10),
+        appointmentStatus: appointment.status,
+        mode: 'backfilling',
+      },
+    });
+  };
+
   const openCancel = (appointment) => {
     setError('');
     setCancelReason('');
@@ -204,7 +232,8 @@ function DentistSchedule() {
       completedToday: appointments.filter(
         (a) => a.appointment_date.slice(0, 10) === today && a.status === 'completed'
       ).length,
-      remaining: appointments.filter((a) => a.status === 'confirmed').length,
+      remaining: appointments.filter((a) => a.status === 'confirmed' && a.appointment_date.slice(0, 10) >= today).length,
+      overdue: appointments.filter((a) => a.status === 'confirmed' && a.appointment_date.slice(0, 10) < today).length,
     };
   }, [appointments]);
 
@@ -214,6 +243,8 @@ function DentistSchedule() {
   // staying mixed into the dated list (the API only ever returns a
   // completed row when it's dated today, so "completed" and "completed
   // today" are the same set here).
+  const today = todayKey();
+
   const sortedAppointments = [...appointments]
     .filter((a) => a.status === 'confirmed')
     .sort((a, b) => {
@@ -222,36 +253,90 @@ function DentistSchedule() {
       return a.appointment_time.localeCompare(b.appointment_time);
     });
 
+  // A confirmed visit whose date already passed without being completed —
+  // the index() query now includes these (it used to cut off at today),
+  // so they need their own "still needs a real outcome" tab instead of
+  // silently sorting into the upcoming list as if nothing were wrong.
+  const overdueAppointments = sortedAppointments.filter((a) => a.appointment_date.slice(0, 10) < today);
+  const upcomingAppointments = sortedAppointments.filter((a) => a.appointment_date.slice(0, 10) >= today);
+
+  // Today and Upcoming are now separate tabs (see TABS below) — today's own
+  // confirmed visits shouldn't also repeat inside the Upcoming tab's dated
+  // groups, so this splits the >= today set the two tabs actually draw from.
+  const todayAppointments = upcomingAppointments.filter((a) => a.appointment_date.slice(0, 10) === today);
+  const futureAppointments = upcomingAppointments.filter((a) => a.appointment_date.slice(0, 10) > today);
+
   const groups = useMemo(() => {
     const byDate = new Map();
-    sortedAppointments.forEach((a) => {
+    futureAppointments.forEach((a) => {
       const key = a.appointment_date.slice(0, 10);
       if (!byDate.has(key)) byDate.set(key, []);
       byDate.get(key).push(a);
     });
     return Array.from(byDate.entries());
-  }, [sortedAppointments]);
+  }, [futureAppointments]);
 
+  // Explicitly date-scoped now — index() also returns completed rows from
+  // any date that are still missing a treatment_history row (see
+  // missingRecordAppointments below), so "status === 'completed'" alone no
+  // longer means "completed today" the way the API's old date-bounded query
+  // guaranteed.
   const completedToday = useMemo(
     () =>
       [...appointments]
-        .filter((a) => a.status === 'completed')
+        .filter((a) => a.status === 'completed' && a.appointment_date.slice(0, 10) === today)
         .sort((a, b) => a.appointment_time.localeCompare(b.appointment_time)),
+    [appointments, today]
+  );
+
+  // A visit marked completed (any date other than today — today's own gets
+  // caught by the section above instead) that still has no treatment_history
+  // row — the dentist needs to write up what was actually done before a
+  // patient's "View Treatment" ever shows anything for it.
+  const missingRecordAppointments = useMemo(
+    () =>
+      [...appointments]
+        .filter((a) => a.status === 'completed' && !a.treatmentHistoryEntry && a.appointment_date.slice(0, 10) !== today)
+        .sort((a, b) => toLocalDate(b.appointment_date) - toLocalDate(a.appointment_date)),
+    [appointments, today]
+  );
+
+  // Read-only heads-up — index() now includes this dentist's own HMO
+  // bookings still awaiting staff's coverage check. Nothing here is
+  // clickable: it becomes a normal actionable confirmed row (in the dated
+  // list below) the moment HMO Verification Queue approves it.
+  const pendingVerificationAppointments = useMemo(
+    () =>
+      [...appointments]
+        .filter((a) => a.status === 'pending_verification')
+        .sort((a, b) => {
+          const dateCompare = toLocalDate(a.appointment_date) - toLocalDate(b.appointment_date);
+          if (dateCompare !== 0) return dateCompare;
+          return a.appointment_time.localeCompare(b.appointment_time);
+        }),
     [appointments]
   );
 
-  const today = todayKey();
+  // Same .portal-tabs pattern PatientAppointments.jsx already uses — counts
+  // read from the lists computed above, so a tab's badge and its own
+  // content can never drift apart. Unlike that page, each tab here renders
+  // through different markup (ScheduleRow vs. the info-row layout), so
+  // there's no single shared "rows" renderer — activeTab just picks which
+  // block below is shown.
+  const TABS = [
+    { key: 'today', label: 'Today', count: todayAppointments.length },
+    { key: 'completedToday', label: 'Completed Today', count: completedToday.length },
+    { key: 'upcoming', label: 'Upcoming', count: futureAppointments.length },
+    { key: 'needsUpdate', label: 'Needs Update', count: overdueAppointments.length },
+    { key: 'needsRecord', label: 'Needs Treatment Record', count: missingRecordAppointments.length },
+    { key: 'awaitingHmo', label: 'Awaiting HMO Verification', count: pendingVerificationAppointments.length },
+  ];
 
   return (
     <div>
-      <div className="section-card-header appt-page-header">
-        <div>
-          <h1 className="appt-page-title">My Schedule</h1>
-          <p className="appt-page-subtitle">View and manage your assigned appointments.</p>
-        </div>
-      </div>
+      <PageHeader icon={ClockIcon} title="My Schedule" subtitle="View and manage your assigned appointments." />
 
-      <div className="stat-grid">
+      <div className={`stat-grid${!loading && stats.overdue > 0 ? ' stat-grid--4' : ''}`}>
         {loading ? (
           <Skeleton variant="stat-card" count={3} />
         ) : (
@@ -259,70 +344,224 @@ function DentistSchedule() {
             <StatCard label="Appointments Today" value={stats.today} icon={CalendarIcon} tint="blue" />
             <StatCard label="Completed Today" value={stats.completedToday} icon={CheckCircleIcon} tint="green" />
             <StatCard label="Upcoming Confirmed" value={stats.remaining} icon={ClockIcon} tint="amber" />
+            {stats.overdue > 0 && (
+              <StatCard label="Needs Update" value={stats.overdue} icon={AlertIcon} tint="red" />
+            )}
           </>
         )}
       </div>
 
       {error && <div className="profile-alert profile-alert--error">{error}</div>}
 
-      {loading ? (
-        <Skeleton variant="block" height="120px" count={3} />
-      ) : groups.length === 0 ? (
-        <div className="dash-empty">
-          <CalendarIcon />
-          <span className="dash-empty-title">No upcoming appointments on your schedule.</span>
+      <div className="section-card">
+        <div className="portal-tabs">
+          {TABS.map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              className={`portal-tab${tab.key === activeTab ? ' portal-tab--active' : ''}`}
+              onClick={() => setActiveTab(tab.key)}
+            >
+              {tab.label}
+              <span className="portal-tab-count">{loading ? '…' : tab.count}</span>
+            </button>
+          ))}
         </div>
-      ) : (
-        groups.map(([dateKey, rows]) => (
-          <div key={dateKey}>
-            <h3 className="schedule-day-heading">{dayHeading(dateKey, today)}</h3>
-            {rows.map((appointment) => (
-              <ScheduleRow
-                key={appointment.id}
-                appointment={appointment}
-                expanded={expandedId === appointment.id}
-                onToggle={(id) => setExpandedId((prev) => (prev === id ? null : id))}
-                onComplete={handleComplete}
-                onReschedule={setRescheduleTarget}
-                onCancel={openCancel}
-                onAddRecord={handleAddRecord}
-              />
-            ))}
-          </div>
-        ))
-      )}
 
-      {!loading && completedToday.length > 0 && (
-        <div className="section-card-header" style={{ marginTop: 28 }}>
-          <h3 className="section-card-title">
-            Completed today <span className="portal-tab-count">{completedToday.length}</span>
-          </h3>
-        </div>
-      )}
+        {loading ? (
+          <Skeleton variant="row" count={4} />
+        ) : (
+          <>
+            {activeTab === 'today' && (
+              todayAppointments.length === 0 ? (
+                <div className="dash-empty">
+                  <CalendarIcon />
+                  <span className="dash-empty-title">No appointments scheduled today.</span>
+                </div>
+              ) : (
+                todayAppointments.map((appointment) => (
+                  <ScheduleRow
+                    key={appointment.id}
+                    appointment={appointment}
+                    expanded={expandedId === appointment.id}
+                    onToggle={(id) => setExpandedId((prev) => (prev === id ? null : id))}
+                    onComplete={handleComplete}
+                    onReschedule={setRescheduleTarget}
+                    onCancel={openCancel}
+                    onAddRecord={handleAddRecord}
+                  />
+                ))
+              )
+            )}
 
-      {!loading &&
-        completedToday.map((appointment) => {
-          const patientName = `${appointment.patient.first_name} ${appointment.patient.last_name}`.trim();
-          const entry = appointment.treatmentHistoryEntry;
-          return (
-            <div key={appointment.id} className="completed-today-row">
-              <span className="activity-item-icon activity-item-icon--green">
-                <CheckCircleIcon />
-              </span>
-              <div className="completed-today-text">
-                <span className="completed-today-name">
-                  {patientName}
-                  {entry?.procedure_name ? ` — ${entry.procedure_name}` : ''}
-                </span>
-                {entry?.notes && <span className="completed-today-notes">{entry.notes}</span>}
-                <button type="button" className="completed-today-link" onClick={() => handleAddRecord(appointment)}>
-                  <FileIcon /> Add Visit Record
-                </button>
-              </div>
-              <span className="completed-today-time">{formatTime12h(appointment.appointment_time)}</span>
-            </div>
-          );
-        })}
+            {activeTab === 'completedToday' && (
+              completedToday.length === 0 ? (
+                <div className="dash-empty">
+                  <CheckCircleIcon />
+                  <span className="dash-empty-title">No visits completed yet today.</span>
+                </div>
+              ) : (
+                completedToday.map((appointment) => {
+                  const patientName = `${appointment.patient.first_name} ${appointment.patient.last_name}`.trim();
+                  const entry = appointment.treatmentHistoryEntry;
+                  return (
+                    <div key={appointment.id} className="completed-today-row">
+                      <span className="activity-item-icon activity-item-icon--green">
+                        <CheckCircleIcon />
+                      </span>
+                      <div className="completed-today-text">
+                        <span className="completed-today-name">
+                          {patientName}
+                          {entry?.procedure_name ? ` — ${entry.procedure_name}` : ''}
+                        </span>
+                        {entry?.notes && <span className="completed-today-notes">{entry.notes}</span>}
+                        <button type="button" className="completed-today-link" onClick={() => handleAddRecord(appointment)}>
+                          <FileIcon /> Add Visit Record
+                        </button>
+                      </div>
+                      <span className="completed-today-time">{formatTime12h(appointment.appointment_time)}</span>
+                    </div>
+                  );
+                })
+              )
+            )}
+
+            {activeTab === 'upcoming' && (
+              groups.length === 0 ? (
+                <div className="dash-empty">
+                  <CalendarIcon />
+                  <span className="dash-empty-title">No upcoming appointments on your schedule.</span>
+                </div>
+              ) : (
+                groups.map(([dateKey, rows]) => (
+                  <div key={dateKey}>
+                    <h3 className="schedule-day-heading">{dayHeading(dateKey, today)}</h3>
+                    {rows.map((appointment) => (
+                      <ScheduleRow
+                        key={appointment.id}
+                        appointment={appointment}
+                        expanded={expandedId === appointment.id}
+                        onToggle={(id) => setExpandedId((prev) => (prev === id ? null : id))}
+                        onComplete={handleComplete}
+                        onReschedule={setRescheduleTarget}
+                        onCancel={openCancel}
+                        onAddRecord={handleAddRecord}
+                      />
+                    ))}
+                  </div>
+                ))
+              )
+            )}
+
+            {activeTab === 'needsUpdate' && (
+              overdueAppointments.length === 0 ? (
+                <div className="dash-empty">
+                  <CheckCircleIcon />
+                  <span className="dash-empty-title">Nothing needs an update — every confirmed visit is up to date.</span>
+                </div>
+              ) : (
+                <>
+                  <p className="schedule-overdue-hint">
+                    These were confirmed but their date has passed without a recorded outcome. Complete each one with
+                    what actually happened, or cancel it if it never happened.
+                  </p>
+                  {overdueAppointments.map((appointment) => (
+                    <ScheduleRow
+                      key={appointment.id}
+                      appointment={appointment}
+                      variant="danger"
+                      expanded={expandedId === appointment.id}
+                      onToggle={(id) => setExpandedId((prev) => (prev === id ? null : id))}
+                      onComplete={handleComplete}
+                      onReschedule={setRescheduleTarget}
+                      onCancel={openCancel}
+                      onAddRecord={handleAddRecord}
+                    />
+                  ))}
+                </>
+              )
+            )}
+
+            {activeTab === 'needsRecord' && (
+              missingRecordAppointments.length === 0 ? (
+                <div className="dash-empty">
+                  <CheckCircleIcon />
+                  <span className="dash-empty-title">Nothing missing — every completed visit has a treatment record on file.</span>
+                </div>
+              ) : (
+                <>
+                  <p className="schedule-overdue-hint">
+                    These visits were marked completed but have no procedure notes on file — write up what was actually
+                    done so the patient's own record shows it correctly.
+                  </p>
+                  {missingRecordAppointments.map((appointment) => {
+                    const patientName = `${appointment.patient.first_name} ${appointment.patient.last_name}`.trim();
+                    return (
+                      <div key={appointment.id} className="completed-today-row">
+                        <span className="activity-item-icon activity-item-icon--amber">
+                          <FileIcon />
+                        </span>
+                        <div className="completed-today-text">
+                          <span className="completed-today-name">
+                            {patientName} — {appointment.service.name}
+                          </span>
+                          <span className="completed-today-notes">
+                            {toLocalDate(appointment.appointment_date).toLocaleDateString('en-US', {
+                              month: 'long', day: 'numeric', year: 'numeric',
+                            })}
+                          </span>
+                          <button type="button" className="completed-today-link" onClick={() => handleBackfill(appointment)}>
+                            <FileIcon /> Add Treatment Record
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </>
+              )
+            )}
+
+            {activeTab === 'awaitingHmo' && (
+              pendingVerificationAppointments.length === 0 ? (
+                <div className="dash-empty">
+                  <ShieldIcon />
+                  <span className="dash-empty-title">Nothing awaiting HMO verification right now.</span>
+                </div>
+              ) : (
+                <>
+                  <p className="schedule-overdue-hint">
+                    Booked with you, but still pending — dental assistant/admin staff need to confirm the patient's HMO
+                    coverage for the specific procedure before this becomes a confirmed visit on your schedule.
+                  </p>
+                  {pendingVerificationAppointments.map((appointment) => {
+                    const patientName = `${appointment.patient.first_name} ${appointment.patient.last_name}`.trim();
+                    return (
+                      <div key={appointment.id} className="completed-today-row">
+                        <span className="activity-item-icon activity-item-icon--amber">
+                          <ShieldIcon />
+                        </span>
+                        <div className="completed-today-text">
+                          <span className="completed-today-name">
+                            {patientName} — {appointment.service.name}
+                          </span>
+                          <span className="completed-today-notes">
+                            {toLocalDate(appointment.appointment_date).toLocaleDateString('en-US', {
+                              month: 'long', day: 'numeric', year: 'numeric',
+                            })} &middot; {formatTime12h(appointment.appointment_time)}
+                          </span>
+                          <span className="completed-today-notes">
+                            {appointment.hmo_status_label || 'Pending — for HMO verification'}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </>
+              )
+            )}
+          </>
+        )}
+      </div>
 
       <RescheduleModal
         open={!!rescheduleTarget}

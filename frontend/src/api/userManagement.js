@@ -28,3 +28,12 @@ export async function setUserStatus(userId, status) {
   const response = await api.patch(`/api/admin/users/${userId}/status`, { status });
   return response.data.data;
 }
+
+// Lifts the automatic 3-strike booking restriction (CancellationPolicyService)
+// — the only way it's ever removed. Separate from setUserStatus() above:
+// this only affects self-service booking eligibility, never login access.
+export async function unrestrictBooking(userId) {
+  await api.get('/sanctum/csrf-cookie');
+  const response = await api.patch(`/api/admin/users/${userId}/unrestrict-booking`);
+  return response.data.data;
+}

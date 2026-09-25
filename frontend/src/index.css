@@ -50,11 +50,24 @@
   }
 }
 
+/* Belt-and-suspenders against horizontal overflow app-wide — not a fix on
+   its own (the actual overflowing elements are fixed at their source, see
+   the portal's own CSS files), just a safety net so a missed case clips
+   instead of adding a page-level horizontal scrollbar. */
+html,
+body {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
 body {
   margin: 0;
 }
 
 #root {
+  width: 100%;
+  max-width: 100%;
   min-height: 100svh;
   display: flex;
   flex-direction: column;

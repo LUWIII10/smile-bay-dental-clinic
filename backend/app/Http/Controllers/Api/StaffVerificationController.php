@@ -237,4 +237,55 @@ class StaffVerificationController extends Controller
 
         return response()->json(['message' => 'Status update sent to the patient.', 'data' => $appointment->fresh()]);
     }
+
+    /**
+     * Correct the patient's own HMO details (provider, card number, company
+     * name) right from the queue card — a typo caught while staff are
+     * looking at it to call the provider shouldn't need a trip to a
+     * different page to fix first. Writes to the PATIENT row (hmo_provider_id/
+     * hmo_number/hmo_company_name live there, not on the appointment —
+     * see StaffVerificationController::index()'s own eager-load), scoped to
+     * this one appointment only so staff can't reach this action from
+     * anywhere but the queue card it's shown on.
+     *
+     * Same guard as verify() — only valid while this is still the reason
+     * the patient is in the queue at all. Deliberately doesn't touch
+     * status/verified_by/pediatric_confirmed_at or anything scheduling-
+     * related (service, dentist, date/time) — those are a different,
+     * larger change this pass doesn't cover.
+     */
+    public function updateHmoInfo(Request $request, Appointment $appointment)
+    {
+        if ($appointment->patient_type_snapshot !== 'hmo' || $appointment->status !== 'pending_verification') {
+            return response()->json([
+                'message' => 'HMO details can only be edited for a booking still awaiting verification.',
+            ], 422);
+        }
+
+        $validated = $request->validate([
+            'hmo_provider_id' => ['required', 'integer', Rule::exists('hmo_providers', 'id')->where('is_active', true)],
+            'hmo_number' => ['required', 'string', 'max:100'],
+            'hmo_company_name' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $patient = $appointment->patient;
+        $patient->loadMissing('hmoProvider');
+        $oldProviderName = $patient->hmoProvider?->name ?? 'none on file';
+        $oldNumber = $patient->hmo_number ?: 'none on file';
+
+        $patient->update($validated);
+        $patient->refresh()->loadMissing('hmoProvider');
+
+        AppointmentStatusLog::create([
+            'appointment_id' => $appointment->id,
+            'old_status' => $appointment->status,
+            'new_status' => $appointment->status,
+            'changed_by' => $request->user()->id,
+            'note' => "HMO details corrected by staff — provider: {$oldProviderName} \u{2192} {$patient->hmoProvider?->name}, card #: {$oldNumber} \u{2192} {$patient->hmo_number}.",
+        ]);
+
+        $appointment->load(['patient.user', 'patient.hmoProvider', 'dentist', 'service']);
+
+        return response()->json(['message' => 'HMO details updated.', 'data' => $appointment]);
+    }
 }

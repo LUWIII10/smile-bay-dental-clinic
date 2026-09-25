@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Notification;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -133,6 +134,18 @@ class UserManagementController extends Controller
      * has for "disabling" a user rather than deleting them (login already
      * blocks inactive accounts, see AuthController::login()). Guards
      * against an admin locking themselves out.
+     *
+     * Reactivating a patient also lifts any standing booking restriction —
+     * CancellationPolicyService::evaluateAfterCancellation() sets both
+     * status=inactive AND booking_restricted_at together (a patient who
+     * cancels again while already restricted gets fully deactivated, on
+     * top of the restriction that was already there), but never clears
+     * booking_restricted_at on its own. Without this, "Activate" here would
+     * only undo half of that: the account logs in again but immediately
+     * shows right back up as "Restricted Account" with booking still
+     * blocked, needing a second, non-obvious "Lift Restriction" click to
+     * actually finish restoring it. Admin clicking "Activate" means the
+     * account is back in good standing on both fronts.
      */
     public function updateStatus(Request $request, User $user)
     {
@@ -146,6 +159,47 @@ class UserManagementController extends Controller
 
         $user->update(['status' => $validated['status']]);
 
-        return response()->json(['data' => $user->fresh()]);
+        if ($validated['status'] === 'active' && $user->patient?->isBookingRestricted()) {
+            $user->patient->update(['booking_restricted_at' => null]);
+            Notification::notifyUser(
+                $user->id,
+                'Account reactivated',
+                'Your account is active again and you can book new appointments.',
+                '/patient/book-appointment'
+            );
+        }
+
+        return response()->json(['data' => $user->fresh()->load('patient:id,user_id,booking_restricted_at')]);
+    }
+
+    /**
+     * Manually lifts the automatic 3-strike booking restriction (see
+     * CancellationPolicyService) — the only way it ever gets removed; the
+     * system itself never clears it on its own. Deliberately separate from
+     * updateStatus() above: this only ever touches booking_restricted_at
+     * (self-service booking eligibility), never the account's login status.
+     */
+    public function unrestrictBooking(User $user)
+    {
+        $patient = $user->patient;
+
+        if (! $patient) {
+            return response()->json(['message' => 'This account has no patient profile.'], 422);
+        }
+
+        if (! $patient->isBookingRestricted()) {
+            return response()->json(['message' => 'This account is not currently restricted.'], 422);
+        }
+
+        $patient->update(['booking_restricted_at' => null]);
+
+        Notification::notifyUser(
+            $user->id,
+            'Booking restriction lifted',
+            'Your account can now book new appointments again.',
+            '/patient/book-appointment'
+        );
+
+        return response()->json(['data' => $user->fresh()->load('patient:id,user_id,booking_restricted_at')]);
     }
 }

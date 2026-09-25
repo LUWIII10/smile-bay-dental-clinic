@@ -8,6 +8,7 @@ class HmoProvider extends Model
 {
     protected $fillable = [
         'name',
+        'logo_path',
         'is_active',
     ];
 

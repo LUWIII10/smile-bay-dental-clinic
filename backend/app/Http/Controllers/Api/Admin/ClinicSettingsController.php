@@ -8,6 +8,7 @@ use App\Models\ClinicSchedule;
 use App\Models\HmoProvider;
 use App\Models\Service;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
 /**
@@ -125,9 +126,20 @@ class ClinicSettingsController extends Controller
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255', 'unique:hmo_providers,name'],
+            // Optional — Medicard/Flexicare's own logos predate this column
+            // and stay hardcoded frontend assets; this is only for a
+            // provider an admin adds from here on. Same image rules as
+            // ProfileController::uploadAvatar().
+            'logo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
         ]);
 
-        $provider = HmoProvider::create([...$validated, 'is_active' => true]);
+        $logoPath = $this->storeLogo($request);
+
+        $provider = HmoProvider::create([
+            'name' => $validated['name'],
+            'logo_path' => $logoPath,
+            'is_active' => true,
+        ]);
 
         return response()->json(['data' => $provider], 201);
     }
@@ -136,11 +148,46 @@ class ClinicSettingsController extends Controller
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255', Rule::unique('hmo_providers', 'name')->ignore($hmoProvider->id)],
+            'logo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
         ]);
 
-        $hmoProvider->update($validated);
+        $update = ['name' => $validated['name']];
+
+        if ($request->hasFile('logo')) {
+            $this->deleteLogoIfLocal($hmoProvider->logo_path);
+            $update['logo_path'] = $this->storeLogo($request);
+        }
+
+        $hmoProvider->update($update);
 
         return response()->json(['data' => $hmoProvider->fresh()]);
+    }
+
+    private function storeLogo(Request $request): ?string
+    {
+        if (! $request->hasFile('logo')) {
+            return null;
+        }
+
+        $path = $request->file('logo')->store('hmo-logos', 'public');
+
+        return Storage::disk('public')->url($path);
+    }
+
+    // Same local-only-delete guard as ProfileController::deleteIfLocal() —
+    // never touches a value that isn't one of our own uploaded files (there
+    // is none today for hmo_providers, but this keeps the two upload
+    // features consistent instead of drifting apart later).
+    private function deleteLogoIfLocal(?string $url): void
+    {
+        if (! $url) {
+            return;
+        }
+
+        $prefix = Storage::disk('public')->url('hmo-logos/');
+        if (str_starts_with($url, $prefix)) {
+            Storage::disk('public')->delete('hmo-logos/'.basename($url));
+        }
     }
 
     /**

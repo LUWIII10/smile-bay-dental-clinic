@@ -165,6 +165,12 @@
   gap: 10px;
 }
 
+@media (max-width: 480px) {
+  .formGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .formGridFull {
   grid-column: 1 / -1;
 }

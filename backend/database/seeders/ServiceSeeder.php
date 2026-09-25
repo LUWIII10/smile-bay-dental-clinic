@@ -69,7 +69,12 @@ class ServiceSeeder extends Seeder
             ['id' => 16, 'name' => 'Retainers (Fitting / Check)', 'category' => 'Orthodontics', 'duration_minutes' => 30],
 
             // ---- Specialist Services ----
-            ['id' => 17, 'name' => 'Pediatric Dentistry (General Consultation)', 'category' => 'Specialist Services', 'duration_minutes' => 30],
+            // Same initial-consult, self-service model as ids 1/2 above —
+            // the dedicated pediatric dentist (see PediatricDentistSeeder)
+            // is the only one DentistController::index() ever offers for
+            // it, and the booking wizard already has dedicated pediatric
+            // copy/status handling (BookAppointment.jsx's isPediatricService()).
+            ['id' => 17, 'name' => 'Pediatric Dentistry (General Consultation)', 'category' => 'Specialist Services', 'duration_minutes' => 30, 'is_patient_bookable' => true],
             ['id' => 18, 'name' => 'Dental Implants (Consultation / Surgery)', 'category' => 'Specialist Services', 'duration_minutes' => 90],
             ['id' => 19, 'name' => 'TMJ Disorders (Consultation & Triage)', 'category' => 'Specialist Services', 'duration_minutes' => 45],
             ['id' => 20, 'name' => 'Sedation Dentistry (Consultation Add-on)', 'category' => 'Specialist Services', 'duration_minutes' => 30],

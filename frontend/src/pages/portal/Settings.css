@@ -1,63 +1,172 @@
 /* Page-specific styles for Settings (admin) — shared primitives
    (.section-card, .profile-grid, .profile-field, .modal-field-label,
-   .profile-alert, .row-btn) live in dashboards.css. */
+   .profile-alert, .row-btn, .section-card-heading/.section-card-icon) live
+   in dashboards.css — the icon-badge header pattern below was built here
+   first but is now used by every dashboard too, so it moved there to stay
+   the one definition instead of drifting into near-duplicates. Everything
+   else below is scoped to this file (only Settings.jsx imports it), so
+   none of it reaches any other page. */
+
+/* ============ Operating Hours ============ */
 
 .schedule-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  border: 1px solid var(--portal-border-light);
+  border-radius: 14px;
+  overflow: hidden;
 }
 
-.schedule-row {
-  display: flex;
+/* Exactly 2 real children — .schedule-day-toggle (checkbox + day name,
+   already its own internal flex row) and the time-inputs/closed-label
+   element — so this is a 2-column grid, not 3. (A stray 3rd track here
+   previously squeezed the label into a 24px sliver and pushed the time
+   inputs into the day-name column instead of the last one — the exact
+   overlap the screenshot showed.)
+   Named .hours-row, not .schedule-row — DentistSchedule.css already owns
+   .schedule-row for its own, completely different appointment-card
+   component. Both files ship in the same bundled stylesheet app-wide (no
+   CSS scoping), so the shared name was a real collision: whichever rule
+   landed later in the bundle silently won on DentistSchedule's page too,
+   squeezing its appointment rows into this 170px column and wrapping
+   patient names one character per line. */
+.hours-row {
+  display: grid;
+  grid-template-columns: 170px 1fr;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 10px 0;
+  column-gap: 16px;
+  padding: 14px 20px;
   border-bottom: 1px solid var(--portal-border-light);
 }
 
-.schedule-row:last-child {
+.hours-row:last-child {
   border-bottom: none;
 }
 
-.schedule-day-toggle {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--portal-navy);
-  width: 140px;
-  flex-shrink: 0;
+.hours-row--closed {
+  background: var(--portal-canvas);
+}
+
+.hours-row--closed .schedule-day-toggle {
+  color: var(--portal-muted);
 }
 
 .schedule-day-toggle input {
+  width: 18px;
+  height: 18px;
   accent-color: var(--portal-blue);
+  flex-shrink: 0;
 }
 
 .schedule-time-inputs {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 10px;
   font-size: 0.8rem;
   color: var(--portal-muted);
 }
 
+/* Native <input type="time"> needs room for its own HH:MM AM/PM segments
+   plus its built-in clock icon on top of .form-input's own 14px side
+   padding — 130px was clipping the AM/PM segment (Chrome hides it first
+   when a time input runs short on width). Widened, and the input's own
+   side padding trimmed so more of that width reaches the control itself. */
 .schedule-time-inputs .form-input {
-  width: 130px;
+  width: 158px;
+  padding: 0 10px;
 }
 
 .schedule-closed-label {
-  font-size: 0.8rem;
+  display: flex;
+  justify-content: flex-end;
+  font-size: 0.78rem;
+  font-weight: 600;
   color: var(--portal-muted);
-  font-style: italic;
+  background: var(--portal-gray-bg);
+  padding: 4px 14px;
+  border-radius: 999px;
+  justify-self: end;
 }
 
 @media (max-width: 480px) {
-  .schedule-row {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
+  .hours-row {
+    grid-template-columns: 1fr;
+    row-gap: 10px;
   }
+
+  .schedule-time-inputs,
+  .schedule-closed-label {
+    justify-content: flex-start;
+    justify-self: start;
+  }
+}
+
+/* ============ HMO Providers: real partner logo, or initials fallback
+   (.cell-avatar/.cell-person* come from Appointments.css, already
+   imported here) ============ */
+
+.hmo-provider-logo {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  border: 1px solid var(--portal-border-light);
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.hmo-provider-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 3px;
+}
+
+/* ============ Add/Edit HMO Provider modal: logo picker ============ */
+
+.hmo-logo-picker {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.hmo-logo-picker-preview {
+  flex-shrink: 0;
+  width: 56px;
+  height: 56px;
+  border-radius: 12px;
+  border: 1px solid var(--portal-border-light);
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.hmo-logo-picker-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 5px;
+}
+
+.hmo-logo-picker-preview--empty {
+  background: var(--portal-blue-tint);
+  color: var(--portal-blue);
+  font-weight: 700;
+  font-size: 0.8rem;
+}
+
+.hmo-logo-picker-btn {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.hmo-logo-picker-hint {
+  margin: 8px 0 0;
+  font-size: 0.75rem;
+  color: var(--portal-muted);
 }

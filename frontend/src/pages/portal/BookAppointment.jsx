@@ -187,6 +187,14 @@ function BookAppointment() {
       try {
         const dentistList = await getDentists(selectedServiceId);
         setDentists(dentistList);
+        // Only one dentist is ever credentialed for a specialist service
+        // like Pediatric Dentistry (DentistController::index() already
+        // filters to exactly that) — "Any Available Doctor" would just be
+        // a second way to pick the same one person, so skip the redundant
+        // choice and go straight to them.
+        if (dentistList.length === 1) {
+          setSelectedDentistId(dentistList[0].id);
+        }
       } catch {
         setDentistsError('Could not load doctors for this service. Please try again.');
       } finally {
@@ -290,7 +298,7 @@ function BookAppointment() {
   }, [selectedDentistId, selectedServiceId, calendarMonth]);
 
   const canGoNext = {
-    1: !!selectedServiceId,
+    1: !!selectedServiceId && !(isPediatricService(selectedService) && patientType === 'hmo'),
     2: !!notes.trim(),
     3: !!selectedDentistId,
     4: true,
@@ -501,6 +509,26 @@ function BookAppointment() {
                 </div>
               </div>
             )}
+
+            {/* Dra. Suchelle (the only pediatric dentist — see the Doctor
+                step's single-dentist handling) accepts Cash only, no HMO.
+                Surfaced the moment the service is picked, not several
+                steps later at Payment/Doctor, so an HMO patient isn't led
+                through Additional Info first only to hit a dead end.
+                AppointmentController::store() enforces this same rule
+                server-side regardless of this banner. */}
+            {isPediatricService(selectedService) && patientType === 'hmo' && (
+              <div className="suggestion-banner suggestion-banner--danger" style={{ marginTop: 12 }}>
+                <span className="suggestion-banner-icon"><ShieldIcon /></span>
+                <div className="suggestion-banner-text">
+                  <p className="suggestion-banner-title">Pediatric Dentistry accepts Cash patients only</p>
+                  <p className="suggestion-banner-subtitle">
+                    Dr. Suchelle Ann del Castillo-Pascual, our pediatric dentist, does not accept HMO coverage.
+                    Please choose a different service, or contact the clinic directly to arrange a Cash visit.
+                  </p>
+                </div>
+              </div>
+            )}
           </>
         )}
 
@@ -536,7 +564,9 @@ function BookAppointment() {
             <h3 className="wizard-step-heading">Choose a Doctor</h3>
             <p className="wizard-step-subtitle">
               {selectedService ? `Dentists available for ${selectedService.name}` : 'Select the dentist for your visit'}
-              {' — or let us match you with whoever\'s available, useful if this is your first visit and you don\'t know our dentists yet.'}
+              {dentists.length > 1
+                ? ' — or let us match you with whoever\'s available, useful if this is your first visit and you don\'t know our dentists yet.'
+                : ''}
             </p>
             {loadingDentists ? (
               <p>Loading…</p>
@@ -546,21 +576,28 @@ function BookAppointment() {
               </div>
             ) : (
               <div className="doctor-grid">
-                <div
-                  className={`doctor-card doctor-card--any${selectedDentistId === 'any' ? ' doctor-card--selected' : ''}`}
-                  onClick={() => setSelectedDentistId('any')}
-                >
-                  {selectedDentistId === 'any' && (
-                    <span className="doctor-card-check" aria-hidden="true">
-                      <CheckCircleIcon />
+                {/* Only meaningful when there's an actual choice to make —
+                    a specialist service with exactly one credentialed
+                    dentist (e.g. Pediatric Dentistry) has nobody else "any"
+                    could resolve to, so the card is skipped and that one
+                    dentist is auto-selected above instead. */}
+                {dentists.length > 1 && (
+                  <div
+                    className={`doctor-card doctor-card--any${selectedDentistId === 'any' ? ' doctor-card--selected' : ''}`}
+                    onClick={() => setSelectedDentistId('any')}
+                  >
+                    {selectedDentistId === 'any' && (
+                      <span className="doctor-card-check" aria-hidden="true">
+                        <CheckCircleIcon />
+                      </span>
+                    )}
+                    <span className="doctor-card-photo doctor-card-photo--any">
+                      <UsersIcon />
                     </span>
-                  )}
-                  <span className="doctor-card-photo doctor-card-photo--any">
-                    <UsersIcon />
-                  </span>
-                  <h4 className="doctor-card-name">Any Available Doctor</h4>
-                  <span className="doctor-card-specialty">We'll assign whoever's free at your chosen time</span>
-                </div>
+                    <h4 className="doctor-card-name">Any Available Doctor</h4>
+                    <span className="doctor-card-specialty">We'll assign whoever's free at your chosen time</span>
+                  </div>
+                )}
 
                 {dentists.map((dentist) => {
                   const photo = dentist.photo_path || KNOWN_DENTIST_PHOTOS[dentist.name];
@@ -619,6 +656,13 @@ function BookAppointment() {
                     ? 'Your appointment will require staff verification of your HMO coverage before it’s confirmed.'
                     : 'Your appointment will be confirmed instantly upon booking.'}
                 </p>
+                {patientType !== 'hmo' && (
+                  <p className="payment-card-subnote">
+                    <AlertIcon />
+                    Payment is collected in person at the clinic after your procedure — this system does not
+                    process payments online.
+                  </p>
+                )}
                 {isPediatricService(selectedService) && (
                   <p className="payment-card-subnote">
                     <AlertIcon />
@@ -824,11 +868,16 @@ function BookAppointment() {
         )}
 
         <div className="wizard-nav">
-          {step > 1 ? (
-            <button type="button" className="dash-btn dash-btn--outline" onClick={goBack} disabled={submitting}>
+          {step > 1 && (
+            <button
+              type="button"
+              className="dash-btn dash-btn--outline wizard-nav-back"
+              onClick={goBack}
+              disabled={submitting}
+            >
               Back
             </button>
-          ) : <span />}
+          )}
 
           {step < STEPS.length ? (
             <button type="button" className="dash-btn" onClick={goNext} disabled={!canGoNext}>

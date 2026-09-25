@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { searchUsers, createStaffUser, updateUser, setUserStatus } from '../../api/userManagement';
+import { searchUsers, createStaffUser, updateUser, setUserStatus, unrestrictBooking } from '../../api/userManagement';
 import DataTable from './components/DataTable';
 import Pagination from './components/Pagination';
 import Skeleton from './components/Skeleton';
 import StatusBadge from './components/StatusBadge';
 import Modal from './components/Modal';
-import { SearchIcon } from './icons';
+import PageHeader from './components/PageHeader';
+import { SearchIcon, UsersIcon } from './icons';
 import { showSuccessToast, showErrorToast, confirmAction } from '../../utils/toast';
 import './dashboards.css';
 import './Appointments.css';
@@ -170,13 +171,34 @@ function UserManagement() {
     }
   };
 
+  // Lifts the automatic 3-strike booking restriction — separate action from
+  // toggleStatus above, since a restricted account is still fully active
+  // and logged-in-able; this only restores self-service booking.
+  const unrestrictAccount = async (row) => {
+    const confirmed = await confirmAction({
+      title: 'Lift booking restriction?',
+      text: `${row.name} will be able to book new appointments again. They'll be notified.`,
+      confirmButtonText: 'Lift Restriction',
+      confirmButtonColor: '#2952e3',
+    });
+    if (!confirmed) return;
+
+    try {
+      await unrestrictBooking(row.id);
+      load();
+      showSuccessToast('Booking restriction lifted.');
+    } catch (err) {
+      showErrorToast(err.response?.data?.message || 'Could not lift this restriction.');
+    }
+  };
+
   const toggleCancellationSort = () => setSort((s) => (s === 'cancellations_desc' ? '' : 'cancellations_desc'));
 
   const columns = [
     {
       key: 'name',
       label: 'Name',
-      minWidth: '26%',
+      minWidth: '22%',
       render: (row) => (
         <span className="cell-person">
           <span className="cell-avatar">{getInitials(row.name)}</span>
@@ -190,7 +212,7 @@ function UserManagement() {
     {
       key: 'contact',
       label: 'Contact',
-      minWidth: '26%',
+      minWidth: '22%',
       render: (row) => (
         <span className="cell-person-text">
           <span className="cell-person-name">{row.email}</span>
@@ -201,7 +223,7 @@ function UserManagement() {
     {
       key: 'role',
       label: 'Role',
-      minWidth: '16%',
+      minWidth: '14%',
       align: 'center',
       render: (row) => <StatusBadge status={ROLE_LABELS[row.role] || row.role} tone={ROLE_TONE[row.role]} />,
     },
@@ -209,20 +231,34 @@ function UserManagement() {
       key: 'status',
       label: 'Status',
       minWidth: '12%',
+      // 12% of a narrow table is well under what the "Booking Restricted"
+      // pill needs — without a floor, table-layout: fixed (already active
+      // on this table via the other columns' own minWidth) doesn't expand
+      // the column to fit it, it just lets the pill visually spill out
+      // past the column boundary into "Cancellations" next to it. This
+      // floor keeps both badges inside their own column at any width; below
+      // that, .data-table-wrap's existing horizontal scroll takes over
+      // instead of content silently overlapping.
+      minWidthPx: '160px',
       align: 'center',
-      render: (row) => (
-        <span style={{ display: 'inline-flex', flexDirection: 'column', gap: 4, alignItems: 'center' }}>
-          <StatusBadge status={row.status === 'active' ? 'Active' : 'Inactive'} tone={row.status === 'active' ? 'green' : 'red'} />
-          {/* Automatic 3-strike policy (CancellationPolicyService) — a
-              lighter, earlier state than Inactive: still logged-in-able,
-              just blocked from new self-service bookings. Redundant to
-              show once already fully Inactive, so only shown for a still-
-              active-but-restricted account. */}
-          {row.status === 'active' && row.patient?.booking_restricted_at && (
-            <StatusBadge status="Booking Restricted" tone="amber" />
-          )}
-        </span>
-      ),
+      // Automatic 3-strike policy (CancellationPolicyService) — a lighter,
+      // earlier state than Inactive: still logged-in-able, just blocked
+      // from new self-service bookings. "Restricted Account" replaces
+      // "Active" here rather than stacking alongside it — the account is
+      // still genuinely active underneath (row.status is untouched), but
+      // showing both badges together read as confusing/misaligned, and
+      // the restriction is the more actionable fact for an admin scanning
+      // this column.
+      render: (row) => {
+        const isRestricted = row.status === 'active' && row.patient?.booking_restricted_at;
+        return (
+          <StatusBadge
+            status={isRestricted ? 'Restricted Account' : (row.status === 'active' ? 'Active' : 'Inactive')}
+            tone={isRestricted ? 'amber' : (row.status === 'active' ? 'green' : 'red')}
+            className={isRestricted ? 'status-badge--wrap' : undefined}
+          />
+        );
+      },
     },
     // Patient-only — a dentist/assistant/admin never has a cancellation
     // count worth showing (their patientAppointments relation is always
@@ -250,37 +286,51 @@ function UserManagement() {
     {
       key: 'actions',
       label: '',
-      minWidth: '20%',
+      // A restricted patient's row now has 3 buttons (Edit/Lift Restriction/
+      // Deactivate), not 2 — 20% was already tight for that case and, with
+      // .row-actions's own flex-wrap, meant "Deactivate" could drop alone
+      // onto its own line while the other two stayed put. Widened (and
+      // Name/Contact/Role trimmed slightly to compensate) so 3 buttons
+      // comfortably sit on one line at normal widths instead.
+      minWidth: '26%',
       align: 'right',
-      render: (row) => (
-        <div className="row-actions">
-          <button type="button" className="dash-btn dash-btn--outline row-btn" onClick={() => openEdit(row)}>
-            Edit
-          </button>
-          <button
-            type="button"
-            className={`dash-btn row-btn ${row.status === 'active' ? 'dash-btn--danger' : ''}`}
-            onClick={() => toggleStatus(row)}
-            disabled={row.id === currentUser?.id}
-          >
-            {row.status === 'active' ? 'Deactivate' : 'Activate'}
-          </button>
-        </div>
-      ),
+      render: (row) => {
+        const isRestricted = row.status === 'active' && row.patient?.booking_restricted_at;
+        return (
+          <div className="row-actions">
+            <button type="button" className="dash-btn dash-btn--outline row-btn" onClick={() => openEdit(row)}>
+              Edit
+            </button>
+            {isRestricted && (
+              <button type="button" className="dash-btn row-btn" onClick={() => unrestrictAccount(row)}>
+                Lift Restriction
+              </button>
+            )}
+            <button
+              type="button"
+              className={`dash-btn row-btn ${row.status === 'active' ? 'dash-btn--danger' : ''}`}
+              onClick={() => toggleStatus(row)}
+              disabled={row.id === currentUser?.id}
+            >
+              {row.status === 'active' ? 'Deactivate' : 'Activate'}
+            </button>
+          </div>
+        );
+      },
     },
   ];
 
   return (
     <div>
-      <div className="section-card-header appt-page-header">
-        <div>
-          <h1 className="appt-page-title">User Management</h1>
-          <p className="appt-page-subtitle">Manage every account in the system and provision new staff logins.</p>
-        </div>
+      <PageHeader
+        icon={UsersIcon}
+        title="User Management"
+        subtitle="Manage every account in the system and provision new staff logins."
+      >
         <button type="button" className="dash-btn" onClick={openCreate}>
           + Add Staff Account
         </button>
-      </div>
+      </PageHeader>
 
       <div className="section-card">
         <div className="appt-toolbar">

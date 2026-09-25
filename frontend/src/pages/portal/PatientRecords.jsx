@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import {
   searchPatientRecords,
   getPatientRecord,
+  getAppointmentsByDate,
   addClinicalNote,
   setToothCondition,
   createTreatmentPlan,
@@ -11,13 +12,14 @@ import {
   updateTreatmentPlanItemStatus,
   addTreatmentHistory,
 } from '../../api/patientRecords';
-import { completeAppointment } from '../../api/appointments';
-import BrandLogo from '../../components/common/BrandLogo';
+import { completeAppointment, backfillTreatmentRecord } from '../../api/appointments';
 import DataTable from './components/DataTable';
 import Pagination from './components/Pagination';
 import Skeleton from './components/Skeleton';
 import StatusBadge from './components/StatusBadge';
 import Modal from './components/Modal';
+import PageHeader from './components/PageHeader';
+import PrintLetterhead from './components/PrintLetterhead';
 import {
   CONDITION_META,
   PLAN_STATUS_TONE,
@@ -27,11 +29,14 @@ import {
   TOOTH_SHAPE_PATHS,
   formatRecordDate as formatDate,
 } from './dentalRecordShared';
-import { SearchIcon, FileIcon, ClockIcon, UserIcon, ShieldIcon, PrinterIcon, AlertIcon, SyringeIcon, ToothIcon, MailIcon, CalendarIcon } from './icons';
+import { SearchIcon, FileIcon, ClockIcon, UserIcon, ShieldIcon, PrinterIcon, DownloadIcon, AlertIcon, SyringeIcon, ToothIcon, MailIcon, CalendarIcon, UsersIcon } from './icons';
+import { formatDateLong, formatTime12h } from './dateTimeUtils';
 import { showSuccessToast, showErrorToast } from '../../utils/toast';
+import PrintFooter from './components/PrintFooter';
 import './dashboards.css';
 import './Appointments.css';
 import './DentalRecords.css';
+import './components/PrintLetterhead.css';
 
 const SEARCH_DEBOUNCE_MS = 400;
 const VISIT_NOTES_MIN_LENGTH = 20;
@@ -155,6 +160,15 @@ function PatientRecords() {
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
   const debounceRef = useRef(null);
+  // "Who's scheduled on this date" print — separate from the search/page
+  // state above: while a date is picked, the table shows appointments for
+  // that date instead of the patient directory (see filteredByDate below),
+  // and clearing it goes back to normal without losing whatever search/page
+  // was active before.
+  const [dateFilter, setDateFilter] = useState('');
+  const [dateAppointments, setDateAppointments] = useState([]);
+  const [dateLoading, setDateLoading] = useState(false);
+  const [dateError, setDateError] = useState('');
 
   // ---- Detail state ----
   const [selectedPatientId, setSelectedPatientId] = useState(incoming.patientId ?? null);
@@ -183,6 +197,18 @@ function PatientRecords() {
     incoming.appointmentStatus === 'confirmed' &&
     !!incoming.appointmentId &&
     selectedPatientId === incoming.patientId;
+  // Same arrival shape as isCompletingVisit, for a visit that's already
+  // 'completed' but has no treatment_history row — DentistSchedule.jsx's
+  // "Needs Treatment Record" section. Reuses the exact same write-a-note-
+  // then-submit UI below; only the submitted status action and wording
+  // differ (see isVisitFlow, submitVisit).
+  const isBackfillingVisit =
+    isDentist &&
+    incoming.mode === 'backfilling' &&
+    incoming.appointmentStatus === 'completed' &&
+    !!incoming.appointmentId &&
+    selectedPatientId === incoming.patientId;
+  const isVisitFlow = isCompletingVisit || isBackfillingVisit;
   // No tooth_number or notes field here — the tooth chart and Clinical
   // Notes sections above are the source of truth for both; duplicating them
   // on the bar contradicted them on the same screen. tooth_number always
@@ -248,6 +274,22 @@ function PatientRecords() {
   useEffect(() => {
     if (!selectedPatientId) loadList();
   }, [loadList, selectedPatientId]);
+
+  useEffect(() => {
+    if (!dateFilter) {
+      setDateAppointments([]);
+      setDateError('');
+      return;
+    }
+    let cancelled = false;
+    setDateLoading(true);
+    setDateError('');
+    getAppointmentsByDate(dateFilter)
+      .then((data) => { if (!cancelled) setDateAppointments(data); })
+      .catch(() => { if (!cancelled) setDateError('Could not load appointments for this date.'); })
+      .finally(() => { if (!cancelled) setDateLoading(false); });
+    return () => { cancelled = true; };
+  }, [dateFilter]);
 
   const loadDetail = useCallback(async (patientId) => {
     setDetailLoading(true);
@@ -508,14 +550,30 @@ function PatientRecords() {
     setVisitFormError('');
     setVisitErrors({});
     try {
-      await completeAppointment(incoming.appointmentId, {
+      const payload = {
         procedureName: visitForm.procedure_name.trim(),
         toothNumber: null,
         performedAt: visitForm.performed_at,
         notes: noteForVisit.note.trim(),
-      });
-      showSuccessToast('Appointment completed.');
-      navigate('/dentist/schedule');
+      };
+      if (isBackfillingVisit) {
+        await backfillTreatmentRecord(incoming.appointmentId, payload);
+        showSuccessToast('Treatment record added.');
+      } else {
+        await completeAppointment(incoming.appointmentId, payload);
+        showSuccessToast('Appointment completed.');
+      }
+      // Stay right here on this patient's now-updated record (fresh
+      // treatment history, the note just written) instead of bouncing back
+      // to My Schedule — that was the old behavior, but a dentist who just
+      // finished writing up a visit is far more likely to want to glance at
+      // the record they just updated than return to the schedule list.
+      // Clearing location.state (not just navigating) is what actually
+      // turns off isCompletingVisit/isBackfillingVisit — incoming reads
+      // straight from it on every render, and it wouldn't otherwise change
+      // just because the appointment's own status did.
+      await loadDetail(selectedPatientId);
+      navigate(location.pathname, { replace: true, state: {} });
     } catch (err) {
       const serverErrors = err.response?.data?.errors;
       if (serverErrors) {
@@ -523,7 +581,10 @@ function PatientRecords() {
           Object.fromEntries(Object.entries(serverErrors).map(([field, messages]) => [field, messages[0]]))
         );
       }
-      setVisitFormError(err.response?.data?.message || 'Could not complete this appointment.');
+      setVisitFormError(
+        err.response?.data?.message ||
+          (isBackfillingVisit ? 'Could not add this treatment record.' : 'Could not complete this appointment.')
+      );
     } finally {
       setSavingVisit(false);
     }
@@ -580,6 +641,59 @@ function PatientRecords() {
     },
   ];
 
+  // "Who's scheduled on this date" table — appointment-centric (one row per
+  // appointment, not per patient), separate from `columns` above since the
+  // row shape is completely different (Appointment, not Patient).
+  const dateColumns = [
+    {
+      key: 'patient',
+      label: 'Patient',
+      minWidth: '22%',
+      render: (row) => {
+        const name = `${row.patient?.first_name || ''} ${row.patient?.last_name || ''}`.trim();
+        return (
+          <span className="cell-person">
+            <span className="cell-avatar">{getInitials(name)}</span>
+            <span className="cell-person-text">
+              <span className="cell-person-name" title={name}>{name}</span>
+              <span className="cell-person-sub">{row.patient?.patient_number}</span>
+            </span>
+          </span>
+        );
+      },
+    },
+    {
+      key: 'time',
+      label: 'Time',
+      minWidth: '14%',
+      render: (row) => formatTime12h(row.appointment_time),
+    },
+    {
+      key: 'service',
+      label: 'Service',
+      minWidth: '28%',
+      clampLines: 2,
+      render: (row) => row.service?.name,
+    },
+    {
+      key: 'dentist',
+      label: 'Dentist',
+      minWidth: '22%',
+      render: (row) => row.dentist?.name || 'Unassigned',
+    },
+    {
+      key: 'actions',
+      label: '',
+      minWidth: '14%',
+      align: 'right',
+      render: (row) => (
+        <button type="button" className="dash-btn dash-btn--outline" onClick={() => openPatient(row.patient.id)}>
+          View Record
+        </button>
+      ),
+    },
+  ];
+
   if (selectedPatientId) {
     const patient = detail?.patient;
     const record = detail?.dental_record;
@@ -589,10 +703,10 @@ function PatientRecords() {
     // appointment_id — tooth conditions and treatment plans have no
     // appointment link and were deliberately dropped from this count rather
     // than show a number that might be wrong.
-    const historyForVisit = isCompletingVisit
+    const historyForVisit = isVisitFlow
       ? (record?.treatment_history || []).filter((h) => h.appointment_id === incoming.appointmentId)
       : [];
-    const notesForVisit = isCompletingVisit
+    const notesForVisit = isVisitFlow
       ? (record?.clinical_notes || []).filter((n) => n.appointment_id === incoming.appointmentId)
       : [];
     // record.clinical_notes arrives newest-first (PatientRecordController::
@@ -672,16 +786,20 @@ function PatientRecords() {
           </div>
         ) : patient && record ? (
           <>
-            {isCompletingVisit && (
+            {isVisitFlow && (
               <div className="completing-banner">
                 <span className="completing-banner-icon"><FileIcon /></span>
                 <div className="completing-banner-text">
-                  <span className="completing-banner-title">Recording today's visit</span>
+                  <span className="completing-banner-title">
+                    {isBackfillingVisit ? 'Adding a missing treatment record' : "Recording today's visit"}
+                  </span>
                   <span className="completing-banner-desc">
                     {patientFullName} &middot; {incoming.serviceName} &middot; {incoming.visitLabel}
                   </span>
                 </div>
-                <span className="completing-banner-hint">Fill in the record below, then complete</span>
+                <span className="completing-banner-hint">
+                  {isBackfillingVisit ? 'Fill in the record below, then save' : 'Fill in the record below, then complete'}
+                </span>
               </div>
             )}
 
@@ -699,44 +817,26 @@ function PatientRecords() {
               (DentalRecords.css) since every part of it has an equivalent
               here. */}
           <div className="record-print-formal">
-            {/* Centred and stacked — the same layout Reports.jsx's own
-                print header already uses successfully, not the side-by-
-                side two-column version this had briefly: squeezing
-                BrandLogo into half the header's width (competing with a
-                title block on the other side) rendered it visibly smaller
-                than its own natural size. Full-width and centred gives it
-                the same unconstrained space Reports.jsx's header does. */}
-            <div className="record-print-formal-header">
-              {/* Same BrandLogo used by Reports.jsx's own print header —
-                  the real logo image plus "Smile Bay" set in the actual
-                  brand font (Pacifico, see BrandLogo.css), not a plain
-                  bold heading standing in for it. */}
-              <BrandLogo variant="blue" size="md" />
-              <p className="record-print-formal-subtitle">Patient Dental Record</p>
-              {/* Real, already-public clinic contact details — the same
-                  address/phone/email shown on the landing page footer.
-                  Not fetched live: ClinicInfo (which also holds an
-                  editable tagline) only exists behind GET /api/admin/
-                  settings, which is role:admin-only — calling it here
-                  would 403 for the dentist/dental_assistant roles that
-                  also need to print this, and adding a new endpoint or
-                  opening that one to more roles is a backend change this
-                  pass doesn't make. No tagline for the same reason: it's
-                  a real field, just not one this page can reach without
-                  that change, so it's left out rather than guessed at. */}
-              <div className="record-print-clinic-details">
-                <p>Ground Floor, Mega Building, National Highway, Landayan, San Pedro, Laguna, 4023</p>
-                <p>0917 132 3093 &middot; smilebayph@gmail.com</p>
-              </div>
-              <div className="record-print-info-box">
-                <div><FileIcon /><span><strong>Record No.:</strong> {record.record_number}</span></div>
-                <div><UserIcon /><span><strong>Patient No.:</strong> {patient.patient_number}</span></div>
-                <div>
-                  <CalendarIcon />
-                  <span><strong>Date Printed:</strong> {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</span>
-                </div>
-              </div>
-            </div>
+            {/* Shared with Reports.jsx and the Patient Records list's own
+                appointments-by-date print — one letterhead component
+                instead of each print surface keeping its own near-
+                duplicate copy. Also resolves the old "no tagline" gap
+                noted here before: PrintLetterhead hardcodes it the same
+                way it already hardcodes the address/phone/email below,
+                for the same reason (ClinicInfo, which holds the editable
+                tagline, sits behind an admin-only endpoint this
+                dentist/dental_assistant-reachable page can't call). */}
+            <PrintLetterhead
+              title="Patient Dental Record"
+              metaRows={[
+                { icon: UserIcon, label: 'Patient No.', value: patient.patient_number },
+                {
+                  icon: CalendarIcon,
+                  label: 'Date Printed',
+                  value: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
+                },
+              ]}
+            />
 
             <p className="record-print-formal-meta">
               Treatment History &amp; Clinical Notes below cover {formatDate(printRange.date_from)} – {formatDate(printRange.date_to)}. Patient information and the dental chart are current as of the print date, in full, regardless of that range.
@@ -751,7 +851,6 @@ function PatientRecords() {
                 <div className="record-print-grid-col">
                   <div className="record-print-grid-item"><span>Patient Name</span><span>{patient.first_name} {patient.middle_name} {patient.last_name}</span></div>
                   <div className="record-print-grid-item"><span>Patient No.</span><span>{patient.patient_number}</span></div>
-                  <div className="record-print-grid-item"><span>Record No.</span><span>{record.record_number}</span></div>
                   <div className="record-print-grid-item"><span>Date of Birth</span><span>{patient.date_of_birth ? formatDate(patient.date_of_birth) : '—'}</span></div>
                   <div className="record-print-grid-item"><span>Age</span><span>{calculateAge(patient.date_of_birth) ?? '—'}</span></div>
                   <div className="record-print-grid-item"><span>Sex</span><span>{SEX_LABELS[patient.sex] || patient.sex || '—'}</span></div>
@@ -1044,10 +1143,6 @@ function PatientRecords() {
                   </div>
                 )}
                 <div className="record-info-item">
-                  <span className="record-info-label">Record No.</span>
-                  <span className="record-info-value">{record.record_number}</span>
-                </div>
-                <div className="record-info-item">
                   <span className="record-info-label">Primary Dentist</span>
                   <span className="record-info-value">{record.primary_dentist?.name || 'Not yet assigned'}</span>
                 </div>
@@ -1321,7 +1416,7 @@ function PatientRecords() {
             )}
           </div>
 
-          {isCompletingVisit && (
+          {isVisitFlow && (
             <div className="section-card completion-bar">
               {noteForVisit ? (
                 <>
@@ -1345,10 +1440,14 @@ function PatientRecords() {
                 <div className="priority-card completion-bar-warning">
                   <span className="priority-card-icon"><AlertIcon /></span>
                   <div className="priority-card-text">
-                    <span className="priority-card-title">Add a clinical note before completing</span>
+                    <span className="priority-card-title">
+                      {isBackfillingVisit ? 'Add a clinical note before saving' : 'Add a clinical note before completing'}
+                    </span>
                     <span className="priority-card-desc">
-                      This visit needs a clinical note in the patient's chart before it can be marked complete.
-                      Write what was done in the Clinical Notes section above.
+                      {isBackfillingVisit
+                        ? "This visit needs a clinical note in the patient's chart before a treatment record can be saved for it."
+                        : "This visit needs a clinical note in the patient's chart before it can be marked complete."}
+                      {' '}Write what was done in the Clinical Notes section above.
                     </span>
                   </div>
                 </div>
@@ -1387,7 +1486,9 @@ function PatientRecords() {
                   disabled={savingVisit || !noteForVisit}
                   onClick={() => submitVisit(noteForVisit)}
                 >
-                  {savingVisit ? 'Completing…' : 'Complete appointment'}
+                  {isBackfillingVisit
+                    ? (savingVisit ? 'Saving…' : 'Save treatment record')
+                    : (savingVisit ? 'Completing…' : 'Complete appointment')}
                 </button>
               </div>
             </div>
@@ -1548,16 +1649,13 @@ function PatientRecords() {
 
   return (
     <div>
-      <div className="section-card-header appt-page-header">
-        <div>
-          <h1 className="appt-page-title">Patient Records</h1>
-          <p className="appt-page-subtitle">
-            {isDentist ? 'Search patients to view or update their dental records.' : 'Search patients to view their dental records.'}
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        icon={FileIcon}
+        title="Patient Records"
+        subtitle={isDentist ? 'Search patients to view or update their dental records.' : 'Search patients to view their dental records.'}
+      />
 
-      <div className="section-card">
+      <div className="section-card patient-records-onscreen">
         <div className="appt-toolbar">
           <div className="filter-field filter-field--grow">
             <div className="filter-search">
@@ -1571,9 +1669,68 @@ function PatientRecords() {
               />
             </div>
           </div>
+
+          <div className="filter-field">
+            <input
+              type="date"
+              className="form-input"
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value)}
+            />
+          </div>
+
+          <button
+            type="button"
+            className="dash-btn dash-btn--outline"
+            disabled={!dateFilter || dateLoading || dateAppointments.length === 0}
+            onClick={() => window.print()}
+          >
+            <PrinterIcon /> Print
+          </button>
+
+          {/* Same window.print() as Print above — the browser's own print
+              dialog is the app's one PDF path (its "Save as PDF" destination),
+              so no separate export/download plumbing exists to call here.
+              Kept as its own button, per the approved mockup, since Print
+              and "Download PDF" read as distinct intents even though they
+              share a mechanism. */}
+          <button
+            type="button"
+            className="dash-btn"
+            disabled={!dateFilter || dateLoading || dateAppointments.length === 0}
+            onClick={() => window.print()}
+          >
+            <DownloadIcon /> Download PDF
+          </button>
         </div>
 
-        {listLoading ? (
+        {dateFilter ? (
+          <p className="patient-records-date-note">
+            <AlertIcon />
+            Showing only patients with an appointment on <strong>{formatDateLong(dateFilter)}</strong>
+            {!dateLoading && ` — ${dateAppointments.length} found`}. Clear the date to see everyone again.
+            <button type="button" className="completed-today-link" onClick={() => setDateFilter('')}>
+              Clear
+            </button>
+          </p>
+        ) : (
+          <p className="patient-records-date-note">
+            <AlertIcon />
+            Pick a date above to enable Print and Download PDF for that day&rsquo;s appointments.
+          </p>
+        )}
+
+        {dateFilter ? (
+          dateLoading ? (
+            <Skeleton variant="row" count={4} />
+          ) : dateError ? (
+            <div className="dash-empty"><span className="dash-empty-title">{dateError}</span></div>
+          ) : (
+            <div className="appt-master-table">
+              <DataTable columns={dateColumns} rows={dateAppointments} emptyMessage="No appointments on this date." />
+            </div>
+          )
+        ) : listLoading ? (
           <Skeleton variant="row" count={6} />
         ) : listError ? (
           <div className="dash-empty">
@@ -1586,6 +1743,52 @@ function PatientRecords() {
           </div>
         )}
       </div>
+
+      {/* Screen-hidden, print-only — only meaningful with a date picked, so
+          the Print button above stays disabled otherwise. Same
+          PrintLetterhead/PrintFooter pair Reports.jsx and this page's own
+          record print use, applied here too per the approved format. */}
+      {dateFilter && dateAppointments.length > 0 && (
+        <div className="patient-records-print">
+          <PrintLetterhead
+            title="Patient Appointments Report"
+            metaRows={[
+              { icon: CalendarIcon, label: 'Date', value: formatDateLong(dateFilter) },
+              {
+                icon: ClockIcon,
+                label: 'Generated',
+                value: new Date().toLocaleString('en-US', {
+                  month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit',
+                }),
+              },
+              { icon: UsersIcon, label: 'Total Patients', value: String(dateAppointments.length) },
+            ]}
+          />
+          <table className="patient-records-print-table">
+            <thead>
+              <tr>
+                <th>Patient</th>
+                <th>Patient No.</th>
+                <th>Time</th>
+                <th>Service</th>
+                <th>Dentist</th>
+              </tr>
+            </thead>
+            <tbody>
+              {dateAppointments.map((row) => (
+                <tr key={row.id}>
+                  <td>{`${row.patient?.first_name || ''} ${row.patient?.last_name || ''}`.trim()}</td>
+                  <td>{row.patient?.patient_number}</td>
+                  <td>{formatTime12h(row.appointment_time)}</td>
+                  <td>{row.service?.name}</td>
+                  <td>{row.dentist?.name || 'Unassigned'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <PrintFooter />
+        </div>
+      )}
     </div>
   );
 }

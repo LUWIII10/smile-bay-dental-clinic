@@ -117,18 +117,28 @@ class Appointment extends Model
             });
     }
 
-    // Same three conditions PediatricVerificationController::index() applies
-    // inline: this dentist's own bookings, still pending, not yet cleared by
-    // them. Extracted here so a second consumer (the dentist dashboard's
-    // pediatric-review banner) can match that queue exactly without
-    // hand-copying the filter. PediatricVerificationController itself is
-    // intentionally left as its own inline query, not switched to this
-    // scope, so its behavior stays provably unchanged.
+    // Same four conditions PediatricVerificationController::index() applies
+    // inline: this dentist's own bookings, still pending, for an actually-
+    // pediatric service, not yet cleared by them. Extracted here so a
+    // second consumer (the dentist dashboard's pediatric-review banner) can
+    // match that queue exactly without hand-copying the filter.
+    // PediatricVerificationController itself is intentionally left as its
+    // own inline query, not switched to this scope, so its behavior stays
+    // provably unchanged.
+    //
+    // The is_pediatric check is load-bearing, not redundant: pediatric_
+    // confirmed_at is NULL for every ordinary non-pediatric appointment
+    // too (it's simply never touched for those), so without it this scope
+    // matched ANY dentist's own pending_verification bookings — e.g. a
+    // general dentist's regular HMO patients — as if they were awaiting
+    // pediatric review. Caught via a real account (Dr. Ramirez) showing a
+    // false "Pediatric slot reviews" banner for two ordinary HMO checkups.
     public function scopeAwaitingPediatricReview(Builder $query, int $dentistId): Builder
     {
         return $query->where('dentist_id', $dentistId)
             ->where('status', 'pending_verification')
-            ->whereNull('pediatric_confirmed_at');
+            ->whereNull('pediatric_confirmed_at')
+            ->whereHas('service', fn ($q) => $q->where('is_pediatric', true));
     }
 
     // A follow-up recommendation this appointment carries that hasn't been

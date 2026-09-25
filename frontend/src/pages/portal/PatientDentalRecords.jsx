@@ -3,7 +3,8 @@ import { getMyDentalRecord } from '../../api/dentalRecords';
 import StatusBadge from './components/StatusBadge';
 import Modal from './components/Modal';
 import Skeleton from './components/Skeleton';
-import { FileIcon, ClockIcon, UserIcon, CheckCircleIcon } from './icons';
+import PageHeader from './components/PageHeader';
+import { FileIcon, ClockIcon, UserIcon, CheckCircleIcon, CalendarIcon, ToothIcon } from './icons';
 import {
   PLAN_STATUS_TONE,
   HISTORY_CATEGORY_OPTIONS,
@@ -61,12 +62,11 @@ function PatientDentalRecords() {
 
   return (
     <div>
-      <div className="section-card-header appt-page-header">
-        <div>
-          <h1 className="appt-page-title">My Dental Records</h1>
-          <p className="appt-page-subtitle">Your dental treatment history and clinical records from Smile Bay.</p>
-        </div>
-      </div>
+      <PageHeader
+        icon={ToothIcon}
+        title="My Dental Records"
+        subtitle="Your dental treatment history and clinical records from Smile Bay."
+      />
 
       {loading ? (
         <Skeleton variant="block" height="400px" />
@@ -79,8 +79,8 @@ function PatientDentalRecords() {
           <div className="record-summary-card">
             <div className="record-info-card">
               <div className="record-info-item">
-                <span className="record-info-label">Record No.</span>
-                <span className="record-info-value">{record.record_number}</span>
+                <span className="record-info-label">Patient No.</span>
+                <span className="record-info-value">{record.patient?.patient_number}</span>
               </div>
               <div className="record-info-item">
                 <span className="record-info-label">First Record Date</span>
@@ -270,23 +270,25 @@ function PatientDentalRecords() {
             <h4 className="record-history-detail-title">{detailItem.procedure_name}</h4>
             <div className="record-history-detail-grid">
               <div className="record-info-item">
-                <span className="record-info-label">Date</span>
+                <span className="record-info-label"><CalendarIcon /> Date Performed</span>
                 <span className="record-info-value">{formatDate(detailItem.performed_at)}</span>
               </div>
               <div className="record-info-item">
-                <span className="record-info-label">Dentist</span>
+                <span className="record-info-label"><UserIcon /> Attending Dentist</span>
                 <span className="record-info-value">{detailItem.performed_by?.name || 'Dentist'}</span>
               </div>
               {detailItem.tooth_number && (
                 <div className="record-info-item">
-                  <span className="record-info-label">Tooth</span>
+                  <span className="record-info-label"><ToothIcon /> Tooth Number</span>
                   <span className="record-info-value">#{detailItem.tooth_number}</span>
                 </div>
               )}
             </div>
-            <div className="record-info-item">
-              <span className="record-info-label">Notes</span>
-              <span className="record-info-value">{detailItem.notes || 'No additional notes.'}</span>
+            <div className="record-history-detail-notes">
+              <span className="record-info-label">Clinical Notes</span>
+              <p className="record-history-detail-notes-text">
+                {detailItem.notes || 'No additional notes were recorded for this visit.'}
+              </p>
             </div>
           </div>
         )}

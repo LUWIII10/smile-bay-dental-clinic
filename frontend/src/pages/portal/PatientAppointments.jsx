@@ -4,10 +4,13 @@ import { getPatientAppointments, cancelAppointment, getFollowUpRecommendations }
 import StatusBadge from './components/StatusBadge';
 import Modal from './components/Modal';
 import DataTable from './components/DataTable';
-import { PlusIcon, CalendarPlusIcon } from './icons';
+import { PlusIcon, CalendarPlusIcon, CheckCircleIcon, CalendarIcon, UserIcon, ToothIcon, FileIcon } from './icons';
+import { classifyHistoryCategory } from './dentalRecordShared';
 import { formatDateLong, formatDateShort, formatTime12h, toLocalDate } from './dateTimeUtils';
+import PageHeader from './components/PageHeader';
 import './dashboards.css';
 import './Appointments.css';
+import './DentalRecords.css';
 
 // Same 8-10s background-refresh pattern as DentistSchedule/HmoVerificationQueue/
 // PediatricQueue — this page didn't have it yet (it was left on the blank-slate
@@ -16,30 +19,72 @@ import './Appointments.css';
 // since the target design explicitly requires it to keep working.
 const POLL_INTERVAL_MS = 9000;
 
+const UPCOMING_STATUSES = ['confirmed', 'pending_verification'];
+const PAST_STATUSES = ['completed', 'no_show'];
+const CANCELLED_STATUSES = ['cancelled', 'rejected'];
+
+// Status alone was never enough for "Upcoming" — a confirmed/pending
+// appointment whose date has already passed (the dentist just hasn't
+// marked it completed or no-show yet) isn't upcoming anymore, and staying
+// silent about that in the meantime is exactly the kind of gap that looks
+// bad under scrutiny. Falls into "Past" instead until staff resolves its
+// real status, same date-aware rule PatientAppointmentController::summary()
+// already applies server-side for the dashboard's own upcoming count.
 const TABS = [
   {
     key: 'upcoming',
     label: 'Upcoming',
-    statuses: ['confirmed', 'pending_verification'],
+    matches: (a, today) => UPCOMING_STATUSES.includes(a.status) && toLocalDate(a.appointment_date) >= today,
     empty: 'No upcoming visits scheduled.',
-    emptyCta: true,
   },
   {
     key: 'past',
     label: 'Past / Completed',
-    statuses: ['completed', 'no_show'],
+    matches: (a, today) =>
+      PAST_STATUSES.includes(a.status) ||
+      (UPCOMING_STATUSES.includes(a.status) && toLocalDate(a.appointment_date) < today),
     empty: 'No past visits yet.',
   },
   {
     key: 'cancelled',
     label: 'Cancelled / Rejected',
-    statuses: ['cancelled', 'rejected'],
+    matches: (a) => CANCELLED_STATUSES.includes(a.status),
     empty: 'Nothing cancelled or rejected — good news.',
   },
 ];
 
 const CANCELLABLE_STATUSES = ['confirmed', 'pending_verification'];
 const REASON_VISIBLE_STATUSES = ['cancelled', 'rejected'];
+
+// Mirrors PatientAppointmentController::cancel()'s own "isUpcoming" check
+// server-side — a confirmed/pending appointment whose date has already
+// passed gets rejected there ("Only an upcoming confirmed or pending
+// appointment can be cancelled"), so the button shouldn't even show for
+// one, now that a stale one can appear here (under Past) instead of
+// silently sitting in Upcoming.
+function isCancellable(appointment) {
+  if (!CANCELLABLE_STATUSES.includes(appointment.status)) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return toLocalDate(appointment.appointment_date) >= today;
+}
+
+// A confirmed/pending appointment whose date has already passed (falls
+// under Past — see TABS above) isn't genuinely "Confirmed" anymore in any
+// meaningful sense — that badge reads as "this is still coming up," which
+// is no longer true. It's also not safe to silently relabel as Completed
+// or No-show: only the dentist actually knows what happened at the visit,
+// and inventing that here would be guessing, not reporting. So the status
+// value itself stays exactly what's in the database (untouched — a
+// dentist/staff view still needs the real value to resolve it), and only
+// the PATIENT-facing badge swaps to an honest "still needs staff to
+// resolve it" label instead of the misleading original one.
+function isOverdueUnresolved(appointment) {
+  if (!UPCOMING_STATUSES.includes(appointment.status)) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return toLocalDate(appointment.appointment_date) < today;
+}
 
 function PatientAppointments() {
   const [appointments, setAppointments] = useState([]);
@@ -51,6 +96,12 @@ function PatientAppointments() {
   const [cancelReason, setCancelReason] = useState('');
   const [cancelling, setCancelling] = useState(false);
   const [cancelError, setCancelError] = useState('');
+
+  // "What was actually done" for a completed visit, without leaving this
+  // page — same treatment_history row My Dental Records' own Treatment
+  // Details modal already reads (getPatientAppointments() now eager-loads
+  // it), just reachable from here too.
+  const [treatmentDetail, setTreatmentDetail] = useState(null);
 
   const [followUpRecommendations, setFollowUpRecommendations] = useState([]);
 
@@ -85,9 +136,12 @@ function PatientAppointments() {
   }, [load]);
 
   const grouped = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
     const result = {};
     for (const tab of TABS) {
-      const rows = appointments.filter((a) => tab.statuses.includes(a.status));
+      const rows = appointments.filter((a) => tab.matches(a, today));
       // Upcoming: soonest first. Past/Cancelled: most recent first.
       rows.sort((a, b) => {
         const diff = toLocalDate(a.appointment_date) - toLocalDate(b.appointment_date) || a.appointment_time.localeCompare(b.appointment_time);
@@ -124,6 +178,18 @@ function PatientAppointments() {
   const currentTab = TABS.find((t) => t.key === activeTab);
   const currentRows = grouped[activeTab] || [];
 
+  // Details only ever has real content for a pending-HMO row with a staff
+  // status update, or a cancelled/rejected row with a reason on file — most
+  // rows (confirmed, completed, no-show) have nothing to put there. Rather
+  // than reserve width for a column that's "—" almost every time, it only
+  // appears at all when at least one row in the CURRENT tab actually has
+  // something to show; Service/Doctor (populated on every row) reclaim its
+  // width the rest of the time.
+  const hasDetailsContent = (row) =>
+    (row.status === 'pending_verification' && !!row.hmo_status_label) ||
+    (REASON_VISIBLE_STATUSES.includes(row.status) && !!row.cancellation_reason);
+  const showDetails = currentRows.some(hasDetailsContent);
+
   // One column set for all three tabs — Details/Actions just render
   // differently (or blank) per row's own status, rather than branching the
   // column definitions themselves per tab. Reuses the exact same
@@ -134,7 +200,7 @@ function PatientAppointments() {
     {
       key: 'appointment',
       label: 'Appointment',
-      minWidth: '15%',
+      minWidth: '14%',
       minWidthPx: '120px',
       render: (row) => (
         <span className="cell-appointment">
@@ -146,16 +212,16 @@ function PatientAppointments() {
     {
       key: 'service',
       label: 'Service',
-      minWidth: '19%',
-      minWidthPx: '160px',
+      minWidth: showDetails ? '24%' : '34%',
+      minWidthPx: '170px',
       clampLines: 2,
       render: (row) => <span className="cell-service" title={row.service?.name}>{row.service?.name}</span>,
     },
     {
       key: 'dentist',
       label: 'Doctor',
-      minWidth: '15%',
-      minWidthPx: '140px',
+      minWidth: showDetails ? '20%' : '28%',
+      minWidthPx: '170px',
       render: (row) => {
         const name = row.dentist?.name || 'Unassigned';
         return <span className="cell-dentist-name" title={name}>{name}</span>;
@@ -164,16 +230,21 @@ function PatientAppointments() {
     {
       key: 'status',
       label: 'Status',
-      minWidth: '11%',
-      minWidthPx: '110px',
+      minWidth: '10%',
+      minWidthPx: '100px',
       align: 'center',
-      render: (row) => <StatusBadge status={row.status} />,
+      render: (row) =>
+        isOverdueUnresolved(row) ? (
+          <StatusBadge status="Awaiting Update" tone="amber" />
+        ) : (
+          <StatusBadge status={row.status} />
+        ),
     },
-    {
+    ...(showDetails ? [{
       key: 'details',
       label: 'Details',
-      minWidth: '26%',
-      minWidthPx: '190px',
+      minWidth: '18%',
+      minWidthPx: '150px',
       render: (row) => {
         if (row.status === 'pending_verification' && row.hmo_status_label) {
           return (
@@ -195,41 +266,61 @@ function PatientAppointments() {
         }
         return <span style={{ color: 'var(--portal-muted)' }}>—</span>;
       },
-    },
+    }] : []),
     {
       key: 'actions',
       label: '',
       minWidth: '14%',
       minWidthPx: '140px',
       align: 'right',
-      render: (row) =>
-        CANCELLABLE_STATUSES.includes(row.status) ? (
-          <button type="button" className="dash-btn dash-btn--danger row-btn" onClick={() => openCancel(row)}>
-            Cancel
-          </button>
-        ) : null,
+      render: (row) => {
+        if (isCancellable(row)) {
+          return (
+            <button type="button" className="dash-btn dash-btn--danger row-btn" onClick={() => openCancel(row)}>
+              Cancel
+            </button>
+          );
+        }
+        if (row.status === 'completed') {
+          return (
+            <button
+              type="button"
+              className="dash-btn dash-btn--outline row-btn"
+              onClick={() => setTreatmentDetail(
+                row.treatment_history_entry || {
+                  missingRecord: true,
+                  service_name: row.service?.name,
+                  dentist_name: row.dentist?.name,
+                  appointment_date: row.appointment_date,
+                }
+              )}
+            >
+              View Treatment
+            </button>
+          );
+        }
+        return null;
+      },
     },
   ];
 
   return (
     <div>
-      <div className="section-card-header appt-page-header" style={{ marginBottom: 24 }}>
-        <div>
-          <h1 className="appt-page-title">My Appointments</h1>
-          <p className="appt-page-subtitle">View and manage your upcoming, past, and cancelled visits.</p>
-        </div>
-        <div className="appt-page-actions">
-          <Link to="/patient/book-appointment" className="dash-btn">
-            <PlusIcon /> Book Appointment
+      <PageHeader
+        icon={CalendarIcon}
+        title="My Appointments"
+        subtitle="View and manage your upcoming, past, and cancelled visits."
+      >
+        <Link to="/patient/book-appointment" className="dash-btn">
+          <PlusIcon /> Book Appointment
+        </Link>
+        {followUpRecommendations.length > 0 && (
+          <Link to="/patient/book-follow-up" className="dash-btn appt-followup-btn">
+            <CalendarPlusIcon /> Book a Follow-up
+            <span className="appt-followup-badge">{followUpRecommendations.length}</span>
           </Link>
-          {followUpRecommendations.length > 0 && (
-            <Link to="/patient/book-follow-up" className="dash-btn appt-followup-btn">
-              <CalendarPlusIcon /> Book a Follow-up
-              <span className="appt-followup-badge">{followUpRecommendations.length}</span>
-            </Link>
-          )}
-        </div>
-      </div>
+        )}
+      </PageHeader>
 
       <div className="section-card">
         <div className="portal-tabs">
@@ -255,9 +346,6 @@ function PatientAppointments() {
         ) : currentRows.length === 0 ? (
           <div className="dash-empty">
             <span className="dash-empty-title">{currentTab.empty}</span>
-            {currentTab.emptyCta && (
-              <Link to="/patient/book-appointment" className="dash-btn">Book Your Next Visit</Link>
-            )}
           </div>
         ) : (
           <div className="appt-master-table">
@@ -293,6 +381,61 @@ function PatientAppointments() {
             {cancelling ? 'Cancelling…' : 'Cancel Appointment'}
           </button>
         </div>
+      </Modal>
+
+      {/* Same "Treatment Details" modal as My Dental Records' own Treatment
+          History section — same content, same look, reachable from here too. */}
+      <Modal open={!!treatmentDetail} onClose={() => setTreatmentDetail(null)} title="Treatment Details">
+        {treatmentDetail && treatmentDetail.missingRecord && (
+          // A visit marked completed before per-visit records were required,
+          // or one the dentist hasn't logged notes for yet — never invent
+          // what was done, just say plainly that nothing was recorded.
+          <div className="dash-empty">
+            <FileIcon />
+            <span className="dash-empty-title">No detailed record on file</span>
+            <p className="dash-empty-desc">
+              {formatDateShort(treatmentDetail.appointment_date)}
+              {treatmentDetail.service_name ? ` — ${treatmentDetail.service_name}` : ''}
+              {treatmentDetail.dentist_name ? ` with ${treatmentDetail.dentist_name}` : ''} was marked completed,
+              but no procedure notes were saved for this visit. Contact the clinic if you'd like this added to
+              your record.
+            </p>
+          </div>
+        )}
+        {treatmentDetail && !treatmentDetail.missingRecord && (
+          <div className="record-history-detail">
+            <div className="record-history-detail-badges">
+              <StatusBadge
+                status={classifyHistoryCategory(treatmentDetail.procedure_name).label}
+                tone={classifyHistoryCategory(treatmentDetail.procedure_name).tone}
+              />
+              <StatusBadge status="Completed" tone="green" icon={CheckCircleIcon} />
+            </div>
+            <h4 className="record-history-detail-title">{treatmentDetail.procedure_name}</h4>
+            <div className="record-history-detail-grid">
+              <div className="record-info-item">
+                <span className="record-info-label"><CalendarIcon /> Date Performed</span>
+                <span className="record-info-value">{formatDateShort(treatmentDetail.performed_at)}</span>
+              </div>
+              <div className="record-info-item">
+                <span className="record-info-label"><UserIcon /> Attending Dentist</span>
+                <span className="record-info-value">{treatmentDetail.performed_by?.name || 'Dentist'}</span>
+              </div>
+              {treatmentDetail.tooth_number && (
+                <div className="record-info-item">
+                  <span className="record-info-label"><ToothIcon /> Tooth Number</span>
+                  <span className="record-info-value">#{treatmentDetail.tooth_number}</span>
+                </div>
+              )}
+            </div>
+            <div className="record-history-detail-notes">
+              <span className="record-info-label">Clinical Notes</span>
+              <p className="record-history-detail-notes-text">
+                {treatmentDetail.notes || 'No additional notes were recorded for this visit.'}
+              </p>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );

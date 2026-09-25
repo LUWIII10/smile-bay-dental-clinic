@@ -26,15 +26,26 @@ class PediatricVerificationController extends Controller
      * Appointments assigned to the logged-in pediatric dentist that are
      * still awaiting their review. role:dentist is shared by every dentist
      * account, but scoping to dentist_id = auth user means a non-pediatric
-     * dentist simply sees an empty queue — pediatric appointments are only
-     * ever assigned to the pediatric dentist (enforced in
-     * AppointmentController::store() via the dentist_services check).
+     * dentist simply sees an empty queue for genuinely pediatric bookings —
+     * pediatric appointments are only ever assigned to the pediatric
+     * dentist (enforced in AppointmentController::store() via the
+     * dentist_services check).
+     *
+     * The is_pediatric filter is required on top of that, not redundant:
+     * dentist_id scoping alone only guarantees pediatric bookings never
+     * land on the WRONG dentist — it says nothing about a general dentist's
+     * own ORDINARY pending_verification bookings, which also have a null
+     * pediatric_confirmed_at (never touched for a non-pediatric service)
+     * and would otherwise show up here too. Confirmed against real data:
+     * Dr. Ramirez's own regular HMO checkups were appearing as "awaiting
+     * pediatric review" before this filter existed.
      */
     public function index(Request $request)
     {
         $appointments = Appointment::where('dentist_id', $request->user()->id)
             ->where('status', 'pending_verification')
             ->whereNull('pediatric_confirmed_at')
+            ->whereHas('service', fn ($q) => $q->where('is_pediatric', true))
             ->with(['patient:id,patient_number,first_name,last_name', 'service:id,name,duration_minutes'])
             ->orderBy('appointment_date')
             ->orderBy('appointment_time')
@@ -61,7 +72,11 @@ class PediatricVerificationController extends Controller
             'reason' => ['nullable', 'string', 'max:1000'],
         ]);
 
-        if ($appointment->status !== 'pending_verification' || $appointment->pediatric_confirmed_at !== null) {
+        if (
+            $appointment->status !== 'pending_verification'
+            || $appointment->pediatric_confirmed_at !== null
+            || ! $appointment->service->isPediatric()
+        ) {
             return response()->json([
                 'message' => 'Only an appointment awaiting pediatric review can be approved or rejected here.',
             ], 422);

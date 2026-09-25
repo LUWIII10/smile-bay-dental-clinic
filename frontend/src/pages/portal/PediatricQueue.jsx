@@ -3,6 +3,7 @@ import { getPediatricQueue, verifyPediatricAppointment } from '../../api/appoint
 import StatusBadge from './components/StatusBadge';
 import RejectionModal from './components/RejectionModal';
 import Skeleton from './components/Skeleton';
+import PageHeader from './components/PageHeader';
 import { BabyIcon, CheckCircleIcon } from './icons';
 import { formatDateLong, formatTime12h } from './dateTimeUtils';
 import { showSuccessToast } from '../../utils/toast';
@@ -140,12 +141,11 @@ function PediatricQueue() {
 
   return (
     <div>
-      <div className="section-card-header appt-page-header">
-        <div>
-          <h1 className="appt-page-title">Pediatric Slot Review Queue</h1>
-          <p className="appt-page-subtitle">Pediatric bookings assigned to you awaiting your review before HMO verification.</p>
-        </div>
-      </div>
+      <PageHeader
+        icon={BabyIcon}
+        title="Pediatric Slot Review Queue"
+        subtitle="Pediatric bookings assigned to you awaiting your review before HMO verification."
+      />
 
       {actionError && <div className="profile-alert profile-alert--error">{actionError}</div>}
 

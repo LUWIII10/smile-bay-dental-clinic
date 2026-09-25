@@ -7,7 +7,7 @@ import { greetingName } from './greetingName';
 import StatCard from './components/StatCard';
 import StatusBadge from './components/StatusBadge';
 import Skeleton from './components/Skeleton';
-import { CalendarIcon, ClockIcon, CheckCircleIcon, CalendarPlusIcon, XCircleIcon, AlertIcon } from './icons';
+import { CalendarIcon, ClockIcon, CheckCircleIcon, CalendarPlusIcon, XCircleIcon, AlertIcon, ActivityIcon } from './icons';
 import { formatDateLong, formatTime12h, toLocalDate } from './dateTimeUtils';
 import './dashboards.css';
 
@@ -89,7 +89,10 @@ function PatientDashboard() {
 
       <div className="section-card">
         <div className="section-card-header">
-          <h3 className="section-card-title">Next Appointment</h3>
+          <div className="section-card-heading">
+            <span className="section-card-icon"><CalendarIcon /></span>
+            <h3 className="section-card-title">Next Appointment</h3>
+          </div>
         </div>
 
         {loading ? (
@@ -139,9 +142,12 @@ function PatientDashboard() {
 
       <div className="section-card">
         <div className="section-card-header">
-          <div>
-            <h3 className="section-card-title">Recent activity</h3>
-            <p className="section-card-subtitle">Your last few appointment updates</p>
+          <div className="section-card-heading">
+            <span className="section-card-icon"><ActivityIcon /></span>
+            <div>
+              <h3 className="section-card-title">Recent activity</h3>
+              <p className="section-card-subtitle">Your last few appointment updates</p>
+            </div>
           </div>
         </div>
 

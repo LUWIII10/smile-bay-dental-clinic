@@ -1,0 +1,228 @@
+/* Shared print-only letterhead + footer (PrintLetterhead.jsx, PrintFooter.jsx)
+   — screen-hidden, revealed by each consuming page's own @media print block
+   (Reports.css, DentalRecords.css, Appointments.css all already flip a
+   handful of print-only elements the same way; these follow suit rather
+   than inventing a second convention). Bold/colored on purpose — approved
+   as the one standard look for every printed output in the app, replacing
+   the older, more muted letterhead these pages used before. */
+
+.print-letterhead,
+.print-footer {
+  display: none;
+}
+
+@media print {
+  .print-letterhead {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 24px;
+    padding-bottom: 20px;
+    margin-bottom: 20px;
+    border-bottom: 3px solid #2952e3;
+  }
+
+  .print-letterhead-identity {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .print-letterhead-tagline {
+    margin: 0;
+    padding-top: 8px;
+    border-top: 1px solid #dbeafe;
+    font-size: 11px;
+    font-style: italic;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    color: #64748b;
+  }
+
+  .print-letterhead-contact {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    font-size: 11.5px;
+    color: #334155;
+  }
+
+  .print-letterhead-contact span {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+  }
+
+  .print-letterhead-contact svg {
+    width: 14px;
+    height: 14px;
+    color: #2952e3;
+    flex-shrink: 0;
+  }
+
+  .print-letterhead-doc {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 260px;
+  }
+
+  .print-letterhead-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #1d4ed8;
+    color: #ffffff;
+    border-radius: 8px;
+    padding: 12px 18px;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    /* Browsers drop CSS background-colors on print by default (ink-saving);
+       without this, the badge and the table header below print as plain
+       gray text on white instead of the designed filled-blue look. */
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .print-letterhead-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    padding: 2px 4px;
+  }
+
+  .print-letterhead-meta-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+  }
+
+  .print-letterhead-meta-row svg {
+    width: 13px;
+    height: 13px;
+    color: #2952e3;
+    flex-shrink: 0;
+  }
+
+  .print-letterhead-meta-label {
+    width: 82px;
+    flex-shrink: 0;
+    font-weight: 600;
+    color: #64748b;
+  }
+
+  .print-letterhead-meta-value {
+    font-weight: 700;
+    color: #0f2557;
+  }
+
+  /* ============ Footer ============ */
+
+  /* Pinned to the page's own bottom margin, not just tacked on after the
+     table — same position: fixed + bottom: 0 pattern Reports.css's
+     .reports-print-footer already uses (CSS Paged Media repeats fixed
+     content on every page; 15mm @page margin, set in DentalRecords.css,
+     keeps this clear of the physical paper edge). */
+  .print-footer {
+    display: block;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+  }
+
+  .print-footer-line {
+    margin: 0 0 14px;
+    padding-top: 14px;
+    border-top: 1px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-size: 11px;
+    color: #64748b;
+  }
+
+  .print-footer-line svg {
+    width: 12px;
+    height: 12px;
+    color: #94a3b8;
+  }
+
+  .print-footer-wave {
+    display: block;
+    width: 100%;
+    height: 48px;
+  }
+}
+
+/* ============ Colored/striped print table (Patient Records — appointments
+   by date) ============ — same screen-hidden/print-revealed flip, part of
+   the same approved format as the letterhead/footer above, kept here since
+   it's the one other piece any future printed table can reuse. */
+
+.patient-records-print {
+  display: none;
+}
+
+@media print {
+  .patient-records-print {
+    display: block;
+  }
+
+  /* The on-screen search/date-filter toolbar + whichever table is showing
+     (patient directory or the date-filtered appointment list) — none of it
+     belongs on paper once .patient-records-print above is showing the
+     actual formatted report instead. */
+  .patient-records-onscreen {
+    display: none !important;
+  }
+
+  .patient-records-print-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 12.5px;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #dbeafe;
+  }
+
+  .patient-records-print-table thead tr {
+    background: #1d4ed8;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .patient-records-print-table th {
+    text-align: left;
+    padding: 12px 16px;
+    color: #ffffff;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-weight: 700;
+  }
+
+  .patient-records-print-table td {
+    padding: 13px 16px;
+    color: #334155;
+  }
+
+  .patient-records-print-table td:first-child {
+    color: #0f2557;
+    font-weight: 700;
+  }
+
+  .patient-records-print-table tbody tr:nth-child(odd) {
+    background: #eff6ff;
+  }
+
+  .patient-records-print-table tbody tr:nth-child(even) {
+    background: #ffffff;
+  }
+}

@@ -15,6 +15,14 @@ export async function getPatientRecord(patientId) {
   return response.data.data;
 }
 
+// Every non-cancelled appointment on one specific date, across all
+// patients — powers the "print who's scheduled this day" report. Read-only,
+// no CSRF cookie needed (matches searchPatientRecords/getPatientRecord above).
+export async function getAppointmentsByDate(date) {
+  const response = await api.get('/api/patient-records/by-date', { params: { date } });
+  return response.data.data;
+}
+
 export async function addClinicalNote(patientId, note, appointmentId = null) {
   await api.get('/sanctum/csrf-cookie');
   const response = await api.post(`/api/patient-records/${patientId}/clinical-notes`, {

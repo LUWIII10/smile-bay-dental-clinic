@@ -190,6 +190,7 @@
   position: fixed;
   z-index: 1000;
   width: 264px;
+  max-width: calc(100vw - 24px);
   background: var(--portal-card);
   border: 1px solid var(--portal-border-light);
   border-radius: var(--portal-radius-sm);
@@ -315,9 +316,7 @@
   font-weight: 600;
   font-size: 0.9rem;
   color: var(--portal-navy);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
 }
 
 .cell-person-sub {
@@ -330,9 +329,7 @@
   font-size: 0.88rem;
   color: var(--portal-slate);
   display: block;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
 }
 
 .cell-appointment {
@@ -392,10 +389,10 @@
 
 .row-actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
   gap: 6px;
-  flex-shrink: 0;
 }
 
 .row-action-icon {
@@ -551,9 +548,10 @@
 
 .detail-top {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 8px 12px;
   margin-bottom: 20px;
 }
 
@@ -848,4 +846,27 @@
   .appt-master-table .data-table-value .status-badge {
     flex-shrink: 0;
   }
+}
+
+/* ============ Patient Records — appointments-by-date filter note ============ */
+
+.patient-records-date-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 14px;
+  font-size: 0.82rem;
+  color: var(--portal-muted);
+}
+
+.patient-records-date-note svg {
+  width: 14px;
+  height: 14px;
+  color: var(--portal-amber-text);
+  flex-shrink: 0;
+}
+
+.patient-records-date-note strong {
+  color: var(--portal-navy);
 }

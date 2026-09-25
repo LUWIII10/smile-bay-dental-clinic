@@ -46,13 +46,19 @@ class PediatricDentistSeeder extends Seeder
 
         $ramirez = User::where('role', 'dentist')->where('name', 'Dr. Richelle Ramirez')->first();
 
-        // --- Dr. Patricia Mae Santos, DMD (Pediatric Dentistry Specialist) --
-        // TEMPORARY PLACEHOLDER — both the name and the avatar photo below
-        // are stand-ins pending the clinic's real pediatric dentist details.
+        // --- Dr. Suchelle Ann del Castillo-Pascual, DMD (Pediatric and
+        // Special Needs Dentistry) — real details as of 2026-09-25.
+        // photo_path isn't set here, same as Castro's own entry above: her
+        // real photo is a local storage/app/public/avatars/ file (cropped
+        // to a face-framed square from the full-length photo the clinic
+        // gave, since this account's photo renders as a 120x120 circular
+        // headshot everywhere it's used) — a real upload, not something a
+        // fresh-environment seed run can reproduce, so it's set directly on
+        // the row rather than hardcoded to a path that may not exist yet.
         $pediatric = User::updateOrCreate(
             ['email' => 'pediatric@smilebaydental.com'],
             [
-                'name' => 'Dr. Patricia Mae Santos, DMD', // TEMPORARY PLACEHOLDER NAME
+                'name' => 'Dr. Suchelle Ann del Castillo-Pascual, DMD',
                 'password' => Hash::make(self::PLACEHOLDER_PASSWORD),
                 'role' => 'dentist',
                 'status' => 'active',
@@ -63,10 +69,9 @@ class PediatricDentistSeeder extends Seeder
         DentistProfile::updateOrCreate(
             ['user_id' => $pediatric->id],
             [
-                'specialization' => 'Pediatric Dentistry Specialist',
-                // TEMPORARY PLACEHOLDER PHOTO — stock Unsplash headshot, not
-                // the clinic's real pediatric dentist.
-                'photo_path' => 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&q=80&w=300&h=300',
+                'specialization' => 'Pediatric and Special Needs Dentistry',
+                'bio' => 'Doctor of Dental Medicine, University of the Philippines - Manila. Licensed to practice since June 2014.',
+                'years_experience' => now()->year - 2014,
             ]
         );
 

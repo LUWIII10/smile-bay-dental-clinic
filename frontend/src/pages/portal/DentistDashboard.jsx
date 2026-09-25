@@ -11,6 +11,15 @@ import Skeleton from './components/Skeleton';
 import { CalendarIcon, ClockIcon, UsersIcon, AlertIcon } from './icons';
 import { formatDateShort, formatTime12h } from './dateTimeUtils';
 import './dashboards.css';
+import './Appointments.css';
+
+function getInitials(name) {
+  if (!name) return '?';
+  const parts = name.trim().split(/\s+/);
+  const first = parts[0]?.[0] || '';
+  const last = parts.length > 1 ? parts[parts.length - 1][0] : '';
+  return (first + last).toUpperCase();
+}
 
 // Cash vs. HMO — the only patient-type distinction the data model actually
 // carries (patient_type_snapshot). No specific-provider ("Medicard",
@@ -21,16 +30,30 @@ function patientTypeBadge(row) {
   return <StatusBadge status={isCash ? 'Cash' : 'HMO'} tone={isCash ? 'green' : 'amber'} />;
 }
 
+// .cell-person/.cell-avatar come from Appointments.css (already proven safe
+// to reuse on a page that doesn't otherwise import it — Settings.jsx does
+// the same) — same avatar-initials treatment Patient Records/Appointments
+// already use, instead of a bare name string.
+function patientCell(row) {
+  const name = `${row.patient.first_name} ${row.patient.last_name}`.trim();
+  return (
+    <span className="cell-person">
+      <span className="cell-avatar">{getInitials(name)}</span>
+      <span className="cell-person-name">{name}</span>
+    </span>
+  );
+}
+
 const TODAY_COLUMNS = [
   { key: 'time', label: 'Time', render: (row) => formatTime12h(row.appointment_time) },
-  { key: 'patient', label: 'Patient', render: (row) => `${row.patient.first_name} ${row.patient.last_name}` },
+  { key: 'patient', label: 'Patient', render: patientCell },
   { key: 'service', label: 'Service', render: (row) => row.service.name },
   { key: 'patientType', label: 'Patient Type', render: patientTypeBadge },
 ];
 
 const UPCOMING_COLUMNS = [
   { key: 'date', label: 'Date', render: (row) => formatDateShort(row.appointment_date) },
-  { key: 'patient', label: 'Patient', render: (row) => `${row.patient.first_name} ${row.patient.last_name}` },
+  { key: 'patient', label: 'Patient', render: patientCell },
   { key: 'service', label: 'Service', render: (row) => row.service.name },
   { key: 'status', label: 'Status', render: (row) => <StatusBadge status={row.status} /> },
 ];
@@ -98,7 +121,10 @@ function DentistDashboard() {
 
       <div className="section-card">
         <div className="section-card-header">
-          <h3 className="section-card-title">Today's Schedule</h3>
+          <div className="section-card-heading">
+            <span className="section-card-icon"><CalendarIcon /></span>
+            <h3 className="section-card-title">Today's Schedule</h3>
+          </div>
         </div>
 
         {loading ? (
@@ -114,7 +140,10 @@ function DentistDashboard() {
 
       <div className="section-card">
         <div className="section-card-header">
-          <h3 className="section-card-title">Upcoming Appointments</h3>
+          <div className="section-card-heading">
+            <span className="section-card-icon"><ClockIcon /></span>
+            <h3 className="section-card-title">Upcoming Appointments</h3>
+          </div>
         </div>
 
         {loading ? (

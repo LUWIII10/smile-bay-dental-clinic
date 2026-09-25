@@ -10,22 +10,37 @@ use Illuminate\Http\Request;
 class DentistScheduleController extends Controller
 {
     /**
-     * The logged-in dentist's own agenda — today and every upcoming
-     * confirmed visit, plus anything already completed today (so "today"
-     * reads as the full day, not just what's left). Pending-verification
-     * appointments aren't shown here yet — they're staff's problem until
-     * approved, at which point they become a normal confirmed row.
+     * The logged-in dentist's own agenda — every confirmed visit (past,
+     * today, or upcoming — a confirmed appointment whose date has already
+     * passed without being completed still needs the dentist to resolve it
+     * here, not disappear off their schedule), plus anything already
+     * completed today (so "today" reads as the full day, not just what's
+     * left), plus any completed visit — any date — that still has no
+     * treatment_history row, so it keeps surfacing here until the dentist
+     * backs it out with a real record instead of silently staying invisible,
+     * plus any of this dentist's own HMO bookings still sitting in
+     * pending_verification — visible here as a read-only heads-up (no
+     * Complete/Reschedule/Cancel action attaches to it) so the dentist knows
+     * it's coming, while StaffVerificationController::verify() (dental
+     * assistant/admin) remains the only place that actually approves or
+     * rejects it. It becomes a normal actionable confirmed row the moment
+     * staff approves it.
      */
     public function index(Request $request)
     {
         $today = now()->toDateString();
 
         $appointments = Appointment::where('dentist_id', $request->user()->id)
-            ->where('appointment_date', '>=', $today)
             ->where(function ($query) use ($today) {
                 $query->where('status', 'confirmed')
                     ->orWhere(function ($q) use ($today) {
                         $q->where('status', 'completed')->where('appointment_date', $today);
+                    })
+                    ->orWhere(function ($q) {
+                        $q->where('status', 'completed')->whereDoesntHave('treatmentHistoryEntry');
+                    })
+                    ->orWhere(function ($q) {
+                        $q->where('status', 'pending_verification')->where('patient_type_snapshot', 'hmo');
                     });
             })
             ->with([

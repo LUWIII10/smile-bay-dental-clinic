@@ -648,11 +648,16 @@ function BookFollowUp() {
         )}
 
         <div className="wizard-nav">
-          {step > 1 ? (
-            <button type="button" className="dash-btn dash-btn--outline" onClick={goBack} disabled={submitting}>
+          {step > 1 && (
+            <button
+              type="button"
+              className="dash-btn dash-btn--outline wizard-nav-back"
+              onClick={goBack}
+              disabled={submitting}
+            >
               Back
             </button>
-          ) : <span />}
+          )}
 
           {step < STEPS.length ? (
             <button type="button" className="dash-btn" onClick={goNext} disabled={!canGoNext}>

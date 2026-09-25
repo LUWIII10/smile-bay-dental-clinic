@@ -15,21 +15,29 @@ import { Line, Doughnut } from 'react-chartjs-2';
 import { getReportsOverview } from '../../api/reports';
 import StatCard from './components/StatCard';
 import Skeleton from './components/Skeleton';
-import BrandLogo from '../../components/common/BrandLogo';
-import { CalendarIcon, CheckCircleIcon, XCircleIcon, UsersIcon, PrinterIcon } from './icons';
+import PageHeader from './components/PageHeader';
+import PrintLetterhead from './components/PrintLetterhead';
+import { CalendarIcon, ClockIcon, CheckCircleIcon, XCircleIcon, UsersIcon, PrinterIcon, ChartIcon } from './icons';
 import { formatDateLong } from './dateTimeUtils';
 import './dashboards.css';
 import './Appointments.css';
 import './Reports.css';
+import './components/PrintLetterhead.css';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, ArcElement, Title, Tooltip, Legend, Filler);
 
 // Same palette/config conventions as AdminDashboard.jsx's charts — this
 // page is the real-data completion of what that dashboard's own comment
 // flagged as still mock ("they belong to the ... Reports module").
+// Explicit rather than relying on Chart.js's own defaults — makes the
+// entrance deliberate (and identical between the line and doughnut here)
+// instead of whatever the installed version happens to default to.
+const CHART_ANIMATION = { duration: 900, easing: 'easeOutQuart' };
+
 const LINE_OPTIONS = {
   responsive: true,
   maintainAspectRatio: false,
+  animation: CHART_ANIMATION,
   plugins: { legend: { display: false } },
   scales: {
     x: { grid: { display: false }, ticks: { color: '#64748b', font: { family: 'Poppins', size: 11 } } },
@@ -44,6 +52,11 @@ const LINE_OPTIONS = {
 const DOUGHNUT_OPTIONS = {
   responsive: true,
   maintainAspectRatio: false,
+  // animateScale is off by default for a doughnut/pie in Chart.js — without
+  // it, only the slices' rotation animates in, the ring stays full-size the
+  // whole time. Both on together is what actually reads as "the pie chart
+  // grows in" rather than just a quick sweep.
+  animation: { ...CHART_ANIMATION, animateRotate: true, animateScale: true },
   plugins: {
     legend: {
       position: 'bottom',
@@ -140,11 +153,7 @@ function Reports() {
 
   return (
     <div>
-      <div className="section-card-header appt-page-header">
-        <div>
-          <h1 className="appt-page-title">Reports</h1>
-          <p className="appt-page-subtitle">Appointment activity and clinic operations at a glance.</p>
-        </div>
+      <PageHeader icon={ChartIcon} title="Reports" subtitle="Appointment activity and clinic operations at a glance.">
         <div className="reports-date-range">
           <input
             type="date"
@@ -168,24 +177,25 @@ function Reports() {
             <PrinterIcon /> Print Report
           </button>
         </div>
-      </div>
+      </PageHeader>
 
       {/* Screen-hidden, print-only letterhead — a printed report should read
           as a standalone document (clinic identity, the exact period it
           covers, when it was generated), not a screenshot of dashboard
           widgets with no context once it's off-screen and on paper. */}
-      <div className="reports-print-header">
-        <BrandLogo variant="blue" size="md" />
-        <div className="reports-print-meta">
-          <h2>Clinic Operations Report</h2>
-          <p>Period: {formatDateLong(range.date_from)} – {formatDateLong(range.date_to)}</p>
-          <p>
-            Generated on {new Date().toLocaleString('en-US', {
+      <PrintLetterhead
+        title="Clinic Operations Report"
+        metaRows={[
+          { icon: CalendarIcon, label: 'Period', value: `${formatDateLong(range.date_from)} – ${formatDateLong(range.date_to)}` },
+          {
+            icon: ClockIcon,
+            label: 'Generated',
+            value: new Date().toLocaleString('en-US', {
               month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit',
-            })}
-          </p>
-        </div>
-      </div>
+            }),
+          },
+        ]}
+      />
 
       {error ? (
         <div className="dash-empty"><span className="dash-empty-title">{error}</span></div>

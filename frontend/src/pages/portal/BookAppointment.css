@@ -159,19 +159,31 @@
   height: 15px;
 }
 
+/* Gradient + shadow badge — same premium treatment already approved for
+   Settings.jsx's section headers (.section-card-icon), reused here so both
+   read as one consistent visual language instead of two different icon
+   styles across the app. */
 .service-card-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: var(--portal-radius-sm);
-  background: var(--portal-blue-tint);
-  color: var(--portal-blue);
+  flex-shrink: 0;
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  background: linear-gradient(150deg, var(--portal-blue), var(--portal-blue-hover));
+  color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 4px 10px rgba(41, 82, 227, 0.28);
+}
+
+.service-card-icon svg {
+  width: 22px;
+  height: 22px;
+  stroke-width: 1.75;
 }
 
 .service-card--selected .service-card-icon {
-  background: var(--portal-card);
+  box-shadow: 0 4px 12px rgba(41, 82, 227, 0.4);
 }
 
 .service-card-name {
@@ -887,9 +899,30 @@
 
 /* ============ Wizard nav (Back / Next) ============ */
 
+/* Grouped together on the right instead of pinned to opposite edges — less
+   mouse/thumb travel between them, same pattern .modal-actions already uses
+   for a modal's own button pair. */
 .wizard-nav {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 16px;
+  border-top: 1px solid var(--portal-border-light);
   margin-top: 28px;
+}
+
+/* .dash-btn--outline's default (transparent background, light border) reads
+   fine on its own elsewhere, but next to a solid blue Next button with only
+   10px between them it nearly disappears against this card's white
+   background — a light fill makes it an obviously separate, clickable
+   button while staying clearly secondary to Next. */
+.wizard-nav-back {
+  background: var(--portal-canvas);
+  border-color: var(--portal-border);
+  color: var(--portal-navy);
+}
+
+.wizard-nav-back:hover {
+  background: #e2e8f0;
 }

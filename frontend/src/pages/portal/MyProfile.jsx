@@ -5,6 +5,8 @@ import { getMyProfile, updateMyProfile, changeMyPassword, uploadMyAvatar, remove
 import { passwordChecklist } from '../auth/registerSteps/validation';
 import { getAvatarUrl } from './avatarUtils';
 import Skeleton from './components/Skeleton';
+import PageHeader from './components/PageHeader';
+import { UserIcon } from './icons';
 import './dashboards.css';
 import './MyProfile.css';
 
@@ -230,9 +232,7 @@ function MyProfile() {
   if (loading) {
     return (
       <div>
-        <div className="section-card-header appt-page-header">
-          <h1 className="appt-page-title">My Profile</h1>
-        </div>
+        <PageHeader icon={UserIcon} title="My Profile" />
         <Skeleton variant="block" height="300px" />
       </div>
     );
@@ -241,9 +241,7 @@ function MyProfile() {
   if (loadError) {
     return (
       <div>
-        <div className="section-card-header appt-page-header">
-          <h1 className="appt-page-title">My Profile</h1>
-        </div>
+        <PageHeader icon={UserIcon} title="My Profile" />
         <div className="dash-empty"><span className="dash-empty-title">{loadError}</span></div>
       </div>
     );
@@ -251,12 +249,7 @@ function MyProfile() {
 
   return (
     <div>
-      <div className="section-card-header appt-page-header">
-        <div>
-          <h1 className="appt-page-title">My Profile</h1>
-          <p className="appt-page-subtitle">View and update your Smile Bay account details.</p>
-        </div>
-      </div>
+      <PageHeader icon={UserIcon} title="My Profile" subtitle="View and update your Smile Bay account details." />
 
       <div className="section-card">
         <div className="section-card-header">

@@ -3,11 +3,39 @@
    dashboards only add the handful of rules specific to their own layout
    (e.g. the dentist timeline, the admin chart grid). */
 
+/* Same gradient-card + tooth/sparkle watermark treatment as .page-hero
+   (PageHeader.jsx) — reused here (not switched to PageHeader itself) since
+   a greeting has no icon box or actions slot, just the two lines of text;
+   .dash-greeting-decoration below is a trimmed copy of .page-hero-decoration
+   for that reason. */
 .dash-greeting {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, var(--portal-blue-tint), var(--portal-card) 65%);
+  border-radius: var(--portal-radius-lg);
+  box-shadow: var(--portal-shadow);
+  padding: 22px 26px;
   margin-bottom: 18px;
 }
 
+.dash-greeting-decoration {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  color: var(--portal-blue);
+  opacity: 0.07;
+}
+
+.dash-greeting-decoration svg {
+  position: absolute;
+  top: -26px;
+  right: 24px;
+  width: 150px;
+  height: 150px;
+}
+
 .dash-greeting h2 {
+  position: relative;
   margin: 0 0 2px;
   font-family: 'Poppins', sans-serif;
   font-weight: 600;
@@ -16,9 +44,149 @@
 }
 
 .dash-greeting p {
+  position: relative;
   margin: 0;
   font-size: 0.85rem;
   color: var(--portal-muted);
+}
+
+/* ============ Page hero header (PageHeader.jsx) ============
+   The shared top-of-page header — icon box + title/subtitle on a soft blue
+   card, faint tooth/sparkle watermark behind the actions slot. Replaces the
+   old plain "section-card-header appt-page-header" title block used across
+   most portal pages (that class stays defined below/in Appointments.css —
+   still used verbatim by nested sub-section headers within a page, e.g.
+   DentistSchedule.jsx's "Completed today" row). */
+
+.page-hero {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 16px;
+  overflow: hidden;
+  background: linear-gradient(135deg, var(--portal-blue-tint), var(--portal-card) 65%);
+  border-radius: var(--portal-radius-lg);
+  box-shadow: var(--portal-shadow);
+  padding: 22px 26px;
+  margin-bottom: 22px;
+}
+
+.page-hero-decoration {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  color: var(--portal-blue);
+  opacity: 0.07;
+}
+
+.page-hero-decoration svg:nth-child(1) {
+  position: absolute;
+  top: -22px;
+  right: 70px;
+  width: 150px;
+  height: 150px;
+}
+
+.page-hero-decoration svg:nth-child(2) {
+  position: absolute;
+  top: 20px;
+  right: 230px;
+  width: 22px;
+  height: 22px;
+}
+
+.page-hero-decoration svg:nth-child(3) {
+  position: absolute;
+  bottom: 16px;
+  right: 34px;
+  width: 16px;
+  height: 16px;
+}
+
+.page-hero-main {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+}
+
+.page-hero-icon {
+  flex-shrink: 0;
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: var(--portal-blue-bg);
+  color: var(--portal-blue);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.page-hero-icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.page-hero-text {
+  min-width: 0;
+}
+
+.page-hero-title {
+  font-family: 'Poppins', sans-serif;
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--portal-navy);
+  margin: 0 0 3px;
+  letter-spacing: -0.01em;
+}
+
+.page-hero-subtitle {
+  font-size: 14.5px;
+  line-height: 1.5;
+  color: var(--portal-muted);
+  margin: 0;
+}
+
+/* No flex-shrink: 0 here on purpose — same bug class already found in
+   .record-history-meta (DentalRecords.css): a flex-item that refuses to
+   shrink still holds its full one-line content width as a floor even once
+   flex-wrap gives it its own line, which just moves the overflow instead of
+   fixing it. min-width: 0 removes the other half of that floor (the
+   default content-based minimum), so this can actually compress and let
+   its own flex-wrap reflow the buttons instead of forcing .page-hero wider
+   than the viewport. */
+.page-hero-actions {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+@media (max-width: 560px) {
+  .page-hero {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .page-hero-actions {
+    width: 100%;
+  }
+
+  .page-hero-actions .dash-btn {
+    flex: 1;
+  }
+
+  .page-hero-decoration {
+    display: none;
+  }
 }
 
 /* ============ Section card (generic white container) ============ */
@@ -38,12 +206,26 @@
   min-width: 0;
 }
 
+/* This one header shape is reused across nearly every page's sub-section
+   headers (Treatment Plans, Clinical Notes, Tooth Chart, "Completed today",
+   "Upcoming days off", etc.) — most pair a title(+subtitle) with a button
+   on the same row. flex-wrap (not a breakpoint-gated override) means the
+   button drops to its own line the moment it genuinely doesn't fit,
+   whatever the viewport width happens to be, instead of overflowing past
+   the card's edge only below some guessed pixel threshold. min-width: 0 on
+   the text side lets a long subtitle wrap inside the card instead of
+   forcing the row wider than its container. */
 .section-card-header {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 8px 12px;
   margin-bottom: 12px;
+}
+
+.section-card-header > *:first-child {
+  min-width: 0;
 }
 
 .section-card-title {
@@ -51,12 +233,46 @@
   font-size: 1rem;
   font-weight: 600;
   color: var(--portal-navy);
+  overflow-wrap: break-word;
 }
 
 .section-card-subtitle {
   margin: 2px 0 0;
   font-size: 0.78rem;
   color: var(--portal-muted);
+  overflow-wrap: break-word;
+}
+
+/* Heavier alternative to .section-card-title-with-icon below — a gradient
+   badge instead of a bare colored icon, for a section header that wants
+   real visual weight (every dashboard's card headers, Settings.jsx).
+   Originally built in Settings.css for its module redesign; moved here
+   once every dashboard adopted the same pattern, so it stays one
+   definition instead of near-duplicates drifting apart. */
+.section-card-heading {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.section-card-icon {
+  flex-shrink: 0;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: linear-gradient(150deg, var(--portal-blue), var(--portal-blue-hover));
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 10px rgba(41, 82, 227, 0.28);
+}
+
+.section-card-icon svg {
+  width: 20px;
+  height: 20px;
+  stroke-width: 1.75;
 }
 
 /* Self-contained icon+text composition for a .section-card-title that
@@ -190,34 +406,46 @@
 .stat-card-subtitle--amber { color: var(--portal-amber-text); }
 .stat-card-subtitle--red { color: var(--portal-red-text); }
 
+/* Gradient + shadow badge — same premium treatment already approved for
+   Settings.jsx and the booking wizard's service icons, promoted here since
+   StatCard is the one shared component every dashboard (and Reports,
+   AllAppointments, DentistSchedule) renders its stat row through — one
+   change reaches all of them consistently instead of six near-duplicates. */
 .stat-card-icon {
   flex-shrink: 0;
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
+  width: 44px;
+  height: 44px;
+  border-radius: 13px;
   display: flex;
   align-items: center;
   justify-content: center;
+  color: #ffffff;
+}
+
+.stat-card-icon svg {
+  width: 20px;
+  height: 20px;
+  stroke-width: 1.75;
 }
 
 .stat-card-icon--blue {
-  background: var(--portal-blue-bg);
-  color: var(--portal-blue-text);
+  background: linear-gradient(150deg, var(--portal-blue), var(--portal-blue-hover));
+  box-shadow: 0 4px 10px rgba(41, 82, 227, 0.28);
 }
 
 .stat-card-icon--green {
-  background: var(--portal-green-bg);
-  color: var(--portal-green-text);
+  background: linear-gradient(150deg, #16a34a, var(--portal-green-text));
+  box-shadow: 0 4px 10px rgba(21, 128, 61, 0.28);
 }
 
 .stat-card-icon--amber {
-  background: var(--portal-amber-bg);
-  color: var(--portal-amber-text);
+  background: linear-gradient(150deg, #f59e0b, #d97706);
+  box-shadow: 0 4px 10px rgba(217, 119, 6, 0.28);
 }
 
 .stat-card-icon--red {
-  background: var(--portal-red-bg);
-  color: var(--portal-red-text);
+  background: linear-gradient(150deg, #ef4444, var(--portal-red-text));
+  box-shadow: 0 4px 10px rgba(180, 35, 24, 0.28);
 }
 
 /* ============ Status badges ============ */
@@ -281,6 +509,18 @@
   background: var(--portal-gray-bg);
   color: var(--portal-gray-text);
   border-color: var(--portal-gray-border);
+}
+
+/* Opt-in override for a longer-than-usual label (StatusBadge's className
+   prop) — lets the pill wrap onto two lines and grow taller instead of
+   staying single-line nowrap and forcing its column wide enough to fit it
+   at any zoom level. Every other badge in the app keeps the default
+   nowrap/pill shape untouched. */
+.status-badge--wrap {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: center;
+  line-height: 1.3;
 }
 
 /* ============ Data table ============ */
@@ -558,15 +798,19 @@
   align-items: center;
   gap: 20px;
   flex-wrap: wrap;
+  border: 1px solid var(--portal-border-light);
+  border-radius: 16px;
+  padding: 18px 22px;
 }
 
 .next-appt-date {
   flex-shrink: 0;
-  width: 64px;
-  height: 64px;
-  border-radius: var(--portal-radius-sm);
-  background: var(--portal-blue-tint);
-  color: var(--portal-blue);
+  width: 74px;
+  height: 74px;
+  border-radius: 16px;
+  background: linear-gradient(150deg, var(--portal-blue), var(--portal-blue-hover));
+  color: #ffffff;
+  box-shadow: 0 6px 14px rgba(41, 82, 227, 0.3);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -724,12 +968,19 @@
   flex-shrink: 0;
   width: 44px;
   height: 44px;
-  border-radius: 50%;
-  background: var(--portal-amber-bg);
-  color: var(--portal-amber-text);
+  border-radius: 13px;
+  background: linear-gradient(150deg, #f59e0b, #d97706);
+  color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 4px 10px rgba(217, 119, 6, 0.28);
+}
+
+.priority-card-icon svg {
+  width: 20px;
+  height: 20px;
+  stroke-width: 1.75;
 }
 
 .priority-card-text {
@@ -968,15 +1219,6 @@
   margin: 0;
 }
 
-/* Compact .dash-btn variant for sitting inline inside a table row's action
-   cell (User Management, Settings' service list) — the default .dash-btn
-   padding/margin is sized for a page-level action, too large there. */
-.row-btn {
-  padding: 6px 12px;
-  font-size: 0.78rem;
-  margin: 0;
-}
-
 /* Centered icon + heading + message layout for the booking result modals
    (cash-confirmed / hmo-pending) — reusable for any future "here's what
    just happened" confirmation dialog. */
@@ -1122,6 +1364,20 @@
 .dash-btn-row {
   display: flex;
   gap: 8px;
+}
+
+/* Compact .dash-btn variant for sitting inline inside a table row's action
+   cell (All Appointments, User Management, Settings' service list) — the
+   default .dash-btn padding/font-size is sized for a page-level action, too
+   large there. Placed after .dash-btn/its variants on purpose — same class
+   specificity, so this only actually wins the cascade (and the compact
+   sizing only actually applies) when it comes later in the file; it was
+   defined earlier before, which silently meant every "row-btn" button
+   across the app was rendering at full .dash-btn size the whole time. */
+.row-btn {
+  padding: 6px 12px;
+  font-size: 0.78rem;
+  margin: 0;
 }
 
 .form-textarea {
@@ -1574,6 +1830,19 @@
   height: 15px;
 }
 
+/* Same structure, red instead of amber — for a hard blocker (booking
+   genuinely cannot proceed as configured), not just an FYI/soft warning.
+   First use: BookAppointment.jsx's Pediatric Dentistry + HMO combination
+   (Dra. Suchelle only accepts Cash). */
+.suggestion-banner--danger {
+  background: var(--portal-red-bg);
+  border-color: var(--portal-red-border);
+}
+
+.suggestion-banner--danger .suggestion-banner-icon {
+  color: var(--portal-red-text);
+}
+
 /* ============ Shared print-chrome reset ============
    Every printable page (Patient Records' treatment history, Reports) needs
    the exact same thing — the sidebar/topbar/action buttons are useless on
@@ -1582,6 +1851,7 @@
 @media print {
   .portal-sidebar,
   .portal-topbar,
+  .page-hero,
   .dash-btn {
     display: none !important;
   }

@@ -51,6 +51,7 @@ class PatientDentalRecordController extends Controller
         }
 
         $record->load([
+            'patient:id,patient_number',
             'primaryDentist:id,name',
             'toothConditions' => fn ($q) => $q->orderBy('tooth_number'),
             'toothConditions.updatedBy:id,name',
