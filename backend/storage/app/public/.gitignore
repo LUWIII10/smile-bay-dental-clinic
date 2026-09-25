@@ -1,2 +1,12 @@
 *
 !.gitignore
+
+# Real uploaded content (dentist/patient avatars, HMO provider logos) —
+# tracked on purpose so a fresh deploy (e.g. Railway, pulling only from
+# git) doesn't come up with broken images for data that already exists.
+# Anything else generated into storage/app/public/ in the future stays
+# ignored by the blanket rule above unless explicitly allowed here too.
+!avatars/
+!avatars/**
+!hmo-logos/
+!hmo-logos/**
