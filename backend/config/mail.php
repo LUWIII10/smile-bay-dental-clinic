@@ -79,6 +79,17 @@ return [
             'transport' => 'array',
         ],
 
+        // Railway blocks outbound SMTP on the Trial/Hobby plan, so the
+        // smtp mailer above (which still works fine locally) can't reach
+        // Gmail from a deployed container. This mailer sends over Brevo's
+        // HTTP API instead — no SMTP port involved — via the custom
+        // transport AppServiceProvider::boot() registers with Mail::extend().
+        // Selected by MAIL_MAILER=brevo; local .env keeps MAIL_MAILER=smtp.
+        'brevo' => [
+            'transport' => 'brevo',
+            'key' => env('BREVO_API_KEY'),
+        ],
+
         'failover' => [
             'transport' => 'failover',
             'mailers' => [

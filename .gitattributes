@@ -1,0 +1,6 @@
+# docker/start.sh runs inside a Linux container via #!/bin/sh — a CRLF
+# line ending on the shebang line breaks the interpreter lookup entirely.
+# Pinning this regardless of a checkout machine's core.autocrlf setting
+# (Windows dev machines default to converting LF -> CRLF on checkout).
+docker/start.sh text eol=lf
+*.sh text eol=lf

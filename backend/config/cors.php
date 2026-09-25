@@ -27,7 +27,11 @@ return [
     // (e.g. registration succeeding and the OTP email still being sent/
     // logged), but the frontend never sees the response, which looks
     // exactly like nothing happened.
-    'allowed_origins' => ['http://localhost:5173', 'http://127.0.0.1:5173'],
+    //
+    // CORS_ALLOWED_ORIGINS (.env) overrides this in production (e.g. the
+    // deployed Railway frontend domain) — comma-separated, no spaces.
+    // Undefined locally, so the same two dev origins remain the default.
+    'allowed_origins' => array_filter(explode(',', env('CORS_ALLOWED_ORIGINS', 'http://localhost:5173,http://127.0.0.1:5173'))),
 
     'allowed_origins_patterns' => [],
 

@@ -1,0 +1,27 @@
+.git
+.claude
+
+backend/vendor
+backend/node_modules
+backend/.env
+backend/.env.*
+!backend/.env.example
+backend/storage/framework/cache/*
+backend/storage/framework/sessions/*
+backend/storage/framework/views/*
+backend/storage/logs/*
+backend/bootstrap/cache/*.php
+# Local dev's symlink points at this machine's own absolute path — useless
+# in the image. start.sh's `storage:link --force` recreates it correctly
+# for the container regardless, but no reason to copy the broken one in.
+backend/public/storage
+
+frontend/node_modules
+frontend/dist
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
+!frontend/.env.development
+
+*.md
+!README.md

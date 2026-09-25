@@ -12,11 +12,14 @@ dist
 dist-ssr
 *.local
 
-# Env files — none committed yet, but ignore proactively in case one is
-# added later (API base URL overrides, etc.)
+# Env files — ignored by default in case one is added later with real
+# secrets. .env.development is the one deliberate exception: it holds no
+# secret, just the local-only API URL override (see api.js) — Vite only
+# loads it for `npm run dev`, never for the production build.
 .env
 .env.*
 !.env.example
+!.env.development
 
 # Editor directories and files
 .vscode/*
