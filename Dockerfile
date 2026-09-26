@@ -57,6 +57,13 @@ COPY --from=frontend-build /app/frontend/dist/ ./public/
 
 RUN composer install --no-dev --optimize-autoloader --no-interaction
 
+# A Railway Volume mounted at storage/app/public replaces that whole
+# directory with the volume's own (initially empty) filesystem, hiding the
+# real avatar files just copied in above from anywhere inside that path.
+# Stashing a copy outside the mount point means start.sh can still restore
+# them into the volume on first boot — see start.sh's "no-clobber" copy.
+RUN cp -r storage/app/public /var/www/seed-public-disk
+
 # Apache's worker processes run as www-data, not the root user this build
 # runs as — without this, Laravel can't write storage/logs, the framework
 # cache dirs, or bootstrap/cache (config:cache's own output).

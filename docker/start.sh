@@ -3,6 +3,16 @@ set -e
 
 php artisan migrate --force
 
+# Railway Volume mounted at storage/app/public starts empty (or, after this
+# runs once, holds whatever real files got uploaded since) — restore the
+# real files baked into the image (dentist avatars, etc.) that the volume's
+# own empty filesystem otherwise hides. -n (no-clobber) never overwrites a
+# file that's already there, so a real user's upload always wins over the
+# seed copy; this only ever fills in what's missing.
+mkdir -p storage/app/public/avatars storage/app/public/hmo-logos
+cp -rn /var/www/seed-public-disk/. storage/app/public/ 2>/dev/null || true
+chown -R www-data:www-data storage/app/public
+
 # --force lets this re-run safely even though the symlink already exists
 # from a previous container — public/ is rebuilt fresh on every deploy, so
 # there's nothing to skip.
