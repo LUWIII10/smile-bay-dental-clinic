@@ -25,4 +25,14 @@ php artisan db:seed --class=ProductionSeeder --force || echo "ProductionSeeder r
 sed -ri "s/:80/:${PORT:-8080}/g; s/^Listen 80/Listen ${PORT:-8080}/" \
     /etc/apache2/ports.conf /etc/apache2/sites-available/000-default.conf
 
+# Build-time logs already confirmed only mpm_prefork was enabled in the
+# image, yet Apache still refused to start with "More than one MPM loaded"
+# — re-asserting it here (and printing what's actually active) removes any
+# doubt about whether something changes between build and this exact
+# moment, whatever the reason turns out to be.
+(a2dismod mpm_event mpm_worker || true) >/dev/null 2>&1
+a2enmod mpm_prefork >/dev/null 2>&1 || true
+echo "Enabled MPM module(s):"
+apache2ctl -M 2>&1 | grep -i mpm || echo "(apache2ctl -M produced no mpm output)"
+
 exec apache2-foreground
