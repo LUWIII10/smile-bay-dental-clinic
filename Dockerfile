@@ -12,7 +12,12 @@ COPY frontend/ .
 RUN npm run build
 
 # ---- Stage 2: PHP application (serves API + the frontend build) ----
-FROM php:8.3-cli
+# Apache, not `php artisan serve` — Railway's first real deploy proved the
+# built-in dev server crash-loops ("Invalid URI" from Symfony's Request::
+# create(), vendor/symfony/http-foundation/Request.php:355) against
+# Railway's proxy traffic. PHP's own docs call that server dev-only; Apache
+# is the standard, battle-tested way to serve Laravel in a container.
+FROM php:8.3-apache
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         unzip \
@@ -20,18 +25,37 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libzip-dev \
         libonig-dev \
     && docker-php-ext-install pdo_mysql mbstring zip bcmath \
+    && a2enmod rewrite \
     && rm -rf /var/lib/apt/lists/*
+
+# Laravel's public/ is the real document root, not Apache's default
+# /var/www/html — the standard sed from Docker's own php-apache image docs
+# for repointing it, plus AllowOverride so Laravel's public/.htaccess can
+# rewrite everything (including /api/*) through index.php.
+ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
+RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf \
+    && sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf \
+    && { \
+        echo '<Directory ${APACHE_DOCUMENT_ROOT}>'; \
+        echo '  AllowOverride All'; \
+        echo '</Directory>'; \
+    } >> /etc/apache2/apache2.conf
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-WORKDIR /app
+WORKDIR /var/www/html
 COPY backend/ .
 COPY --from=frontend-build /app/frontend/dist/ ./public/
 
 RUN composer install --no-dev --optimize-autoloader --no-interaction
 
+# Apache's worker processes run as www-data, not the root user this build
+# runs as — without this, Laravel can't write storage/logs, the framework
+# cache dirs, or bootstrap/cache (config:cache's own output).
+RUN chown -R www-data:www-data storage bootstrap/cache
+
 COPY docker/start.sh /usr/local/bin/start.sh
-RUN chmod +x /usr/local/bin/start.sh /app/artisan
+RUN chmod +x /usr/local/bin/start.sh /var/www/html/artisan
 
 EXPOSE 8080
 CMD ["/usr/local/bin/start.sh"]

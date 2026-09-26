@@ -18,4 +18,11 @@ php artisan view:cache
 # starting.
 php artisan db:seed --class=ProductionSeeder --force || echo "ProductionSeeder reported an error — continuing so the app still starts."
 
-exec php artisan serve --host=0.0.0.0 --port="${PORT:-8080}"
+# Railway only decides $PORT at container start, not at build time, so
+# Apache's own config (fixed at port 80) needs rewriting here before it
+# starts. ports.conf just has "Listen 80"; the vhost has "<VirtualHost
+# *:80>" — both simple enough that a plain substitution is safe.
+sed -ri "s/:80/:${PORT:-8080}/g; s/^Listen 80/Listen ${PORT:-8080}/" \
+    /etc/apache2/ports.conf /etc/apache2/sites-available/000-default.conf
+
+exec apache2-foreground
