@@ -39,7 +39,6 @@ class HmoBookingSubmittedMail extends Mailable
                 'dentistName' => $this->appointment->dentist?->name,
                 'date' => $this->appointment->appointment_date->format('F j, Y'),
                 'time' => \Carbon\Carbon::parse($this->appointment->appointment_time)->format('g:i A'),
-                'logoPath' => resource_path('images/logo.png'),
             ],
         );
     }

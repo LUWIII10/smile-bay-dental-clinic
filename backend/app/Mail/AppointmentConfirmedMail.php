@@ -46,7 +46,6 @@ class AppointmentConfirmedMail extends Mailable
                 'date' => $this->appointment->appointment_date->format('F j, Y'),
                 'time' => Carbon::parse($this->appointment->appointment_time)->format('g:i A'),
                 'viaHmoVerification' => $this->appointment->patient_type_snapshot === 'hmo',
-                'logoPath' => resource_path('images/logo.png'),
             ],
         );
     }

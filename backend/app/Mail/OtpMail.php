@@ -37,7 +37,6 @@ class OtpMail extends Mailable
                 'name' => $this->user->name,
                 'otp' => $this->otp,
                 'expiresInMinutes' => $this->expiresInMinutes,
-                'logoPath' => resource_path('images/logo.png'),
                 'intro' => $this->purpose === 'password_reset'
                     ? 'Use the verification code below to reset your Smile Bay account password.'
                     : 'Use the verification code below to confirm your email address and finish creating your Smile Bay account.',

@@ -49,7 +49,6 @@ class HmoStatusUpdateMail extends Mailable
                 'time' => Carbon::parse($this->appointment->appointment_time)->format('g:i A'),
                 'statusLabel' => $this->statusLabel,
                 'note' => $this->note,
-                'logoPath' => resource_path('images/logo.png'),
             ],
         );
     }
