@@ -45,21 +45,55 @@
 
 /* ============ Weekly hours rows ============ */
 
-.avail-day-row {
-  display: flex;
-  align-items: center;
-  gap: 18px;
+/* One .avail-day-group per day — holds the toggle row plus the optional
+   exception note below it. Border/padding live here (not on .avail-day-row
+   itself) so :last-child still finds the actual last DAY when a note is
+   present, instead of every row becoming its own wrapper's only child. */
+.avail-day-group {
   padding: 14px 0;
   border-bottom: 1px solid var(--portal-border-light);
 }
 
-.avail-day-row:last-child {
+.avail-day-group:last-child {
   border-bottom: none;
   padding-bottom: 0;
 }
 
-.avail-day-row:first-child {
+.avail-day-group:first-child {
   padding-top: 0;
+}
+
+.avail-day-row {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+/* Purely informational — the toggle above stays exactly as the dentist set
+   it (their real recurring schedule); this only surfaces that a specific
+   upcoming date on this weekday is already blocked via a day-off exception,
+   so it isn't invisible next to the recurring toggle. 118px = .avail-day-name's
+   100px + the row's 18px gap, so the note lines up under the toggle/hours,
+   not under the day name. */
+.avail-day-exception-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  margin-top: 10px;
+  margin-left: 118px;
+  padding: 7px 12px;
+  background: var(--portal-amber-bg);
+  border: 1px solid var(--portal-amber-border);
+  border-radius: var(--portal-radius-sm);
+  font-size: 0.78rem;
+  color: var(--portal-amber-text);
+}
+
+.avail-day-exception-note svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
 }
 
 .avail-day-name {

@@ -16,6 +16,18 @@ import './MyAvailability.css';
 const DAY_NAMES = { 1: 'Monday', 2: 'Tuesday', 3: 'Wednesday', 4: 'Thursday', 5: 'Friday', 6: 'Saturday' };
 const EDITABLE_DAYS = [1, 2, 3, 4, 5, 6];
 
+// dayOffs is already filtered to today-and-later by the backend (see
+// DentistAvailabilityService::forDentist()) — no need to filter past dates
+// again here. Returns the soonest upcoming day-off that falls on this
+// weekday, plus how many total (for "+N more"), or null if none.
+function nextDayOffForDayOfWeek(dayOfWeek, dayOffs) {
+  const matches = dayOffs
+    .filter((d) => new Date(`${d.date}T00:00:00`).getDay() === dayOfWeek)
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  return matches.length > 0 ? { date: matches[0].date, count: matches.length } : null;
+}
+
 function ToggleSwitch({ checked, onChange, label }) {
   return (
     <button
@@ -208,34 +220,46 @@ function MyAvailability() {
         {EDITABLE_DAYS.map((day) => {
           const row = weeklyHours.find((r) => r.day_of_week === day);
           if (!row) return null;
+          const exception = nextDayOffForDayOfWeek(day, dayOffs);
           return (
-            <div key={day} className="avail-day-row">
-              <span className="avail-day-name">{DAY_NAMES[day]}</span>
-              <ToggleSwitch
-                checked={row.is_active}
-                label={`${DAY_NAMES[day]} active`}
-                onChange={(checked) =>
-                  updateDay(day, checked ? { is_active: true, start_time: row.start_time || '09:00', end_time: row.end_time || '18:00' } : { is_active: false })
-                }
-              />
-              {row.is_active ? (
-                <div className="avail-time-inputs">
-                  <input
-                    type="time"
-                    className="form-input avail-time-input"
-                    value={row.start_time || ''}
-                    onChange={(e) => updateDay(day, { start_time: e.target.value })}
-                  />
-                  <span className="avail-time-sep">to</span>
-                  <input
-                    type="time"
-                    className="form-input avail-time-input"
-                    value={row.end_time || ''}
-                    onChange={(e) => updateDay(day, { end_time: e.target.value })}
-                  />
+            <div key={day} className="avail-day-group">
+              <div className="avail-day-row">
+                <span className="avail-day-name">{DAY_NAMES[day]}</span>
+                <ToggleSwitch
+                  checked={row.is_active}
+                  label={`${DAY_NAMES[day]} active`}
+                  onChange={(checked) =>
+                    updateDay(day, checked ? { is_active: true, start_time: row.start_time || '09:00', end_time: row.end_time || '18:00' } : { is_active: false })
+                  }
+                />
+                {row.is_active ? (
+                  <div className="avail-time-inputs">
+                    <input
+                      type="time"
+                      className="form-input avail-time-input"
+                      value={row.start_time || ''}
+                      onChange={(e) => updateDay(day, { start_time: e.target.value })}
+                    />
+                    <span className="avail-time-sep">to</span>
+                    <input
+                      type="time"
+                      className="form-input avail-time-input"
+                      value={row.end_time || ''}
+                      onChange={(e) => updateDay(day, { end_time: e.target.value })}
+                    />
+                  </div>
+                ) : (
+                  <span className="avail-not-working">Not working this day</span>
+                )}
+              </div>
+              {exception && (
+                <div className="avail-day-exception-note">
+                  <CalendarXIcon />
+                  <span>
+                    Regular schedule — but off on {formatDateLong(exception.date)}
+                    {exception.count > 1 ? ` (+${exception.count - 1} more)` : ''}
+                  </span>
                 </div>
-              ) : (
-                <span className="avail-not-working">Not working this day</span>
               )}
             </div>
           );
