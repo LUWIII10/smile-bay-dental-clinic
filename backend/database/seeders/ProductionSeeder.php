@@ -9,6 +9,7 @@ use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Run by the Docker start script on every deploy (`db:seed --class=
@@ -90,6 +91,19 @@ class ProductionSeeder extends Seeder
             $ramirez?->services()->syncWithoutDetaching($nonPediatricServiceIds);
             $castro?->services()->syncWithoutDetaching($nonPediatricServiceIds);
         }
+
+        // The pediatric dentist account (pediatric@smilebaydental.com) isn't
+        // one of the three roles above — ServiceSeeder + the two general
+        // dentists alone leave the pediatric service with zero credentialed
+        // dentists, so the booking wizard's "Choose a Doctor" step comes up
+        // empty for it. PediatricDentistSeeder creates her account and does
+        // its own service-crediting; it looks up Ramirez by name and
+        // null-safely skips that part if she isn't there, so calling this
+        // unconditionally (after the block above, where she's created) is
+        // safe even on a deploy with no SEED_DENTIST_PASSWORD set.
+        $this->call(PediatricDentistSeeder::class);
+
+        $this->repairBrokenDentistPhotos();
     }
 
     private function firstOrCreateStaff(string $email, string $name, string $role, ?string $password): ?User
@@ -144,5 +158,33 @@ class ProductionSeeder extends Seeder
             fn (array $day) => [...$day, 'created_at' => $now, 'updated_at' => $now],
             $days
         ));
+    }
+
+    // Railway's container filesystem is NOT persistent across deploys (no
+    // volume set up for storage/app/public yet) — a dentist photo uploaded
+    // through My Profile while one container was running is simply gone
+    // once the next deploy spins up a fresh one, but dentist_profiles.
+    // photo_path (in the separate, persistent MySQL database) still points
+    // at it. That stale URL then 404s wherever it's rendered, showing as a
+    // broken image with overflowing alt text instead of falling back to
+    // the frontend's KNOWN_DENTIST_PHOTOS map (which only kicks in when
+    // photo_path is null/empty) — self-heals here on every deploy until a
+    // persistent volume makes this unnecessary.
+    private function repairBrokenDentistPhotos(): void
+    {
+        $publicUrlPrefix = rtrim(config('app.url'), '/').'/storage/';
+
+        DentistProfile::whereNotNull('photo_path')->get()->each(function (DentistProfile $profile) use ($publicUrlPrefix) {
+            if (! str_starts_with($profile->photo_path, $publicUrlPrefix)) {
+                return;
+            }
+
+            $relativePath = substr($profile->photo_path, strlen($publicUrlPrefix));
+
+            if (! Storage::disk('public')->exists($relativePath)) {
+                $this->command?->warn("Clearing stale photo_path for dentist_profiles#{$profile->id} — the uploaded file no longer exists on disk.");
+                $profile->update(['photo_path' => null]);
+            }
+        });
     }
 }
