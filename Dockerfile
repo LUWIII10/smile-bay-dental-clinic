@@ -18,6 +18,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         unzip \
         git \
         libzip-dev \
+        libonig-dev \
     && docker-php-ext-install pdo_mysql mbstring zip bcmath \
     && rm -rf /var/lib/apt/lists/*
 
