@@ -26,6 +26,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libonig-dev \
     && docker-php-ext-install pdo_mysql mbstring zip bcmath \
     && a2enmod rewrite \
+    # apt's own apache2 postinst re-enabled mpm_event alongside the base
+    # image's mpm_prefork (mod_php needs prefork specifically, it isn't
+    # thread-safe) — "More than one MPM loaded" is Apache refusing to start
+    # with both active. (|| true) only covers "mpm_event wasn't enabled to
+    # begin with" — a real failure anywhere else in this chain still fails
+    # the build.
+    && (a2dismod mpm_event mpm_worker || true) \
+    && a2enmod mpm_prefork \
     && rm -rf /var/lib/apt/lists/*
 
 # Laravel's public/ is the real document root, not Apache's default
