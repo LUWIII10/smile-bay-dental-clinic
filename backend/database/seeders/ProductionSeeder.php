@@ -103,6 +103,17 @@ class ProductionSeeder extends Seeder
         // safe even on a deploy with no SEED_DENTIST_PASSWORD set.
         $this->call(PediatricDentistSeeder::class);
 
+        // PediatricDentistSeeder's own User::updateOrCreate() unconditionally
+        // overwrites 'password' on every run (unlike firstOrCreate, it
+        // re-applies the given attributes even on an existing match) — so
+        // Castro, who the block above just gave the real SEED_DENTIST_PASSWORD,
+        // silently gets reset back to that seeder's own ChangeMe123!
+        // placeholder every single deploy. Re-asserting the real password
+        // here, after PediatricDentistSeeder runs, is what makes it stick.
+        if ($castro && $dentistPassword) {
+            $castro->forceFill(['password' => Hash::make($dentistPassword)])->save();
+        }
+
         // PediatricDentistSeeder deliberately leaves photo_path unset (its
         // own comment: "not something a fresh-environment seed run can
         // reproduce") — but this exact file IS real and already committed
