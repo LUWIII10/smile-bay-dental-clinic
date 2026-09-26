@@ -103,6 +103,20 @@ class ProductionSeeder extends Seeder
         // safe even on a deploy with no SEED_DENTIST_PASSWORD set.
         $this->call(PediatricDentistSeeder::class);
 
+        // PediatricDentistSeeder deliberately leaves photo_path unset (its
+        // own comment: "not something a fresh-environment seed run can
+        // reproduce") — but this exact file IS real and already committed
+        // to git (storage/app/public/avatars/), the clinic's actual cropped
+        // headshot for her. Only fills it in if still empty, so a later
+        // re-upload through My Profile is never overwritten by this.
+        $pediatric = User::where('email', 'pediatric@smilebaydental.com')->first();
+        if ($pediatric?->dentistProfile && ! $pediatric->dentistProfile->photo_path
+            && Storage::disk('public')->exists('avatars/ef7d908dde5ac460cc34e5a90955d289201bf050.jpg')) {
+            $pediatric->dentistProfile->update([
+                'photo_path' => Storage::disk('public')->url('avatars/ef7d908dde5ac460cc34e5a90955d289201bf050.jpg'),
+            ]);
+        }
+
         $this->repairBrokenDentistPhotos();
     }
 
