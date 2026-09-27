@@ -1,9 +1,9 @@
 import { BrowserRouter } from 'react-router-dom';
 import AppRoutes from './routes/AppRoutes';
-import { useLockZoomOnFocus } from './hooks/useLockZoomOnFocus';
+import { useMobileFormFocus } from './hooks/useMobileFormFocus';
 
 function App() {
-    useLockZoomOnFocus();
+    useMobileFormFocus();
 
     return (
         <BrowserRouter>
