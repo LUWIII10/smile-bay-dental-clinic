@@ -114,13 +114,26 @@ class ProductionSeeder extends Seeder
             $castro->forceFill(['password' => Hash::make($dentistPassword)])->save();
         }
 
+        $pediatric = User::where('email', 'pediatric@smilebaydental.com')->first();
+
+        // Same overwrite bug as Castro above, missed the first time —
+        // PediatricDentistSeeder's own updateOrCreate() leaves this account
+        // on its hardcoded ChangeMe123! placeholder too. That's a real
+        // exposure with this repo public: anyone can read that exact
+        // password straight out of PediatricDentistSeeder.php's source and
+        // log in as her. Reuses SEED_DENTIST_PASSWORD (same one Ramirez/
+        // Castro already use) rather than asking for a 4th Railway
+        // variable just for this.
+        if ($pediatric && $dentistPassword) {
+            $pediatric->forceFill(['password' => Hash::make($dentistPassword)])->save();
+        }
+
         // PediatricDentistSeeder deliberately leaves photo_path unset (its
         // own comment: "not something a fresh-environment seed run can
         // reproduce") — but this exact file IS real and already committed
         // to git (storage/app/public/avatars/), the clinic's actual cropped
         // headshot for her. Only fills it in if still empty, so a later
         // re-upload through My Profile is never overwritten by this.
-        $pediatric = User::where('email', 'pediatric@smilebaydental.com')->first();
         if ($pediatric?->dentistProfile && ! $pediatric->dentistProfile->photo_path
             && Storage::disk('public')->exists('avatars/ef7d908dde5ac460cc34e5a90955d289201bf050.jpg')) {
             $pediatric->dentistProfile->update([
