@@ -231,6 +231,21 @@
   flex: 1;
 }
 
+/* .landing-mobile-drawer a (above) sets every plain link inside the drawer
+   to dark slate text — 2 classes + 1 type beats .landing-btn--solid/--ghost's
+   own 1-class color rule on CSS specificity alone, regardless of source
+   order, so Register/Sign In silently lost their real colors (Register's
+   white text on its blue fill went dark-on-blue, unreadable — confirmed on
+   a real phone). Re-declared here at higher specificity than the drawer
+   rule to win back the color these buttons were already supposed to have. */
+.landing-mobile-actions .landing-btn--solid {
+  color: #ffffff;
+}
+
+.landing-mobile-actions .landing-btn--ghost {
+  color: var(--landing-blue);
+}
+
 /* ============ Hero ============ */
 
 .landing-hero {
