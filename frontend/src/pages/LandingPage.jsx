@@ -488,6 +488,22 @@ function LandingPage() {
               <BrandLogo variant="white" size="md" />
             </div>
             <p className="landing-footer-tagline">Online appointments and digital dental records, made simple.</p>
+            {/* Off-screen only — never rendered visibly. Its sole purpose is
+                to make #instagram-gradient resolvable by fill="url(#...)"
+                below; an SVG <linearGradient> is referenceable by id from
+                anywhere in the same document, so it doesn't need to live
+                next to the icon that uses it. */}
+            <svg width="0" height="0" style={{ position: 'absolute' }} aria-hidden="true">
+              <defs>
+                <linearGradient id="instagram-gradient" x1="0%" y1="100%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="#FEDA75" />
+                  <stop offset="30%" stopColor="#FA7E1E" />
+                  <stop offset="55%" stopColor="#D62976" />
+                  <stop offset="80%" stopColor="#962FBF" />
+                  <stop offset="100%" stopColor="#4F5BD5" />
+                </linearGradient>
+              </defs>
+            </svg>
             <div className="landing-footer-social">
               <a
                 href="https://www.facebook.com/smilebayph"

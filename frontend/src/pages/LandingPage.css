@@ -982,29 +982,40 @@
   gap: 18px;
 }
 
-/* Bare glyphs, no circle/bubble container — muted by default, each icon
-   activates its own real brand color + glow on hover instead of a shared
-   generic hover treatment. */
+/* Bare glyphs, no circle/bubble container — each icon shows its own real
+   brand color always, not just on hover (mockup-approved: Option A). */
 .landing-social-icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #94a3b8;
   background: transparent;
   border: none;
-  transition: color 0.2s ease, transform 0.2s ease, filter 0.2s ease;
+  transition: transform 0.2s ease, filter 0.2s ease;
+}
+
+.landing-social-icon--fb {
+  color: #1877f2;
+}
+
+/* react-icons' FaInstagram renders <svg fill="currentColor">, and a plain
+   `color` can't gradient-fill that — this overrides the svg's own fill
+   with a reference to #instagram-gradient (the hidden <linearGradient>
+   def rendered once, above the footer social row in LandingPage.jsx; an
+   SVG gradient is referenceable by id from anywhere in the document, not
+   just where it's declared), which CSS wins over the SVG's own fill
+   attribute in the cascade. */
+.landing-social-icon--ig svg {
+  fill: url(#instagram-gradient);
 }
 
 .landing-social-icon--fb:hover {
-  color: #1877f2;
   transform: translateY(-2px) scale(1.1);
   filter: drop-shadow(0 4px 10px rgba(24, 119, 242, 0.5));
 }
 
 .landing-social-icon--ig:hover {
-  color: #e1306c;
   transform: translateY(-2px) scale(1.1);
-  filter: drop-shadow(0 4px 10px rgba(225, 48, 108, 0.5));
+  filter: drop-shadow(0 4px 10px rgba(214, 41, 118, 0.5));
 }
 
 .landing-footer-col h4 {
