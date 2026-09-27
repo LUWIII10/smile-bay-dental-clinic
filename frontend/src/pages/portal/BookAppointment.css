@@ -69,6 +69,50 @@
   margin: 15px 8px 0;
 }
 
+/* Compact "Step 3 of 6: Doctor" line — hidden by default, only takes over
+   on narrow screens (below) once the full circle+label row no longer fits.
+   Never shown at the same time as the full row. */
+.wizard-mobile-step-label {
+  display: none;
+  margin: 0 0 20px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--portal-navy);
+}
+
+/* Real phone testing (390–430px wide) showed the full row — 6 steps' worth
+   of circle + nowrap text label + connecting line, none of it allowed to
+   shrink — overflowing past the right edge with the last step (often
+   "Summary") clipped off entirely, not just visually cramped. Below this
+   width the text labels drop and the mobile step-label line above takes
+   over instead, so every step stays reachable and nothing is ever cut off,
+   on any screen size. */
+@media (max-width: 640px) {
+  .wizard-mobile-step-label {
+    display: block;
+  }
+
+  .wizard-step-label {
+    display: none;
+  }
+
+  .wizard-step {
+    flex-shrink: 1;
+    min-width: 0;
+    gap: 0;
+  }
+
+  .wizard-step-circle {
+    width: 22px;
+    height: 22px;
+    font-size: 0.68rem;
+  }
+
+  .wizard-step-line {
+    margin: 0 3px;
+  }
+}
+
 /* ============ Category chips ============ */
 
 .service-chips {

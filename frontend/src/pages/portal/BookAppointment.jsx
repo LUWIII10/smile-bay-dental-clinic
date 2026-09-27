@@ -474,6 +474,7 @@ function BookAppointment() {
             );
           })}
         </div>
+        <p className="wizard-mobile-step-label">Step {step} of {STEPS.length}: {STEPS[step - 1]}</p>
 
         {/* ---- Step 1: Service ---- */}
         {step === 1 && (
