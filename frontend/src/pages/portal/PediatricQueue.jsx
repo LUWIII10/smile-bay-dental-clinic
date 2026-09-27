@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { getPediatricQueue, verifyPediatricAppointment, proposePediatricNewDate } from '../../api/appointments';
+import { getPediatricQueue, verifyPediatricAppointment, proposePediatricNewDate, cancelAppointmentAsDentist } from '../../api/appointments';
 import StatusBadge from './components/StatusBadge';
 import RejectionModal from './components/RejectionModal';
 import Skeleton from './components/Skeleton';
@@ -142,7 +142,13 @@ function QueueCard({ appointment, actingId, onApprove, onReject, onPropose }) {
 // nothing left to approve: that slot is gone). Submitting sets
 // dentist_proposed_new_date_at server-side, which is what puts this back
 // in front of the PATIENT for their own Accept/Request Different Date call.
-function OverdueQueueCard({ appointment, actingId, onPropose }) {
+// onCancelAppointment is the other way out — if she genuinely can't
+// accommodate the patient at all, she's no longer forced to propose SOME
+// date just to clear the card; opens the same reason-capture dialog as
+// Reject/My Schedule's own Cancel.
+function OverdueQueueCard({ appointment, actingId, onPropose, onCancelAppointment }) {
+  const isActing = actingId === appointment.id;
+
   return (
     <div className="queue-card queue-card--overdue">
       <div className="queue-card-header">
@@ -166,10 +172,22 @@ function OverdueQueueCard({ appointment, actingId, onPropose }) {
       </div>
 
       <div className="queue-card-overdue-note">
-        <AlertIcon /> That date has passed without a decision. Propose a new date below — the patient will be asked to confirm it.
+        <AlertIcon /> That date has passed without a decision. Propose a new date below, or cancel it if you can't
+        accommodate this patient at all.
       </div>
 
       <ReschedulePicker appointment={appointment} actingId={actingId} onSend={onPropose} />
+
+      <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--portal-border-light)' }}>
+        <button
+          type="button"
+          className="dash-btn dash-btn--danger"
+          disabled={isActing}
+          onClick={() => onCancelAppointment(appointment)}
+        >
+          Cancel Appointment
+        </button>
+      </div>
     </div>
   );
 }
@@ -186,6 +204,8 @@ function PediatricQueue() {
   const [actingId, setActingId] = useState(null);
   const [rejectTarget, setRejectTarget] = useState(null);
   const [rejectReason, setRejectReason] = useState('');
+  const [cancelTarget, setCancelTarget] = useState(null);
+  const [cancelReason, setCancelReason] = useState('');
   const [actionError, setActionError] = useState('');
   const [activeTab, setActiveTab] = useState('awaiting');
 
@@ -239,6 +259,12 @@ function PediatricQueue() {
     setRejectTarget(appointment);
   };
 
+  const openCancelAppointment = (appointment) => {
+    setActionError('');
+    setCancelReason('');
+    setCancelTarget(appointment);
+  };
+
   // Split client-side from one list, same pattern DentistSchedule/
   // PatientAppointments already use for their own today/overdue tabs —
   // no separate endpoint needed, appointment_date is already in the payload.
@@ -278,6 +304,26 @@ function PediatricQueue() {
       showSuccessToast('Appointment rejected.');
     } catch (err) {
       setActionError(err.response?.data?.message || 'Could not reject this appointment.');
+    } finally {
+      setActingId(null);
+    }
+  };
+
+  // Same PATCH /appointments/{id}/cancel every dentist's My Schedule page
+  // already uses (cancelAppointmentAsDentist) — a pediatric appointment
+  // that's overdue for a decision is still pending_verification, which
+  // that endpoint's own eligibility check already allows.
+  const handleCancelAppointment = async () => {
+    if (!cancelTarget) return;
+    setActingId(cancelTarget.id);
+    setActionError('');
+    try {
+      await cancelAppointmentAsDentist(cancelTarget.id, cancelReason);
+      setAppointments((prev) => prev.filter((a) => a.id !== cancelTarget.id));
+      setCancelTarget(null);
+      showSuccessToast('Appointment cancelled.');
+    } catch (err) {
+      setActionError(err.response?.data?.message || 'Could not cancel this appointment.');
     } finally {
       setActingId(null);
     }
@@ -350,6 +396,7 @@ function PediatricQueue() {
             appointment={appointment}
             actingId={actingId}
             onPropose={handlePropose}
+            onCancelAppointment={openCancelAppointment}
           />
         ))
       )}
@@ -364,6 +411,19 @@ function PediatricQueue() {
         onConfirm={handleReject}
         confirming={actingId === rejectTarget?.id}
         confirmLabel="Reject Booking"
+      />
+
+      <RejectionModal
+        open={!!cancelTarget}
+        onClose={() => setCancelTarget(null)}
+        title="Cancel Appointment"
+        message="Optionally let the patient know why this visit is being cancelled."
+        reason={cancelReason}
+        onReasonChange={setCancelReason}
+        onConfirm={handleCancelAppointment}
+        confirming={actingId === cancelTarget?.id}
+        confirmLabel="Cancel Appointment"
+        cancelLabel="Keep Appointment"
       />
     </div>
   );

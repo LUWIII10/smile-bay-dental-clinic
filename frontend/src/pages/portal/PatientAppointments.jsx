@@ -560,6 +560,19 @@ function PatientAppointments() {
                     {responding ? 'Confirming…' : 'Accept This Date'}
                   </button>
                 </div>
+                <button
+                  type="button"
+                  className="dash-btn dash-btn--danger"
+                  disabled={responding}
+                  style={{ width: '100%', marginTop: 10 }}
+                  onClick={() => {
+                    const target = proposalTarget;
+                    setProposalTarget(null);
+                    openCancel(target);
+                  }}
+                >
+                  Cancel This Appointment Instead
+                </button>
               </>
             ) : (
               <>
