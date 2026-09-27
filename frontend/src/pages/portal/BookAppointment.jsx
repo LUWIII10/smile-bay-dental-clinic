@@ -635,6 +635,26 @@ function BookAppointment() {
                 })}
               </div>
             )}
+
+            {/* Dra. Suchelle has no fixed weekly schedule — she's on-call
+                and personally reviews every pediatric request (see
+                AppointmentSlotService::operatingHoursFor()'s is_on_call
+                bypass). Surfaced here, next to her "Off Today" hint (which
+                is informational only and never blocks a booking), so that
+                hint doesn't read as "she's unavailable" before the patient
+                even reaches Date & Time. */}
+            {isPediatricService(selectedService) && (
+              <div className="suggestion-banner" style={{ marginTop: 12 }}>
+                <span className="suggestion-banner-icon"><AlertIcon /></span>
+                <div className="suggestion-banner-text">
+                  <p className="suggestion-banner-title">Dr. Suchelle is on-call, not tied to fixed daily hours</p>
+                  <p className="suggestion-banner-subtitle">
+                    The "Off Today" hint above is informational only — it won't stop you from requesting any day
+                    ahead. She reviews and personally confirms every pediatric booking herself.
+                  </p>
+                </div>
+              </div>
+            )}
           </>
         )}
 
