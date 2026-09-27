@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { getPediatricQueue, verifyPediatricAppointment } from '../../api/appointments';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { getPediatricQueue, verifyPediatricAppointment, proposePediatricNewDate } from '../../api/appointments';
 import StatusBadge from './components/StatusBadge';
 import RejectionModal from './components/RejectionModal';
 import Skeleton from './components/Skeleton';
 import PageHeader from './components/PageHeader';
-import { BabyIcon, CheckCircleIcon } from './icons';
-import { formatDateLong, formatTime12h } from './dateTimeUtils';
+import { BabyIcon, CheckCircleIcon, AlertIcon } from './icons';
+import { formatDateLong, formatTime12h, toLocalDate } from './dateTimeUtils';
 import { showSuccessToast } from '../../utils/toast';
 import './dashboards.css';
 import './Appointments.css';
@@ -59,6 +59,85 @@ function QueueCard({ appointment, actingId, onApprove, onReject }) {
   );
 }
 
+// A request whose original date has already passed with no approve/reject
+// decision — same card shell as QueueCard, but the actions are replaced
+// with a "propose a new date" form instead of Approve/Reject (there's
+// nothing left to approve: that slot is gone). Submitting sets
+// dentist_proposed_new_date_at server-side, which is what puts this back
+// in front of the PATIENT for their own Accept/Request Different Date call.
+function OverdueQueueCard({ appointment, actingId, onPropose }) {
+  const isActing = actingId === appointment.id;
+  const [date, setDate] = useState('');
+  const [time, setTime] = useState('');
+  const [error, setError] = useState('');
+
+  const handleSubmit = async () => {
+    if (!date || !time) {
+      setError('Please pick both a date and a time.');
+      return;
+    }
+    setError('');
+    const result = await onPropose(appointment, date, time);
+    if (result?.error) setError(result.error);
+  };
+
+  return (
+    <div className="queue-card queue-card--overdue">
+      <div className="queue-card-header">
+        <span className="queue-card-patient">
+          {appointment.patient?.first_name} {appointment.patient?.last_name}
+        </span>
+        <StatusBadge status="Overdue — no response" tone="amber" />
+      </div>
+
+      <div className="queue-card-grid">
+        <div>
+          <span className="queue-card-field-label">Service</span>
+          <span className="queue-card-field-value">{appointment.service?.name}</span>
+        </div>
+        <div>
+          <span className="queue-card-field-label">Originally requested</span>
+          <span className="queue-card-field-value">
+            {formatDateLong(appointment.appointment_date)} &middot; {formatTime12h(appointment.appointment_time)}
+          </span>
+        </div>
+      </div>
+
+      <div className="queue-card-overdue-note">
+        <AlertIcon /> That date has passed without a decision. Propose a new date below — the patient will be asked to confirm it.
+      </div>
+
+      <div className="queue-card-propose-row">
+        <div className="form-field">
+          <label className="form-label" htmlFor={`propose-date-${appointment.id}`}>New date</label>
+          <input
+            id={`propose-date-${appointment.id}`}
+            type="date"
+            className="form-input"
+            min={new Date(Date.now() + 86400000).toISOString().slice(0, 10)}
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+          />
+        </div>
+        <div className="form-field">
+          <label className="form-label" htmlFor={`propose-time-${appointment.id}`}>Time</label>
+          <input
+            id={`propose-time-${appointment.id}`}
+            type="time"
+            className="form-input"
+            value={time}
+            onChange={(e) => setTime(e.target.value)}
+          />
+        </div>
+        <button type="button" className="dash-btn" disabled={isActing} onClick={handleSubmit}>
+          {isActing ? 'Sending…' : 'Send New Date'}
+        </button>
+      </div>
+      {error && <p className="queue-card-propose-error">{error}</p>}
+    </div>
+  );
+}
+
 // The pediatric dentist's own review queue — appointments assigned to them
 // that are pending_verification and haven't been pediatric-confirmed yet.
 // role:dentist is shared by every dentist account, but the backend scopes
@@ -72,6 +151,7 @@ function PediatricQueue() {
   const [rejectTarget, setRejectTarget] = useState(null);
   const [rejectReason, setRejectReason] = useState('');
   const [actionError, setActionError] = useState('');
+  const [activeTab, setActiveTab] = useState('awaiting');
 
   // Guards a silent background poll from clobbering state after the
   // component has already unmounted (navigated away mid-request).
@@ -123,6 +203,34 @@ function PediatricQueue() {
     setRejectTarget(appointment);
   };
 
+  // Split client-side from one list, same pattern DentistSchedule/
+  // PatientAppointments already use for their own today/overdue tabs —
+  // no separate endpoint needed, appointment_date is already in the payload.
+  const { awaiting, needsNewDate } = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const awaiting = [];
+    const needsNewDate = [];
+    for (const a of appointments) {
+      (toLocalDate(a.appointment_date) < today ? needsNewDate : awaiting).push(a);
+    }
+    return { awaiting, needsNewDate };
+  }, [appointments]);
+
+  const handlePropose = async (appointment, date, time) => {
+    setActingId(appointment.id);
+    try {
+      await proposePediatricNewDate(appointment.id, date, time);
+      setAppointments((prev) => prev.filter((a) => a.id !== appointment.id));
+      showSuccessToast('New date sent to the patient for confirmation.');
+      return {};
+    } catch (err) {
+      return { error: err.response?.data?.message || 'Could not send this new date.' };
+    } finally {
+      setActingId(null);
+    }
+  };
+
   const handleReject = async () => {
     if (!rejectTarget) return;
     setActingId(rejectTarget.id);
@@ -149,26 +257,62 @@ function PediatricQueue() {
 
       {actionError && <div className="profile-alert profile-alert--error">{actionError}</div>}
 
+      <div className="portal-tabs">
+        <button
+          type="button"
+          className={`portal-tab${activeTab === 'awaiting' ? ' portal-tab--active' : ''}`}
+          onClick={() => setActiveTab('awaiting')}
+        >
+          Awaiting Confirmation
+          <span className="portal-tab-count">{loading ? '…' : awaiting.length}</span>
+        </button>
+        <button
+          type="button"
+          className={`portal-tab${activeTab === 'needsNewDate' ? ' portal-tab--active' : ''}`}
+          onClick={() => setActiveTab('needsNewDate')}
+        >
+          Needs New Date
+          <span className="portal-tab-count">{loading ? '…' : needsNewDate.length}</span>
+        </button>
+      </div>
+
       {loading ? (
         <Skeleton variant="block" height="150px" count={3} />
       ) : error ? (
         <div className="dash-empty">
           <span className="dash-empty-title">{error}</span>
         </div>
-      ) : appointments.length === 0 ? (
+      ) : activeTab === 'awaiting' ? (
+        awaiting.length === 0 ? (
+          <div className="dash-empty">
+            <BabyIcon />
+            <span className="dash-empty-title">No pediatric bookings awaiting your review</span>
+            <p className="dash-empty-desc">New pediatric appointments assigned to you will show up here as soon as they're submitted.</p>
+          </div>
+        ) : (
+          awaiting.map((appointment) => (
+            <QueueCard
+              key={appointment.id}
+              appointment={appointment}
+              actingId={actingId}
+              onApprove={handleApprove}
+              onReject={openReject}
+            />
+          ))
+        )
+      ) : needsNewDate.length === 0 ? (
         <div className="dash-empty">
           <BabyIcon />
-          <span className="dash-empty-title">No pediatric bookings awaiting your review</span>
-          <p className="dash-empty-desc">New pediatric appointments assigned to you will show up here as soon as they're submitted.</p>
+          <span className="dash-empty-title">Nothing overdue</span>
+          <p className="dash-empty-desc">Every pending request still has time left before its date — nothing needs a new one yet.</p>
         </div>
       ) : (
-        appointments.map((appointment) => (
-          <QueueCard
+        needsNewDate.map((appointment) => (
+          <OverdueQueueCard
             key={appointment.id}
             appointment={appointment}
             actingId={actingId}
-            onApprove={handleApprove}
-            onReject={openReject}
+            onPropose={handlePropose}
           />
         ))
       )}

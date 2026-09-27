@@ -91,6 +91,17 @@ class AppointmentController extends Controller
             ], 422);
         }
 
+        // Every pediatric booking needs the pediatric dentist's manual
+        // review before it's real (see the pending_verification below) —
+        // same-day leaves no realistic window for that, unlike a regular
+        // booking which can auto-confirm (cash) or just join the normal
+        // staff queue (HMO) same-day.
+        if ($isPediatric && $validated['appointment_date'] === now()->toDateString()) {
+            return response()->json([
+                'message' => 'Pediatric Dentistry requires advance booking — same-day requests can\'t leave enough time for the pediatric dentist to review. Please choose a later date.',
+            ], 422);
+        }
+
         $appointment = DB::transaction(function () use ($validated, $patient, $service, $request, $isPediatric) {
             // Locked lookup/validation first, still inside this same
             // transaction. Two modes — see FollowUpRecommendationService:

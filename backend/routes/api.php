@@ -79,6 +79,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/patient/appointments', [PatientAppointmentController::class, 'index']);
         Route::get('/patient/follow-up-recommendations', [PatientAppointmentController::class, 'followUpRecommendations']);
         Route::patch('/patient/appointments/{appointment}/cancel', [PatientAppointmentController::class, 'cancel']);
+        Route::patch('/patient/appointments/{appointment}/accept-proposed-date', [PatientAppointmentController::class, 'acceptProposedDate']);
+        Route::patch('/patient/appointments/{appointment}/request-different-date', [PatientAppointmentController::class, 'requestDifferentDate']);
         Route::get('/patient/dental-record', [PatientDentalRecordController::class, 'show']);
         Route::get('/patient/dashboard-summary', [PatientAppointmentController::class, 'summary']);
     });
@@ -105,6 +107,7 @@ Route::middleware('auth:sanctum')->group(function () {
         // sees an empty queue, so this doesn't need its own role.
         Route::get('/pediatric/queue', [PediatricVerificationController::class, 'index']);
         Route::patch('/pediatric/appointments/{appointment}/verify', [PediatricVerificationController::class, 'verify']);
+        Route::patch('/pediatric/appointments/{appointment}/propose-new-date', [PediatricVerificationController::class, 'proposeNewDate']);
 
         // Dental-record writes are dentist-only (matches those tables' own
         // migration doc comments) — reads sit in the shared

@@ -5,9 +5,11 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Mail\AppointmentConfirmedMail;
 use App\Mail\AppointmentRejectedMail;
+use App\Mail\AppointmentRescheduledMail;
 use App\Models\Appointment;
 use App\Models\AppointmentStatusLog;
 use App\Models\Notification;
+use App\Services\AppointmentSlotService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -22,6 +24,8 @@ use Illuminate\Support\Facades\Mail;
  */
 class PediatricVerificationController extends Controller
 {
+    public function __construct(private AppointmentSlotService $slots) {}
+
     /**
      * Appointments assigned to the logged-in pediatric dentist that are
      * still awaiting their review. role:dentist is shared by every dentist
@@ -181,5 +185,100 @@ class PediatricVerificationController extends Controller
                 : 'Pediatric appointment rejected.',
             'data' => $appointment,
         ]);
+    }
+
+    /**
+     * Dentist-initiated: move a still-unresolved pediatric request to a new
+     * date/time — meant for the "Needs New Date" case (the original date
+     * passed with no approve/reject decision), though nothing here actually
+     * requires it to already be overdue. Unlike verify(), this never
+     * touches status or the pediatric_confirmed_at gate — the request stays
+     * pending_verification, now waiting on the PATIENT specifically
+     * (dentist_proposed_new_date_at) to accept this date or counter with
+     * another, via PatientAppointmentController::acceptProposedDate()/
+     * requestDifferentDate().
+     */
+    public function proposeNewDate(Request $request, Appointment $appointment)
+    {
+        if ($appointment->dentist_id !== $request->user()->id) {
+            return response()->json(['message' => 'This appointment is not assigned to you.'], 403);
+        }
+
+        if (
+            $appointment->status !== 'pending_verification'
+            || $appointment->pediatric_confirmed_at !== null
+            || ! $appointment->service->isPediatric()
+        ) {
+            return response()->json([
+                'message' => 'Only a pediatric appointment still awaiting review can be given a new date here.',
+            ], 422);
+        }
+
+        // after:today, not after_or_equal — same-day is blocked specifically
+        // for pediatric (it needs a decision window this doesn't leave room
+        // for), unlike the general dentist reschedule() this mirrors.
+        $validated = $request->validate([
+            'appointment_date' => ['required', 'date_format:Y-m-d', 'after:today'],
+            'appointment_time' => ['required', 'date_format:H:i'],
+        ]);
+
+        $appointment->load('service:id,duration_minutes');
+        $oldDate = $appointment->appointment_date->toDateString();
+        $oldTime = $appointment->appointment_time;
+
+        $moved = DB::transaction(function () use ($appointment, $validated) {
+            $available = $this->slots->isSlotAvailable(
+                $appointment->dentist_id,
+                $validated['appointment_date'],
+                $validated['appointment_time'],
+                $appointment->service->duration_minutes,
+                $appointment->id,
+            );
+
+            if (! $available) {
+                return false;
+            }
+
+            $appointment->update([
+                'appointment_date' => $validated['appointment_date'],
+                'appointment_time' => $validated['appointment_time'],
+                'dentist_proposed_new_date_at' => now(),
+            ]);
+
+            return true;
+        });
+
+        if (! $moved) {
+            return response()->json([
+                'message' => 'That time is no longer available. Please choose another.',
+            ], 409);
+        }
+
+        AppointmentStatusLog::create([
+            'appointment_id' => $appointment->id,
+            'old_status' => $appointment->status,
+            'new_status' => $appointment->status,
+            'changed_by' => $request->user()->id,
+            'note' => "Pediatric dentist proposed a new date, from {$oldDate} {$oldTime} to {$validated['appointment_date']} {$validated['appointment_time']} — awaiting patient confirmation.",
+        ]);
+
+        $appointment->load(['service:id,name,duration_minutes', 'patient.user', 'dentist:id,name']);
+        try {
+            Mail::to($appointment->patient->user->email)->send(new AppointmentRescheduledMail($appointment, $oldDate, $oldTime));
+        } catch (\Throwable $e) {
+            Log::warning('Appointment email failed to send', [
+                'mailable' => AppointmentRescheduledMail::class,
+                'appointment_id' => $appointment->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+        Notification::notifyUser(
+            $appointment->patient->user_id,
+            'New date proposed',
+            "Dr. {$appointment->dentist->name} proposed {$validated['appointment_date']} at {$validated['appointment_time']} for your {$appointment->service->name} visit — please confirm.",
+            '/patient/appointments'
+        );
+
+        return response()->json(['message' => 'New date sent to the patient for confirmation.', 'data' => $appointment]);
     }
 }

@@ -1,13 +1,20 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { getPatientAppointments, cancelAppointment, getFollowUpRecommendations } from '../../api/appointments';
+import {
+  getPatientAppointments,
+  cancelAppointment,
+  getFollowUpRecommendations,
+  acceptProposedPediatricDate,
+  requestDifferentPediatricDate,
+} from '../../api/appointments';
 import StatusBadge from './components/StatusBadge';
 import Modal from './components/Modal';
 import DataTable from './components/DataTable';
-import { PlusIcon, CalendarPlusIcon, CheckCircleIcon, CalendarIcon, UserIcon, ToothIcon, FileIcon } from './icons';
+import { PlusIcon, CalendarPlusIcon, CheckCircleIcon, CalendarIcon, UserIcon, ToothIcon, FileIcon, AlertIcon } from './icons';
 import { classifyHistoryCategory } from './dentalRecordShared';
 import { formatDateLong, formatDateShort, formatTime12h, toLocalDate } from './dateTimeUtils';
 import PageHeader from './components/PageHeader';
+import { showSuccessToast } from '../../utils/toast';
 import './dashboards.css';
 import './Appointments.css';
 import './DentalRecords.css';
@@ -97,6 +104,17 @@ function PatientAppointments() {
   const [cancelling, setCancelling] = useState(false);
   const [cancelError, setCancelError] = useState('');
 
+  // A pediatric appointment the dentist moved to a new date
+  // (dentist_proposed_new_date_at set) — the patient needs to Accept it or
+  // counter with a different one. requestingDifferent toggles the same
+  // modal from "Accept / Request a Different Date" into the date/time form.
+  const [proposalTarget, setProposalTarget] = useState(null);
+  const [requestingDifferent, setRequestingDifferent] = useState(false);
+  const [newDate, setNewDate] = useState('');
+  const [newTime, setNewTime] = useState('');
+  const [respondError, setRespondError] = useState('');
+  const [responding, setResponding] = useState(false);
+
   // "What was actually done" for a completed visit, without leaving this
   // page — same treatment_history row My Dental Records' own Treatment
   // Details modal already reads (getPatientAppointments() now eager-loads
@@ -175,6 +193,50 @@ function PatientAppointments() {
     }
   };
 
+  const openProposal = (appointment) => {
+    setRespondError('');
+    setRequestingDifferent(false);
+    setNewDate('');
+    setNewTime('');
+    setProposalTarget(appointment);
+  };
+
+  const handleAcceptProposedDate = async () => {
+    if (!proposalTarget) return;
+    setResponding(true);
+    setRespondError('');
+    try {
+      const response = await acceptProposedPediatricDate(proposalTarget.id);
+      setAppointments((prev) => prev.map((a) => (a.id === proposalTarget.id ? response.data : a)));
+      setProposalTarget(null);
+      showSuccessToast('Date confirmed.');
+    } catch (err) {
+      setRespondError(err.response?.data?.message || 'Could not confirm this date.');
+    } finally {
+      setResponding(false);
+    }
+  };
+
+  const handleRequestDifferentDate = async () => {
+    if (!proposalTarget) return;
+    if (!newDate || !newTime) {
+      setRespondError('Please pick both a date and a time.');
+      return;
+    }
+    setResponding(true);
+    setRespondError('');
+    try {
+      const response = await requestDifferentPediatricDate(proposalTarget.id, newDate, newTime);
+      setAppointments((prev) => prev.map((a) => (a.id === proposalTarget.id ? response.data : a)));
+      setProposalTarget(null);
+      showSuccessToast('New date sent for review.');
+    } catch (err) {
+      setRespondError(err.response?.data?.message || 'Could not send this date.');
+    } finally {
+      setResponding(false);
+    }
+  };
+
   const currentTab = TABS.find((t) => t.key === activeTab);
   const currentRows = grouped[activeTab] || [];
 
@@ -186,6 +248,7 @@ function PatientAppointments() {
   // something to show; Service/Doctor (populated on every row) reclaim its
   // width the rest of the time.
   const hasDetailsContent = (row) =>
+    !!row.dentist_proposed_new_date_at ||
     (row.status === 'pending_verification' && !!row.hmo_status_label) ||
     (REASON_VISIBLE_STATUSES.includes(row.status) && !!row.cancellation_reason);
   const showDetails = currentRows.some(hasDetailsContent);
@@ -246,6 +309,17 @@ function PatientAppointments() {
       minWidth: '18%',
       minWidthPx: '150px',
       render: (row) => {
+        if (row.dentist_proposed_new_date_at) {
+          return (
+            <div className="appt-hmo-status" style={{ margin: 0 }}>
+              <span className="appt-hmo-status-label">New date proposed</span>
+              <span className="appt-hmo-status-note">
+                {row.dentist?.name || 'Your dentist'} moved this visit to {formatDateLong(row.appointment_date)} —
+                please respond.
+              </span>
+            </div>
+          );
+        }
         if (row.status === 'pending_verification' && row.hmo_status_label) {
           return (
             <div className="appt-hmo-status" style={{ margin: 0 }}>
@@ -274,6 +348,13 @@ function PatientAppointments() {
       minWidthPx: '140px',
       align: 'right',
       render: (row) => {
+        if (row.dentist_proposed_new_date_at) {
+          return (
+            <button type="button" className="dash-btn dash-btn--amber row-btn" onClick={() => openProposal(row)}>
+              Respond
+            </button>
+          );
+        }
         if (isCancellable(row)) {
           return (
             <button type="button" className="dash-btn dash-btn--danger row-btn" onClick={() => openCancel(row)}>
@@ -435,6 +516,93 @@ function PatientAppointments() {
               </p>
             </div>
           </div>
+        )}
+      </Modal>
+
+      {/* Dr. Suchelle (or whichever pediatric dentist) moved this visit to a
+          new date because the original one passed with no decision — the
+          patient either accepts it or counters with a date of their own,
+          which goes back to the dentist for confirmation again. */}
+      <Modal
+        open={!!proposalTarget}
+        onClose={() => setProposalTarget(null)}
+        title="New Date Proposed"
+      >
+        {proposalTarget && (
+          <>
+            <div className="queue-card-overdue-note">
+              <AlertIcon /> {proposalTarget.dentist?.name || 'Your dentist'} couldn't confirm your original date in
+              time, so they've proposed a new one below. You can accept it or request a different date.
+            </div>
+            <p style={{ margin: '0 0 14px', fontSize: '0.85rem', color: 'var(--portal-slate)' }}>
+              <strong>{formatDateLong(proposalTarget.appointment_date)}</strong> at{' '}
+              <strong>{formatTime12h(proposalTarget.appointment_time)}</strong>
+              {proposalTarget.service?.name ? ` — ${proposalTarget.service.name}` : ''}
+            </p>
+
+            {!requestingDifferent ? (
+              <>
+                {respondError && (
+                  <p style={{ margin: '0 0 10px', fontSize: '0.82rem', color: 'var(--portal-red-text)' }}>{respondError}</p>
+                )}
+                <div className="modal-actions">
+                  <button
+                    type="button"
+                    className="dash-btn dash-btn--outline"
+                    disabled={responding}
+                    onClick={() => setRequestingDifferent(true)}
+                  >
+                    Request a Different Date
+                  </button>
+                  <button type="button" className="dash-btn" disabled={responding} onClick={handleAcceptProposedDate}>
+                    {responding ? 'Confirming…' : 'Accept This Date'}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="queue-card-propose-row">
+                  <div className="form-field">
+                    <label className="form-label" htmlFor="patient-counter-date">New date</label>
+                    <input
+                      id="patient-counter-date"
+                      type="date"
+                      className="form-input"
+                      min={new Date(Date.now() + 86400000).toISOString().slice(0, 10)}
+                      value={newDate}
+                      onChange={(e) => setNewDate(e.target.value)}
+                    />
+                  </div>
+                  <div className="form-field">
+                    <label className="form-label" htmlFor="patient-counter-time">Time</label>
+                    <input
+                      id="patient-counter-time"
+                      type="time"
+                      className="form-input"
+                      value={newTime}
+                      onChange={(e) => setNewTime(e.target.value)}
+                    />
+                  </div>
+                </div>
+                {respondError && (
+                  <p style={{ margin: '10px 0 0', fontSize: '0.82rem', color: 'var(--portal-red-text)' }}>{respondError}</p>
+                )}
+                <div className="modal-actions">
+                  <button
+                    type="button"
+                    className="dash-btn dash-btn--outline"
+                    disabled={responding}
+                    onClick={() => setRequestingDifferent(false)}
+                  >
+                    Back
+                  </button>
+                  <button type="button" className="dash-btn" disabled={responding} onClick={handleRequestDifferentDate}>
+                    {responding ? 'Sending…' : 'Send Request'}
+                  </button>
+                </div>
+              </>
+            )}
+          </>
         )}
       </Modal>
     </div>

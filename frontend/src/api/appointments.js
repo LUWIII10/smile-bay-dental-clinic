@@ -92,6 +92,26 @@ export async function cancelAppointment(appointmentId, reason) {
   return response.data;
 }
 
+// Patient accepts the date the pediatric dentist proposed
+// (PediatricVerificationController::proposeNewDate()) — no body, the date
+// itself was already set server-side when it was proposed.
+export async function acceptProposedPediatricDate(appointmentId) {
+  await api.get('/sanctum/csrf-cookie');
+  const response = await api.patch(`/api/patient/appointments/${appointmentId}/accept-proposed-date`);
+  return response.data;
+}
+
+// Patient counters the pediatric dentist's proposed date with a different
+// one of their own — goes back to the dentist's own queue for review.
+export async function requestDifferentPediatricDate(appointmentId, date, time) {
+  await api.get('/sanctum/csrf-cookie');
+  const response = await api.patch(`/api/patient/appointments/${appointmentId}/request-different-date`, {
+    appointment_date: date,
+    appointment_time: time,
+  });
+  return response.data;
+}
+
 export async function getDentistSchedule() {
   const response = await api.get('/api/dentist/schedule');
   return response.data.data;
@@ -185,6 +205,18 @@ export async function verifyPediatricAppointment(appointmentId, action, reason) 
   const response = await api.patch(`/api/pediatric/appointments/${appointmentId}/verify`, {
     action,
     reason,
+  });
+  return response.data;
+}
+
+// Dentist proposes a new date/time for a pediatric request stuck past its
+// original date with no approve/reject decision — stays pending_verification,
+// now waiting on the PATIENT to accept it or counter with another date.
+export async function proposePediatricNewDate(appointmentId, date, time) {
+  await api.get('/sanctum/csrf-cookie');
+  const response = await api.patch(`/api/pediatric/appointments/${appointmentId}/propose-new-date`, {
+    appointment_date: date,
+    appointment_time: time,
   });
   return response.data;
 }
