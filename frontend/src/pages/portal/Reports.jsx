@@ -13,17 +13,23 @@ import {
 } from 'chart.js';
 import { Line, Doughnut } from 'react-chartjs-2';
 import { getReportsOverview } from '../../api/reports';
+import { useCountUp, useEntranceReady } from '../../hooks/useEntranceAnimation';
+import { centerTextPlugin } from './chartCenterText';
 import StatCard from './components/StatCard';
 import Skeleton from './components/Skeleton';
 import PageHeader from './components/PageHeader';
 import PrintLetterhead from './components/PrintLetterhead';
 import PrintFooter from './components/PrintFooter';
-import { CalendarIcon, ClockIcon, CheckCircleIcon, XCircleIcon, UsersIcon, PrinterIcon, ChartIcon } from './icons';
+import {
+  CalendarIcon, ClockIcon, CheckCircleIcon, XCircleIcon, UsersIcon, PrinterIcon, ChartIcon, AlertIcon, TrendingUpIcon,
+} from './icons';
 import { formatDateLong } from './dateTimeUtils';
 import './dashboards.css';
 import './Appointments.css';
 import './Reports.css';
 import './components/PrintLetterhead.css';
+
+const PAYMENT_CENTER_LABEL = centerTextPlugin('TOTAL');
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, ArcElement, Title, Tooltip, Legend, Filler);
 
@@ -148,9 +154,46 @@ function Reports() {
   const dentistTotal = data ? data.by_dentist.reduce((sum, d) => sum + d.count, 0) : 0;
   const pct = (count, total) => (total ? ((count / total) * 100).toFixed(1) : '0.0');
 
+  // Completion rate — of every appointment in range, how many were actually
+  // completed. Derived client-side from totals already fetched, no backend
+  // change needed.
+  const completionRate = data && data.totals.total_appointments
+    ? Math.round((data.totals.completed / data.totals.total_appointments) * 100)
+    : 0;
+
+  // "Busiest day" insight — the single highest-count day in by_day, which
+  // is already fetched for the line chart. Only shown once there's at
+  // least one appointment to point to.
+  const peakDay = data && data.by_day.length
+    ? data.by_day.reduce((max, day) => (day.count > max.count ? day : max), data.by_day[0])
+    : null;
+
   const printPeriod = data && (
     <p className="reports-print-caption-date">{formatDateLong(range.date_from)} – {formatDateLong(range.date_to)}</p>
   );
+
+  // Entrance: KPI cards count up from 0, bars grow in from 0 width,
+  // everything staggers in — all once loading finishes for the current
+  // date range (see useEntranceAnimation.js). Re-runs on every range change.
+  const ready = useEntranceReady(!loading && !error);
+  const counts = useCountUp(
+    {
+      total: data?.totals.total_appointments ?? 0,
+      completed: data?.totals.completed ?? 0,
+      cancelled: data ? data.totals.cancelled + data.totals.rejected : 0,
+      newPatients: data?.totals.new_patients ?? 0,
+      noShow: data?.totals.no_show ?? 0,
+      completionRate,
+    },
+    !loading && !error,
+  );
+  const entranceStyle = (i) => ({ transitionDelay: `${i * 60}ms` });
+  const entranceClass = `entrance-item${ready ? ' is-visible' : ''}`;
+  const barStyle = (i, pctWidth) => ({
+    width: ready ? `${pctWidth}%` : '0%',
+    transition: 'width 700ms cubic-bezier(0.16, 1, 0.3, 1)',
+    transitionDelay: `${420 + i * 80}ms`,
+  });
 
   return (
     <div>
@@ -202,31 +245,58 @@ function Reports() {
         <div className="dash-empty"><span className="dash-empty-title">{error}</span></div>
       ) : (
         <>
-          <div className="stat-grid stat-grid--4">
+          <div className="stat-grid stat-grid--6">
             {loading ? (
-              <Skeleton variant="stat-card" count={4} />
+              <Skeleton variant="stat-card" count={6} />
             ) : (
               <>
-                <StatCard label="Total Appointments" value={data.totals.total_appointments} icon={CalendarIcon} tint="blue" />
-                <StatCard label="Completed" value={data.totals.completed} icon={CheckCircleIcon} tint="green" />
-                <StatCard
-                  label="Cancelled / Rejected"
-                  value={data.totals.cancelled + data.totals.rejected}
-                  icon={XCircleIcon}
-                  tint="red"
-                />
-                <StatCard label="New Patients" value={data.totals.new_patients} icon={UsersIcon} tint="amber" />
+                <div className={entranceClass} style={entranceStyle(0)}>
+                  <StatCard label="Total Appointments" value={counts.total} icon={CalendarIcon} tint="blue" />
+                </div>
+                <div className={entranceClass} style={entranceStyle(1)}>
+                  <StatCard label="Completed" value={counts.completed} icon={CheckCircleIcon} tint="green" />
+                </div>
+                <div className={entranceClass} style={entranceStyle(2)}>
+                  <StatCard label="Cancelled / Rejected" value={counts.cancelled} icon={XCircleIcon} tint="red" />
+                </div>
+                <div className={entranceClass} style={entranceStyle(3)}>
+                  <StatCard label="New Patients" value={counts.newPatients} icon={UsersIcon} tint="amber" />
+                </div>
+                <div className={entranceClass} style={entranceStyle(4)}>
+                  <StatCard label="No-Shows" value={counts.noShow} subtitle="missed visits" icon={AlertIcon} tint="red" />
+                </div>
+                <div className={entranceClass} style={entranceStyle(5)}>
+                  <StatCard
+                    label="Completion Rate"
+                    value={`${counts.completionRate}%`}
+                    subtitle="of all appointments"
+                    icon={TrendingUpIcon}
+                    tint="blue"
+                  />
+                </div>
               </>
             )}
           </div>
+
+          {/* Busiest-day insight, derived from by_day (already fetched for
+              the line chart below) — only worth showing once there's an
+              actual peak to point to. */}
+          {!loading && !error && peakDay && peakDay.count > 0 && (
+            <div className={`reports-insight-banner ${entranceClass}`} style={entranceStyle(6)}>
+              <span className="reports-insight-icon"><CalendarIcon /></span>
+              <p className="reports-insight-text">
+                <strong>Busiest day this period:</strong> {formatDateLong(peakDay.date)} — {peakDay.count} appointment{peakDay.count === 1 ? '' : 's'} booked.
+              </p>
+            </div>
+          )}
 
           {/* Print-only — Table 1. No header row (label/figure pairs, not
               name/count/share), so the "dark rule above first row, below
               last row" comes from the .reports-print-table--summary
               modifier's own border rather than a <thead>. No Total row:
-              these four figures aren't parts of one whole that sums to
-              100% (New Patients is an unrelated metric), unlike tables
-              2-4 below. */}
+              these figures aren't parts of one whole that sums to 100%
+              (New Patients is an unrelated metric), unlike tables 2-4
+              below. */}
           {!loading && data && (
             <div className="reports-print-table-block">
               <p className="reports-print-caption">TABLE 1 — APPOINTMENT SUMMARY</p>
@@ -237,13 +307,15 @@ function Reports() {
                   <tr><td>Completed</td><td className="reports-print-num">{data.totals.completed}</td></tr>
                   <tr><td>Cancelled / rejected</td><td className="reports-print-num">{data.totals.cancelled + data.totals.rejected}</td></tr>
                   <tr><td>New patients</td><td className="reports-print-num">{data.totals.new_patients}</td></tr>
+                  <tr><td>No-shows</td><td className="reports-print-num">{data.totals.no_show}</td></tr>
+                  <tr><td>Completion rate</td><td className="reports-print-num">{completionRate}%</td></tr>
                 </tbody>
               </table>
             </div>
           )}
 
           <div className="chart-grid">
-            <div className="section-card">
+            <div className={`section-card ${entranceClass}`} style={entranceStyle(7)}>
               <div className="section-card-header">
                 <h3 className="section-card-title">Appointments Over Time</h3>
               </div>
@@ -264,7 +336,7 @@ function Reports() {
               )}
             </div>
 
-            <div className="section-card">
+            <div className={`section-card ${entranceClass}`} style={entranceStyle(8)}>
               <div className="section-card-header">
                 <h3 className="section-card-title">Payment Type Split</h3>
               </div>
@@ -275,7 +347,7 @@ function Reports() {
               ) : (
                 <>
                   <div className="chart-container">
-                    <Doughnut data={paymentData} options={DOUGHNUT_OPTIONS} />
+                    <Doughnut data={paymentData} options={DOUGHNUT_OPTIONS} plugins={[PAYMENT_CENTER_LABEL]} />
                   </div>
                   {/* Print-only — Table 2, replacing the doughnut. Reuses
                       cashPct/hmoPct as already computed above (whole-number
@@ -303,7 +375,7 @@ function Reports() {
           </div>
 
           <div className="chart-grid">
-            <div className="section-card">
+            <div className={`section-card ${entranceClass}`} style={entranceStyle(9)}>
               <div className="section-card-header">
                 <h3 className="section-card-title">Top Services</h3>
               </div>
@@ -314,11 +386,11 @@ function Reports() {
               ) : (
                 <>
                   <ul className="reports-bar-list">
-                    {data.top_services.map((s) => (
+                    {data.top_services.map((s, i) => (
                       <li key={s.name} className="reports-bar-row">
                         <span className="reports-bar-label" title={s.name}>{s.name}</span>
                         <div className="reports-bar-track">
-                          <div className="reports-bar-fill reports-bar-fill--blue" style={{ width: `${(s.count / maxServiceCount) * 100}%` }} />
+                          <div className="reports-bar-fill reports-bar-fill--blue" style={barStyle(i, (s.count / maxServiceCount) * 100)} />
                         </div>
                         <span className="reports-bar-count">{s.count}</span>
                       </li>
@@ -352,7 +424,7 @@ function Reports() {
               )}
             </div>
 
-            <div className="section-card">
+            <div className={`section-card ${entranceClass}`} style={entranceStyle(10)}>
               <div className="section-card-header">
                 <h3 className="section-card-title">Appointments by Dentist</h3>
               </div>
@@ -363,11 +435,11 @@ function Reports() {
               ) : (
                 <>
                   <ul className="reports-bar-list">
-                    {data.by_dentist.map((d) => (
+                    {data.by_dentist.map((d, i) => (
                       <li key={d.name} className="reports-bar-row">
                         <span className="reports-bar-label" title={d.name}>{d.name}</span>
                         <div className="reports-bar-track">
-                          <div className="reports-bar-fill reports-bar-fill--green" style={{ width: `${(d.count / maxDentistCount) * 100}%` }} />
+                          <div className="reports-bar-fill reports-bar-fill--green" style={barStyle(i, (d.count / maxDentistCount) * 100)} />
                         </div>
                         <span className="reports-bar-count">{d.count}</span>
                       </li>

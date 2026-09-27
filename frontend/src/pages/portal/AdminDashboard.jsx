@@ -15,6 +15,8 @@ import { Line, Doughnut } from 'react-chartjs-2';
 import { useAuth } from '../../context/AuthContext';
 import { getStaffDashboardSummary, getRecentActivity } from '../../api/appointments';
 import { getReportsOverview } from '../../api/reports';
+import { useCountUp, useEntranceReady } from '../../hooks/useEntranceAnimation';
+import { centerTextPlugin } from './chartCenterText';
 import DashGreeting from './components/DashGreeting';
 import { greetingName } from './greetingName';
 import StatCard from './components/StatCard';
@@ -24,6 +26,8 @@ import StatusBadge from './components/StatusBadge';
 import { UsersIcon, CalendarIcon, UserIcon, ShieldIcon, CheckCircleIcon, ActivityIcon, TrendingUpIcon, ChartIcon } from './icons';
 import './dashboards.css';
 import './Appointments.css';
+
+const BREAKDOWN_CENTER_LABEL = centerTextPlugin('TOTAL');
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, ArcElement, Title, Tooltip, Legend, Filler);
 
@@ -134,6 +138,23 @@ function AdminDashboard() {
   const byDay = reportsOverview?.by_day ?? [];
   const totals = reportsOverview?.totals;
 
+  // Entrance: stat cards count up from 0, everything below fades/slides in
+  // staggered, all once loading finishes — see useEntranceAnimation.js.
+  const ready = useEntranceReady(!loading);
+  const counts = useCountUp(
+    {
+      today: summary?.today ?? 0,
+      pendingVerifications: summary?.pendingVerifications ?? 0,
+      confirmedToday: summary?.confirmedToday ?? 0,
+      completedThisWeek: summary?.completedThisWeek ?? 0,
+      totalPatients: summary?.totalPatients ?? 0,
+      activeUsers: summary?.activeUsers ?? 0,
+    },
+    !loading,
+  );
+  const entranceStyle = (i) => ({ transitionDelay: `${i * 60}ms` });
+  const entranceClass = `entrance-item${ready ? ' is-visible' : ''}`;
+
   const lineData = {
     labels: byDay.map((row) => formatDayLabel(row.date)),
     datasets: [
@@ -177,16 +198,24 @@ function AdminDashboard() {
               <Skeleton variant="stat-card" count={4} />
             ) : (
               <>
-                <StatCard label="Appointments Today" value={summary?.today ?? 0} icon={CalendarIcon} tint="blue" />
-                <StatCard
-                  label="Pending Verifications"
-                  value={summary?.pendingVerifications ?? 0}
-                  icon={ShieldIcon}
-                  tint="red"
-                  to="/admin/hmo-verification"
-                />
-                <StatCard label="Confirmed Today" value={summary?.confirmedToday ?? 0} icon={UsersIcon} tint="green" />
-                <StatCard label="Completed This Week" value={summary?.completedThisWeek ?? 0} icon={CheckCircleIcon} tint="amber" />
+                <div className={entranceClass} style={entranceStyle(0)}>
+                  <StatCard label="Appointments Today" value={counts.today} icon={CalendarIcon} tint="blue" />
+                </div>
+                <div className={entranceClass} style={entranceStyle(1)}>
+                  <StatCard
+                    label="Pending Verifications"
+                    value={counts.pendingVerifications}
+                    icon={ShieldIcon}
+                    tint="red"
+                    to="/admin/hmo-verification"
+                  />
+                </div>
+                <div className={entranceClass} style={entranceStyle(2)}>
+                  <StatCard label="Confirmed Today" value={counts.confirmedToday} icon={UsersIcon} tint="green" />
+                </div>
+                <div className={entranceClass} style={entranceStyle(3)}>
+                  <StatCard label="Completed This Week" value={counts.completedThisWeek} icon={CheckCircleIcon} tint="amber" />
+                </div>
               </>
             )}
           </div>
@@ -196,14 +225,18 @@ function AdminDashboard() {
               <Skeleton variant="stat-card" count={2} />
             ) : (
               <>
-                <StatCard label="Total Patients" value={summary?.totalPatients ?? 0} icon={UsersIcon} tint="blue" />
-                <StatCard label="Active Users" value={summary?.activeUsers ?? 0} icon={UserIcon} tint="amber" />
+                <div className={entranceClass} style={entranceStyle(4)}>
+                  <StatCard label="Total Patients" value={counts.totalPatients} icon={UsersIcon} tint="blue" />
+                </div>
+                <div className={entranceClass} style={entranceStyle(5)}>
+                  <StatCard label="Active Users" value={counts.activeUsers} icon={UserIcon} tint="amber" />
+                </div>
               </>
             )}
           </div>
 
           <div className="chart-grid">
-            <div className="section-card">
+            <div className={`section-card ${entranceClass}`} style={entranceStyle(6)}>
               <div className="section-card-header">
                 <div className="section-card-heading">
                   <span className="section-card-icon"><TrendingUpIcon /></span>
@@ -219,7 +252,7 @@ function AdminDashboard() {
               )}
             </div>
 
-            <div className="section-card">
+            <div className={`section-card ${entranceClass}`} style={entranceStyle(7)}>
               <div className="section-card-header">
                 <div className="section-card-heading">
                   <span className="section-card-icon"><ChartIcon /></span>
@@ -230,13 +263,13 @@ function AdminDashboard() {
                 <Skeleton variant="block" />
               ) : (
                 <div className="chart-container">
-                  <Doughnut data={doughnutData} options={DOUGHNUT_OPTIONS} />
+                  <Doughnut data={doughnutData} options={DOUGHNUT_OPTIONS} plugins={[BREAKDOWN_CENTER_LABEL]} />
                 </div>
               )}
             </div>
           </div>
 
-          <div className="section-card">
+          <div className={`section-card ${entranceClass}`} style={entranceStyle(8)}>
             <div className="section-card-header">
               <div className="section-card-heading">
                 <span className="section-card-icon"><ActivityIcon /></span>

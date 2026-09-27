@@ -334,6 +334,12 @@
   grid-template-columns: repeat(2, 1fr);
 }
 
+/* 6 cards, 3-per-row — Reports' KPI row (existing 4 metrics plus No-Shows
+   and Completion Rate). Same minmax(0, ..) overflow guard as --4 above. */
+.stat-grid--6 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .stat-card {
   background: var(--portal-card);
   border-radius: var(--portal-radius-lg);
@@ -446,6 +452,25 @@
 .stat-card-icon--red {
   background: linear-gradient(150deg, #ef4444, var(--portal-red-text));
   box-shadow: 0 4px 10px rgba(180, 35, 24, 0.28);
+}
+
+/* ============ Mount entrance ============ */
+
+/* Used only by AdminDashboard.jsx and Reports.jsx — every other page that
+   renders .stat-card/.section-card never applies these classes, so this is
+   purely additive and doesn't change anything for them. Each item starts
+   hidden/offset, then the page adds .is-visible (after a one-frame delay via
+   useEntranceReady, so the "hidden" style actually paints first) — the
+   caller staggers items with an inline transitionDelay per index. */
+.entrance-item {
+  opacity: 0;
+  transform: translateY(14px);
+  transition: opacity 480ms cubic-bezier(0.16, 1, 0.3, 1), transform 480ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.entrance-item.is-visible {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 /* ============ Status badges ============ */
@@ -1756,7 +1781,8 @@
 
 @media (max-width: 1024px) {
   .stat-grid,
-  .stat-grid--4 {
+  .stat-grid--4,
+  .stat-grid--6 {
     grid-template-columns: repeat(2, 1fr);
   }
 }
@@ -1764,7 +1790,8 @@
 @media (max-width: 560px) {
   .stat-grid,
   .stat-grid--4,
-  .stat-grid--2 {
+  .stat-grid--2,
+  .stat-grid--6 {
     grid-template-columns: 1fr;
   }
 

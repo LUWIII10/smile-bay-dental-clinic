@@ -63,6 +63,40 @@
   min-width: 20px;
 }
 
+.reports-insight-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--portal-card);
+  border-radius: var(--portal-radius-lg);
+  box-shadow: var(--portal-shadow);
+  padding: 14px 18px;
+  margin-bottom: 18px;
+}
+
+.reports-insight-icon {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: rgba(41, 82, 227, 0.1);
+  color: var(--portal-blue);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.reports-insight-icon svg {
+  width: 17px;
+  height: 17px;
+}
+
+.reports-insight-text {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--portal-slate);
+}
+
 @media (max-width: 600px) {
   .reports-bar-row {
     grid-template-columns: 1fr auto;
@@ -155,7 +189,8 @@
      through colour/length, which is exactly what a formal report
      shouldn't rely on. .reports-print-table-block below replaces both. */
   .stat-grid,
-  .reports-bar-list {
+  .reports-bar-list,
+  .reports-insight-banner {
     display: none !important;
   }
 
