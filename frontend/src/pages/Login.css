@@ -11,6 +11,15 @@
   background-position: center;
   background-repeat: no-repeat;
   overflow-y: auto;
+  /* Was unset (defaults to visible) — only overflow-y was ever handled
+     here. A position: fixed element's own overflow isn't reliably caught
+     by html/body's own overflow-x: hidden (index.css) the way a normally-
+     flowed element's would be, so anything inside this page that manages
+     to overflow horizontally (see .login-card--wizard's own fix below)
+     could bleed past the viewport instead of clipping — real phone
+     testing traced a register-wizard-only zoom/layout bug back to
+     exactly this combination. */
+  overflow-x: hidden;
   text-align: left;
   z-index: 9999;
   box-sizing: border-box;
@@ -632,6 +641,15 @@
    step's fields run. */
 .login-card--wizard {
   width: 560px;
+  /* .login-card already sets max-width: 100%, applied alongside this class
+     — but that relies on cross-class cascade reasoning that's easy to
+     break later, and .login-page being a flex container (align-items/
+     justify-content: center) means this flex ITEM's default automatic
+     minimum size could still fight that max-width on some engines.
+     Both re-declared explicitly, directly on the class that actually
+     needs the 560px capped, rather than assumed from a sibling rule. */
+  max-width: 100%;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   max-height: 90vh;
