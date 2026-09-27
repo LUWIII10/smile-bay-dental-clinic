@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { getPediatricQueue, verifyPediatricAppointment, proposePediatricNewDate } from '../../api/appointments';
+import { getPediatricQueue, verifyPediatricAppointment, proposePediatricNewDate, getAvailableSlots } from '../../api/appointments';
 import StatusBadge from './components/StatusBadge';
 import RejectionModal from './components/RejectionModal';
 import Skeleton from './components/Skeleton';
@@ -9,6 +9,7 @@ import { formatDateLong, formatTime12h, toLocalDate } from './dateTimeUtils';
 import { showSuccessToast } from '../../utils/toast';
 import './dashboards.css';
 import './Appointments.css';
+import './BookAppointment.css';
 
 const POLL_INTERVAL_MS = 9000;
 
@@ -16,6 +17,104 @@ function formatSubmitted(isoTimestamp) {
   return new Date(isoTimestamp).toLocaleString('en-US', {
     month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
   });
+}
+
+// Real open-slot picker for a pediatric reschedule — same getAvailableSlots()
+// call and .slots-grid/.slot-card markup the patient booking wizard and the
+// general-dentist RescheduleModal already use, so the dentist sees her own
+// actual availability instead of guessing a date/time blind and finding out
+// only after submitting that it's already taken. Shared by QueueCard (an
+// optional, toggled reschedule) and OverdueQueueCard (always shown, no
+// Cancel — there's nothing to go back to once a slot's date has passed).
+// onSend still gets its own server-side isSlotAvailable() re-check in
+// proposeNewDate() — this is a convenience, not a replacement for that guard.
+function ReschedulePicker({ appointment, actingId, onSend, onCancel }) {
+  const isActing = actingId === appointment.id;
+  const [date, setDate] = useState('');
+  const [time, setTime] = useState('');
+  const [slots, setSlots] = useState([]);
+  const [loadingSlots, setLoadingSlots] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!date) {
+      setSlots([]);
+      setTime('');
+      return undefined;
+    }
+    let cancelled = false;
+    setLoadingSlots(true);
+    setTime('');
+    getAvailableSlots(appointment.dentist_id, appointment.service_id, date)
+      .then((result) => { if (!cancelled) setSlots(result.slots || []); })
+      .catch(() => { if (!cancelled) setSlots([]); })
+      .finally(() => { if (!cancelled) setLoadingSlots(false); });
+    return () => { cancelled = true; };
+  }, [date, appointment.dentist_id, appointment.service_id]);
+
+  const handleSend = async () => {
+    if (!date || !time) {
+      setError('Please pick a date and an available time.');
+      return;
+    }
+    setError('');
+    const result = await onSend(appointment, date, time);
+    if (result?.error) setError(result.error);
+  };
+
+  return (
+    <>
+      <div className="queue-card-propose-row" style={{ alignItems: 'flex-start' }}>
+        <div className="form-field">
+          <label className="form-label" htmlFor={`resched-date-${appointment.id}`}>New date</label>
+          <input
+            id={`resched-date-${appointment.id}`}
+            type="date"
+            className="form-input"
+            min={new Date(Date.now() + 86400000).toISOString().slice(0, 10)}
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+          />
+        </div>
+        <div style={{ flex: 2, minWidth: 220 }}>
+          <label className="form-label" style={{ display: 'block', marginBottom: 6 }}>
+            Available times{date ? ` for ${formatDateLong(date)}` : ''}
+          </label>
+          {!date ? (
+            <p className="booking-empty-note" style={{ padding: 0, textAlign: 'left' }}>Pick a date to see her open times.</p>
+          ) : loadingSlots ? (
+            <p className="booking-empty-note" style={{ padding: 0, textAlign: 'left' }}>Loading…</p>
+          ) : slots.length === 0 ? (
+            <p className="booking-empty-note" style={{ padding: 0, textAlign: 'left' }}>No open slots for this date.</p>
+          ) : (
+            <div className="slots-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
+              {slots.map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  className={`slot-card${t === time ? ' slot-card--selected' : ''}`}
+                  onClick={() => setTime(t)}
+                >
+                  {formatTime12h(t)}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+      <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
+        <button type="button" className="dash-btn" disabled={!time || isActing} onClick={handleSend}>
+          {isActing ? 'Sending…' : 'Send New Date'}
+        </button>
+        {onCancel && (
+          <button type="button" className="dash-btn dash-btn--outline" disabled={isActing} onClick={onCancel}>
+            Cancel
+          </button>
+        )}
+      </div>
+      {error && <p className="queue-card-propose-error">{error}</p>}
+    </>
+  );
 }
 
 // onPropose reuses the exact same PediatricVerificationController::
@@ -29,19 +128,6 @@ function QueueCard({ appointment, actingId, onApprove, onReject, onPropose }) {
   const isCash = appointment.patient_type_snapshot === 'cash';
   const isActing = actingId === appointment.id;
   const [rescheduling, setRescheduling] = useState(false);
-  const [date, setDate] = useState('');
-  const [time, setTime] = useState('');
-  const [error, setError] = useState('');
-
-  const handleSendReschedule = async () => {
-    if (!date || !time) {
-      setError('Please pick both a date and a time.');
-      return;
-    }
-    setError('');
-    const result = await onPropose(appointment, date, time);
-    if (result?.error) setError(result.error);
-  };
 
   return (
     <div className="queue-card">
@@ -77,7 +163,7 @@ function QueueCard({ appointment, actingId, onApprove, onReject, onPropose }) {
             type="button"
             className="dash-btn dash-btn--outline"
             disabled={isActing}
-            onClick={() => { setError(''); setRescheduling(true); }}
+            onClick={() => setRescheduling(true)}
           >
             <SwapIcon /> Reschedule
           </button>
@@ -86,38 +172,12 @@ function QueueCard({ appointment, actingId, onApprove, onReject, onPropose }) {
           </button>
         </div>
       ) : (
-        <>
-          <div className="queue-card-propose-row">
-            <div className="form-field">
-              <label className="form-label" htmlFor={`resched-date-${appointment.id}`}>New date</label>
-              <input
-                id={`resched-date-${appointment.id}`}
-                type="date"
-                className="form-input"
-                min={new Date(Date.now() + 86400000).toISOString().slice(0, 10)}
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-              />
-            </div>
-            <div className="form-field">
-              <label className="form-label" htmlFor={`resched-time-${appointment.id}`}>Time</label>
-              <input
-                id={`resched-time-${appointment.id}`}
-                type="time"
-                className="form-input"
-                value={time}
-                onChange={(e) => setTime(e.target.value)}
-              />
-            </div>
-            <button type="button" className="dash-btn" disabled={isActing} onClick={handleSendReschedule}>
-              {isActing ? 'Sending…' : 'Send New Date'}
-            </button>
-            <button type="button" className="dash-btn dash-btn--outline" disabled={isActing} onClick={() => setRescheduling(false)}>
-              Cancel
-            </button>
-          </div>
-          {error && <p className="queue-card-propose-error">{error}</p>}
-        </>
+        <ReschedulePicker
+          appointment={appointment}
+          actingId={actingId}
+          onSend={onPropose}
+          onCancel={() => setRescheduling(false)}
+        />
       )}
     </div>
   );
@@ -130,21 +190,6 @@ function QueueCard({ appointment, actingId, onApprove, onReject, onPropose }) {
 // dentist_proposed_new_date_at server-side, which is what puts this back
 // in front of the PATIENT for their own Accept/Request Different Date call.
 function OverdueQueueCard({ appointment, actingId, onPropose }) {
-  const isActing = actingId === appointment.id;
-  const [date, setDate] = useState('');
-  const [time, setTime] = useState('');
-  const [error, setError] = useState('');
-
-  const handleSubmit = async () => {
-    if (!date || !time) {
-      setError('Please pick both a date and a time.');
-      return;
-    }
-    setError('');
-    const result = await onPropose(appointment, date, time);
-    if (result?.error) setError(result.error);
-  };
-
   return (
     <div className="queue-card queue-card--overdue">
       <div className="queue-card-header">
@@ -171,33 +216,7 @@ function OverdueQueueCard({ appointment, actingId, onPropose }) {
         <AlertIcon /> That date has passed without a decision. Propose a new date below — the patient will be asked to confirm it.
       </div>
 
-      <div className="queue-card-propose-row">
-        <div className="form-field">
-          <label className="form-label" htmlFor={`propose-date-${appointment.id}`}>New date</label>
-          <input
-            id={`propose-date-${appointment.id}`}
-            type="date"
-            className="form-input"
-            min={new Date(Date.now() + 86400000).toISOString().slice(0, 10)}
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-          />
-        </div>
-        <div className="form-field">
-          <label className="form-label" htmlFor={`propose-time-${appointment.id}`}>Time</label>
-          <input
-            id={`propose-time-${appointment.id}`}
-            type="time"
-            className="form-input"
-            value={time}
-            onChange={(e) => setTime(e.target.value)}
-          />
-        </div>
-        <button type="button" className="dash-btn" disabled={isActing} onClick={handleSubmit}>
-          {isActing ? 'Sending…' : 'Send New Date'}
-        </button>
-      </div>
-      {error && <p className="queue-card-propose-error">{error}</p>}
+      <ReschedulePicker appointment={appointment} actingId={actingId} onSend={onPropose} />
     </div>
   );
 }
