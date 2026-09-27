@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { getPediatricQueue, verifyPediatricAppointment, proposePediatricNewDate, getAvailableSlots } from '../../api/appointments';
+import { getPediatricQueue, verifyPediatricAppointment, proposePediatricNewDate } from '../../api/appointments';
 import StatusBadge from './components/StatusBadge';
 import RejectionModal from './components/RejectionModal';
 import Skeleton from './components/Skeleton';
 import PageHeader from './components/PageHeader';
+import AvailableSlotPicker from './components/AvailableSlotPicker';
 import { BabyIcon, CheckCircleIcon, AlertIcon, SwapIcon } from './icons';
 import { formatDateLong, formatTime12h, toLocalDate } from './dateTimeUtils';
 import { showSuccessToast } from '../../utils/toast';
@@ -32,25 +33,7 @@ function ReschedulePicker({ appointment, actingId, onSend, onCancel }) {
   const isActing = actingId === appointment.id;
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
-  const [slots, setSlots] = useState([]);
-  const [loadingSlots, setLoadingSlots] = useState(false);
   const [error, setError] = useState('');
-
-  useEffect(() => {
-    if (!date) {
-      setSlots([]);
-      setTime('');
-      return undefined;
-    }
-    let cancelled = false;
-    setLoadingSlots(true);
-    setTime('');
-    getAvailableSlots(appointment.dentist_id, appointment.service_id, date)
-      .then((result) => { if (!cancelled) setSlots(result.slots || []); })
-      .catch(() => { if (!cancelled) setSlots([]); })
-      .finally(() => { if (!cancelled) setLoadingSlots(false); });
-    return () => { cancelled = true; };
-  }, [date, appointment.dentist_id, appointment.service_id]);
 
   const handleSend = async () => {
     if (!date || !time) {
@@ -64,44 +47,15 @@ function ReschedulePicker({ appointment, actingId, onSend, onCancel }) {
 
   return (
     <>
-      <div className="queue-card-propose-row" style={{ alignItems: 'flex-start' }}>
-        <div className="form-field">
-          <label className="form-label" htmlFor={`resched-date-${appointment.id}`}>New date</label>
-          <input
-            id={`resched-date-${appointment.id}`}
-            type="date"
-            className="form-input"
-            min={new Date(Date.now() + 86400000).toISOString().slice(0, 10)}
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-          />
-        </div>
-        <div style={{ flex: 2, minWidth: 220 }}>
-          <label className="form-label" style={{ display: 'block', marginBottom: 6 }}>
-            Available times{date ? ` for ${formatDateLong(date)}` : ''}
-          </label>
-          {!date ? (
-            <p className="booking-empty-note" style={{ padding: 0, textAlign: 'left' }}>Pick a date to see her open times.</p>
-          ) : loadingSlots ? (
-            <p className="booking-empty-note" style={{ padding: 0, textAlign: 'left' }}>Loading…</p>
-          ) : slots.length === 0 ? (
-            <p className="booking-empty-note" style={{ padding: 0, textAlign: 'left' }}>No open slots for this date.</p>
-          ) : (
-            <div className="slots-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
-              {slots.map((t) => (
-                <button
-                  key={t}
-                  type="button"
-                  className={`slot-card${t === time ? ' slot-card--selected' : ''}`}
-                  onClick={() => setTime(t)}
-                >
-                  {formatTime12h(t)}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
+      <AvailableSlotPicker
+        dentistId={appointment.dentist_id}
+        serviceId={appointment.service_id}
+        date={date}
+        onDateChange={setDate}
+        time={time}
+        onTimeChange={setTime}
+        idPrefix={`resched-${appointment.id}`}
+      />
       <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
         <button type="button" className="dash-btn" disabled={!time || isActing} onClick={handleSend}>
           {isActing ? 'Sending…' : 'Send New Date'}

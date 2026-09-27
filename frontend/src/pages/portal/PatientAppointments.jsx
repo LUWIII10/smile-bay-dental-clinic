@@ -10,6 +10,7 @@ import {
 import StatusBadge from './components/StatusBadge';
 import Modal from './components/Modal';
 import DataTable from './components/DataTable';
+import AvailableSlotPicker from './components/AvailableSlotPicker';
 import { PlusIcon, CalendarPlusIcon, CheckCircleIcon, CalendarIcon, UserIcon, ToothIcon, FileIcon, AlertIcon } from './icons';
 import { classifyHistoryCategory } from './dentalRecordShared';
 import { formatDateLong, formatDateShort, formatTime12h, toLocalDate } from './dateTimeUtils';
@@ -18,6 +19,7 @@ import { showSuccessToast } from '../../utils/toast';
 import './dashboards.css';
 import './Appointments.css';
 import './DentalRecords.css';
+import './BookAppointment.css';
 
 // Same 8-10s background-refresh pattern as DentistSchedule/HmoVerificationQueue/
 // PediatricQueue — this page didn't have it yet (it was left on the blank-slate
@@ -561,29 +563,15 @@ function PatientAppointments() {
               </>
             ) : (
               <>
-                <div className="queue-card-propose-row">
-                  <div className="form-field">
-                    <label className="form-label" htmlFor="patient-counter-date">New date</label>
-                    <input
-                      id="patient-counter-date"
-                      type="date"
-                      className="form-input"
-                      min={new Date(Date.now() + 86400000).toISOString().slice(0, 10)}
-                      value={newDate}
-                      onChange={(e) => setNewDate(e.target.value)}
-                    />
-                  </div>
-                  <div className="form-field">
-                    <label className="form-label" htmlFor="patient-counter-time">Time</label>
-                    <input
-                      id="patient-counter-time"
-                      type="time"
-                      className="form-input"
-                      value={newTime}
-                      onChange={(e) => setNewTime(e.target.value)}
-                    />
-                  </div>
-                </div>
+                <AvailableSlotPicker
+                  dentistId={proposalTarget.dentist_id}
+                  serviceId={proposalTarget.service_id}
+                  date={newDate}
+                  onDateChange={setNewDate}
+                  time={newTime}
+                  onTimeChange={setNewTime}
+                  idPrefix="patient-counter"
+                />
                 {respondError && (
                   <p style={{ margin: '10px 0 0', fontSize: '0.82rem', color: 'var(--portal-red-text)' }}>{respondError}</p>
                 )}
@@ -596,7 +584,7 @@ function PatientAppointments() {
                   >
                     Back
                   </button>
-                  <button type="button" className="dash-btn" disabled={responding} onClick={handleRequestDifferentDate}>
+                  <button type="button" className="dash-btn" disabled={responding || !newTime} onClick={handleRequestDifferentDate}>
                     {responding ? 'Sending…' : 'Send Request'}
                   </button>
                 </div>
