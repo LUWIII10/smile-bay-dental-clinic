@@ -9,6 +9,7 @@ import Modal from './components/Modal';
 import PageHeader from './components/PageHeader';
 import { SearchIcon, UsersIcon } from './icons';
 import { showSuccessToast, showErrorToast, confirmAction } from '../../utils/toast';
+import { getAvatarUrl } from './avatarUtils';
 import './dashboards.css';
 import './Appointments.css';
 import './UserManagement.css';
@@ -199,15 +200,20 @@ function UserManagement() {
       key: 'name',
       label: 'Name',
       minWidth: '22%',
-      render: (row) => (
-        <span className="cell-person">
-          <span className="cell-avatar">{getInitials(row.name)}</span>
-          <span className="cell-person-text">
-            <span className="cell-person-name" title={row.name}>{row.name}</span>
-            {row.id === currentUser?.id && <span className="cell-person-sub">You</span>}
+      render: (row) => {
+        const avatarUrl = getAvatarUrl(row);
+        return (
+          <span className="cell-person">
+            <span className="cell-avatar">
+              {avatarUrl ? <img src={avatarUrl} alt="" /> : getInitials(row.name)}
+            </span>
+            <span className="cell-person-text">
+              <span className="cell-person-name" title={row.name}>{row.name}</span>
+              {row.id === currentUser?.id && <span className="cell-person-sub">You</span>}
+            </span>
           </span>
-        </span>
-      ),
+        );
+      },
     },
     {
       key: 'contact',

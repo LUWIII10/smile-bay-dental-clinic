@@ -40,7 +40,12 @@ class UserManagementController extends Controller
             // CancellationPolicyService) alongside the manual Deactivate
             // action, so admin sees both the count AND whether the system
             // already auto-restricted new bookings for this patient.
-            ->with('patient:id,user_id,booking_restricted_at');
+            ->with('patient:id,user_id,booking_restricted_at')
+            // A dentist's photo lives on dentist_profiles.photo_path, not a
+            // users column (see avatarUtils.js's getAvatarUrl()) — without
+            // this, the list always fell back to initials for dentists even
+            // after they uploaded a real photo through My Profile.
+            ->with('dentistProfile:id,user_id,photo_path');
 
         if (! empty($validated['role'])) {
             $query->where('role', $validated['role']);

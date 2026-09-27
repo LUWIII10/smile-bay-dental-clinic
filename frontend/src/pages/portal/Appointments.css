@@ -303,6 +303,15 @@
   justify-content: center;
   font-weight: 700;
   font-size: 0.76rem;
+  overflow: hidden;
+}
+
+/* A real uploaded photo (getAvatarUrl()) replaces the initials text
+   entirely rather than sitting behind/beside it — fills the same circle. */
+.cell-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .cell-person-text {
