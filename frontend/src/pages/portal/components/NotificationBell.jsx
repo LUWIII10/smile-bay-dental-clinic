@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { getNotifications, markNotificationRead, markAllNotificationsRead } from '../../../api/notifications';
+import { useDropdownPosition } from '../../../hooks/useDropdownPosition';
 import { BellIcon, CheckCircleIcon } from '../icons';
 
 // Notifications aren't as time-pressed as an action queue (HMO/pediatric
@@ -26,10 +27,7 @@ function NotificationBell() {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [open, setOpen] = useState(false);
-  const [position, setPosition] = useState(null);
-  const triggerRef = useRef(null);
-  const dropdownRef = useRef(null);
+  const { open, setOpen, position, triggerRef, dropdownRef, toggle } = useDropdownPosition();
   const navigate = useNavigate();
 
   const load = useCallback(async () => {
@@ -50,35 +48,6 @@ function NotificationBell() {
     const interval = setInterval(load, POLL_INTERVAL_MS);
     return () => clearInterval(interval);
   }, [load]);
-
-  const openPanel = () => {
-    const rect = triggerRef.current.getBoundingClientRect();
-    setPosition({ top: rect.bottom + 10, right: window.innerWidth - rect.right });
-    setOpen(true);
-  };
-
-  useEffect(() => {
-    if (!open) return undefined;
-
-    const handleClickOutside = (e) => {
-      if (
-        triggerRef.current && !triggerRef.current.contains(e.target) &&
-        dropdownRef.current && !dropdownRef.current.contains(e.target)
-      ) {
-        setOpen(false);
-      }
-    };
-    const handleDismiss = () => setOpen(false);
-
-    document.addEventListener('mousedown', handleClickOutside);
-    window.addEventListener('scroll', handleDismiss, true);
-    window.addEventListener('resize', handleDismiss);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      window.removeEventListener('scroll', handleDismiss, true);
-      window.removeEventListener('resize', handleDismiss);
-    };
-  }, [open]);
 
   const handleSelect = async (notification) => {
     setOpen(false);
@@ -115,14 +84,18 @@ function NotificationBell() {
         className="portal-bell"
         aria-label={unreadCount > 0 ? `Notifications (${unreadCount} unread)` : 'Notifications'}
         aria-expanded={open}
-        onClick={() => (open ? setOpen(false) : openPanel())}
+        onClick={toggle}
       >
         <BellIcon />
         {unreadCount > 0 && <span className="notif-bell-dot" aria-hidden="true" />}
       </button>
 
       {open && position && createPortal(
-        <div ref={dropdownRef} className="notif-panel" style={{ top: position.top, right: position.right }}>
+        <div
+          ref={dropdownRef}
+          className="notif-panel"
+          style={{ top: position.top, left: position.left, right: position.right }}
+        >
           <div className="notif-panel-header">
             <span className="notif-panel-title">Notifications</span>
             {unreadCount > 0 && (

@@ -462,6 +462,7 @@
   position: fixed;
   z-index: 1000;
   min-width: 180px;
+  max-width: calc(100vw - 24px);
   background: var(--portal-card);
   border: 1px solid var(--portal-border-light);
   border-radius: var(--portal-radius-sm);

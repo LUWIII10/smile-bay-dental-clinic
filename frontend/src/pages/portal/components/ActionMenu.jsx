@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { MoreIcon } from '../icons';
+import { useDropdownPosition } from '../../../hooks/useDropdownPosition';
 
 // Row-level "..." overflow menu — items is an array of
 // { label, onClick, danger? } | falsy (falsy entries are dropped, so a
@@ -20,53 +20,9 @@ import { MoreIcon } from '../icons';
 // always renders relative to the viewport, never clipped by anything it
 // used to be nested inside.
 function ActionMenu({ items }) {
-  const [open, setOpen] = useState(false);
-  const [position, setPosition] = useState(null);
-  const triggerRef = useRef(null);
-  const dropdownRef = useRef(null);
+  const { open, setOpen, position, triggerRef, dropdownRef, toggle } = useDropdownPosition();
 
   const visibleItems = items.filter(Boolean);
-
-  const openMenu = () => {
-    const rect = triggerRef.current.getBoundingClientRect();
-    // Right edge of the dropdown lines up with the right edge of the
-    // trigger — same visual anchor as the old `right: 0` (relative)
-    // positioning, just expressed as a distance from the viewport's right
-    // edge so it doesn't require knowing the dropdown's own width upfront.
-    setPosition({
-      top: rect.bottom + 6,
-      right: window.innerWidth - rect.right,
-    });
-    setOpen(true);
-  };
-
-  useEffect(() => {
-    if (!open) return undefined;
-
-    const handleClickOutside = (e) => {
-      if (
-        triggerRef.current && !triggerRef.current.contains(e.target) &&
-        dropdownRef.current && !dropdownRef.current.contains(e.target)
-      ) {
-        setOpen(false);
-      }
-    };
-    // Scrolling (the table's own horizontal scroll, or the page) would
-    // leave a `position: fixed` menu visually detached from its trigger —
-    // closing on scroll/resize is simpler and safer than live-repositioning
-    // it, and matches how most dropdown/select UIs already behave.
-    const handleDismiss = () => setOpen(false);
-
-    document.addEventListener('mousedown', handleClickOutside);
-    window.addEventListener('scroll', handleDismiss, true);
-    window.addEventListener('resize', handleDismiss);
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      window.removeEventListener('scroll', handleDismiss, true);
-      window.removeEventListener('resize', handleDismiss);
-    };
-  }, [open]);
 
   if (visibleItems.length === 0) return null;
 
@@ -76,7 +32,7 @@ function ActionMenu({ items }) {
         ref={triggerRef}
         type="button"
         className="action-menu-trigger"
-        onClick={() => (open ? setOpen(false) : openMenu())}
+        onClick={toggle}
         aria-label="More actions"
         aria-expanded={open}
       >
@@ -86,7 +42,7 @@ function ActionMenu({ items }) {
         <div
           ref={dropdownRef}
           className="action-menu-dropdown"
-          style={{ top: position.top, right: position.right }}
+          style={{ top: position.top, left: position.left, right: position.right }}
         >
           {visibleItems.map((item) => (
             <button
