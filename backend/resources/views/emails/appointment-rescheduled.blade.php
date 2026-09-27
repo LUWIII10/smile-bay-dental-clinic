@@ -47,6 +47,17 @@
                                 </tr>
                             </table>
 
+                            @if($reason)
+                                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc; border-radius:10px; margin:0 0 20px;">
+                                    <tr>
+                                        <td style="padding:14px 18px; font-size:13px; color:#334155; line-height:1.6;">
+                                            <strong style="color:#0f2557;">Note from the dentist:</strong><br>
+                                            {{ $reason }}
+                                        </td>
+                                    </tr>
+                                </table>
+                            @endif
+
                             <p style="margin:0; color:#64748b; font-size:13px;">
                                 Need a different time instead? Sign in to your Smile Bay patient portal or contact the clinic directly.
                             </p>

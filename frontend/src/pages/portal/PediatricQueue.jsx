@@ -33,6 +33,7 @@ function ReschedulePicker({ appointment, actingId, onSend, onCancel }) {
   const isActing = actingId === appointment.id;
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
+  const [reason, setReason] = useState('');
   const [error, setError] = useState('');
 
   const handleSend = async () => {
@@ -41,7 +42,7 @@ function ReschedulePicker({ appointment, actingId, onSend, onCancel }) {
       return;
     }
     setError('');
-    const result = await onSend(appointment, date, time);
+    const result = await onSend(appointment, date, time, reason);
     if (result?.error) setError(result.error);
   };
 
@@ -55,6 +56,16 @@ function ReschedulePicker({ appointment, actingId, onSend, onCancel }) {
         time={time}
         onTimeChange={setTime}
       />
+      <div className="form-field" style={{ marginTop: 12 }}>
+        <label className="form-label" htmlFor={`resched-reason-${appointment.id}`}>Reason (optional)</label>
+        <textarea
+          id={`resched-reason-${appointment.id}`}
+          className="form-textarea"
+          placeholder="Let the patient know why, e.g. an emergency came up that day…"
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+        />
+      </div>
       <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
         <button type="button" className="dash-btn" disabled={!time || isActing} onClick={handleSend}>
           {isActing ? 'Sending…' : 'Send New Date'}
@@ -279,10 +290,10 @@ function PediatricQueue() {
     return { awaiting, needsNewDate };
   }, [appointments]);
 
-  const handlePropose = async (appointment, date, time) => {
+  const handlePropose = async (appointment, date, time, reason) => {
     setActingId(appointment.id);
     try {
-      await proposePediatricNewDate(appointment.id, date, time);
+      await proposePediatricNewDate(appointment.id, date, time, reason);
       setAppointments((prev) => prev.filter((a) => a.id !== appointment.id));
       showSuccessToast('New date sent to the patient for confirmation.');
       return {};

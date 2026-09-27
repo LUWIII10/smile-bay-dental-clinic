@@ -47,6 +47,7 @@ class AppointmentRescheduledMail extends Mailable
                 'oldTime' => Carbon::parse($this->oldTime)->format('g:i A'),
                 'newDate' => $this->appointment->appointment_date->format('F j, Y'),
                 'newTime' => Carbon::parse($this->appointment->appointment_time)->format('g:i A'),
+                'reason' => $this->appointment->dentist_reschedule_reason,
             ],
         );
     }

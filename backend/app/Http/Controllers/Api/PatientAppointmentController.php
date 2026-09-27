@@ -260,6 +260,7 @@ class PatientAppointmentController extends Controller
                 'pediatric_confirmed_at' => now(),
                 'pediatric_confirmed_by' => $appointment->dentist_id,
                 'dentist_proposed_new_date_at' => null,
+                'dentist_reschedule_reason' => null,
                 'status' => $isCash ? 'confirmed' : $appointment->status,
             ]);
 
@@ -351,6 +352,7 @@ class PatientAppointmentController extends Controller
                 'appointment_date' => $validated['appointment_date'],
                 'appointment_time' => $validated['appointment_time'],
                 'dentist_proposed_new_date_at' => null,
+                'dentist_reschedule_reason' => null,
             ]);
 
             return true;

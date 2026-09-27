@@ -319,6 +319,11 @@ function PatientAppointments() {
                 {row.dentist?.name || 'Your dentist'} moved this visit to {formatDateLong(row.appointment_date)} —
                 please respond.
               </span>
+              {row.dentist_reschedule_reason && (
+                <span className="appt-hmo-status-note" style={{ fontStyle: 'italic' }}>
+                  "{row.dentist_reschedule_reason}"
+                </span>
+              )}
             </div>
           );
         }
@@ -541,6 +546,12 @@ function PatientAppointments() {
               <strong>{formatTime12h(proposalTarget.appointment_time)}</strong>
               {proposalTarget.service?.name ? ` — ${proposalTarget.service.name}` : ''}
             </p>
+
+            {proposalTarget.dentist_reschedule_reason && (
+              <p style={{ margin: '0 0 14px', fontSize: '0.82rem', color: 'var(--portal-slate)', fontStyle: 'italic' }}>
+                "{proposalTarget.dentist_reschedule_reason}"
+              </p>
+            )}
 
             {!requestingDifferent ? (
               <>

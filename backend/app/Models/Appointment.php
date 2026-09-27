@@ -30,6 +30,7 @@ class Appointment extends Model
         'pediatric_confirmed_at',
         'pediatric_confirmed_by',
         'dentist_proposed_new_date_at',
+        'dentist_reschedule_reason',
         'hmo_status_label',
         'hmo_status_note',
         'hmo_status_updated_at',

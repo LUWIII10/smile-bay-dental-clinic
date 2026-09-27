@@ -220,6 +220,7 @@ class PediatricVerificationController extends Controller
         $validated = $request->validate([
             'appointment_date' => ['required', 'date_format:Y-m-d', 'after:today'],
             'appointment_time' => ['required', 'date_format:H:i'],
+            'reason' => ['nullable', 'string', 'max:1000'],
         ]);
 
         $appointment->load('service:id,duration_minutes');
@@ -243,6 +244,7 @@ class PediatricVerificationController extends Controller
                 'appointment_date' => $validated['appointment_date'],
                 'appointment_time' => $validated['appointment_time'],
                 'dentist_proposed_new_date_at' => now(),
+                'dentist_reschedule_reason' => $validated['reason'] ?? null,
             ]);
 
             return true;
@@ -259,7 +261,8 @@ class PediatricVerificationController extends Controller
             'old_status' => $appointment->status,
             'new_status' => $appointment->status,
             'changed_by' => $request->user()->id,
-            'note' => "Pediatric dentist proposed a new date, from {$oldDate} {$oldTime} to {$validated['appointment_date']} {$validated['appointment_time']} — awaiting patient confirmation.",
+            'note' => "Pediatric dentist proposed a new date, from {$oldDate} {$oldTime} to {$validated['appointment_date']} {$validated['appointment_time']} — awaiting patient confirmation."
+                .(! empty($validated['reason']) ? ' Reason: '.$validated['reason'] : ''),
         ]);
 
         $appointment->load(['service:id,name,duration_minutes', 'patient.user', 'dentist:id,name']);

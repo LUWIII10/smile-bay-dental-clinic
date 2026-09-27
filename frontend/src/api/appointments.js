@@ -212,11 +212,12 @@ export async function verifyPediatricAppointment(appointmentId, action, reason) 
 // Dentist proposes a new date/time for a pediatric request stuck past its
 // original date with no approve/reject decision — stays pending_verification,
 // now waiting on the PATIENT to accept it or counter with another date.
-export async function proposePediatricNewDate(appointmentId, date, time) {
+export async function proposePediatricNewDate(appointmentId, date, time, reason) {
   await api.get('/sanctum/csrf-cookie');
   const response = await api.patch(`/api/pediatric/appointments/${appointmentId}/propose-new-date`, {
     appointment_date: date,
     appointment_time: time,
+    reason,
   });
   return response.data;
 }
