@@ -54,7 +54,6 @@ function ReschedulePicker({ appointment, actingId, onSend, onCancel }) {
         onDateChange={setDate}
         time={time}
         onTimeChange={setTime}
-        idPrefix={`resched-${appointment.id}`}
       />
       <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
         <button type="button" className="dash-btn" disabled={!time || isActing} onClick={handleSend}>

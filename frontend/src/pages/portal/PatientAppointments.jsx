@@ -570,7 +570,7 @@ function PatientAppointments() {
                   onDateChange={setNewDate}
                   time={newTime}
                   onTimeChange={setNewTime}
-                  idPrefix="patient-counter"
+                  compact
                 />
                 {respondError && (
                   <p style={{ margin: '10px 0 0', fontSize: '0.82rem', color: 'var(--portal-red-text)' }}>{respondError}</p>
