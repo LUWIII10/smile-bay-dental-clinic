@@ -1093,25 +1093,36 @@
     page-break-inside: avoid;
   }
 
+  /* Solid, not the light tint this used before — same bold blue
+     PrintLetterhead's title badge and the appointments-by-date print
+     table's header already use (#1d4ed8), for one consistent "this is
+     official/formal" signal across every printed document. Browsers strip
+     background-colors on print by default (ink-saving); without the
+     color-adjust pair below this prints as plain white instead. */
   .record-print-section-header {
     display: flex;
     align-items: center;
     gap: 10px;
     padding: 10px 14px;
-    background: var(--portal-blue-tint);
-    border-bottom: 1px solid var(--portal-blue-border);
+    background: #1d4ed8;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 
+  /* Inverted from before (was a blue circle on a light background) — a
+     blue circle would disappear against this header's own solid blue. */
   .record-print-section-icon {
     flex-shrink: 0;
     width: 26px;
     height: 26px;
     border-radius: 50%;
-    background: var(--portal-blue);
-    color: #fff;
+    background: #ffffff;
+    color: #1d4ed8;
     display: flex;
     align-items: center;
     justify-content: center;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 
   .record-print-section-icon svg {
@@ -1125,7 +1136,7 @@
     font-weight: 700;
     letter-spacing: 0.03em;
     text-transform: uppercase;
-    color: var(--portal-navy);
+    color: #ffffff;
   }
 
   /* Patient Information / Medical & Dental History — label/value pairs in
