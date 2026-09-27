@@ -299,8 +299,28 @@
     flex-wrap: wrap;
   }
 
+  /* The two 170px-wide time inputs (fixed so a rendered "09:00 AM" never
+     clips, see .avail-time-input's own comment) plus gap plus separator
+     need ~380px minimum — real phone testing confirmed this overflowed a
+     narrow screen well past its card's edge when still forced onto one
+     row. Stacked instead, and the 118px indent (meant to line the row up
+     under the toggle at full width) dropped, since there's no longer a
+     wide row for it to align against. */
   .avail-time-inputs {
     width: 100%;
-    padding-left: 118px;
+    padding-left: 0;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .avail-time-input {
+    width: 100%;
+  }
+
+  /* Same reasoning as .avail-time-inputs above — nothing wide left to
+     align under once the row wraps, so the indent just wastes width. */
+  .avail-day-exception-note {
+    margin-left: 0;
   }
 }

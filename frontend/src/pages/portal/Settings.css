@@ -98,6 +98,21 @@
     justify-content: flex-start;
     justify-self: start;
   }
+
+  /* Two 158px-wide time inputs plus gap plus "to" text need ~354px
+     minimum — real phone testing confirmed this overflowed a narrow
+     screen's available content width once .hours-row already dropped to
+     1 column above. Stacked instead of forced onto one row. */
+  .schedule-time-inputs {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .schedule-time-inputs .form-input {
+    width: 100%;
+  }
 }
 
 /* ============ HMO Providers: real partner logo, or initials fallback
