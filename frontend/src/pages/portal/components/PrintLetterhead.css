@@ -123,10 +123,12 @@
   /* ============ Footer ============ */
 
   /* Pinned to the page's own bottom margin, not just tacked on after the
-     table — same position: fixed + bottom: 0 pattern Reports.css's
-     .reports-print-footer already uses (CSS Paged Media repeats fixed
-     content on every page; 15mm @page margin, set in DentalRecords.css,
-     keeps this clear of the physical paper edge). */
+     table — position: fixed + bottom: 0 (CSS Paged Media repeats fixed
+     content on every page; 15mm @page margin, set in DentalRecords.css/
+     Reports.css, keeps this clear of the physical paper edge). Used by
+     all three printed documents now (Patient Dental Record, Patient
+     Appointments Report, Clinic Operations Report) — previously only
+     this one, with the other two each reimplementing their own footer. */
   .print-footer {
     display: block;
     position: fixed;

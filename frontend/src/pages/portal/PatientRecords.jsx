@@ -1067,11 +1067,12 @@ function PatientRecords() {
               </div>
             </div>
 
-            {/* Repeats on every printed page — see the verification report
-                for why this stays a single line with no page number. */}
-            <div className="record-print-footer">
-              <span>Smile Bay Dental Clinic · Patient Dental Record · Confidential Medical Record</span>
-            </div>
+            {/* Shared footer (wave graphic + repeating line) — same
+                component the appointments-by-date print below already
+                uses, for one consistent page-bottom look across every
+                printed document in the app instead of this record's own
+                plain text-only line. */}
+            <PrintFooter text="Smile Bay Dental Clinic · Patient Dental Record · Confidential Medical Record" />
           </div>
 
           <div className="record-detail-print">

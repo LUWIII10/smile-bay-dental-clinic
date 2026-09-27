@@ -17,6 +17,7 @@ import StatCard from './components/StatCard';
 import Skeleton from './components/Skeleton';
 import PageHeader from './components/PageHeader';
 import PrintLetterhead from './components/PrintLetterhead';
+import PrintFooter from './components/PrintFooter';
 import { CalendarIcon, ClockIcon, CheckCircleIcon, XCircleIcon, UsersIcon, PrinterIcon, ChartIcon } from './icons';
 import { formatDateLong } from './dateTimeUtils';
 import './dashboards.css';
@@ -402,15 +403,11 @@ function Reports() {
             </div>
           </div>
 
-          {/* Print-only footer — repeats on every printed page via
-              position: fixed (see Reports.css). No page number: CSS
-              cannot reliably produce one in Chrome/Firefox/Edge without a
-              paged-media library (see the verification report), so this
-              stays a single line rather than a number that might be
-              wrong. */}
-          <div className="reports-print-footer">
-            <span>Smile Bay Dental Clinic · Clinic Operations Report</span>
-          </div>
+          {/* Shared footer (wave graphic + repeating line) — same component
+              Patient Records' two print surfaces use, for one consistent
+              page-bottom look across every printed document in the app
+              instead of this report's own plain text-only line. */}
+          <PrintFooter text="Smile Bay Dental Clinic · Clinic Operations Report" />
         </>
       )}
     </div>

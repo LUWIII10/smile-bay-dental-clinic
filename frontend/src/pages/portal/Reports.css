@@ -227,27 +227,6 @@
     border-bottom: 1.5px solid #111827;
   }
 
-  /* Repeats on every printed page — CSS Paged Media specifies that
-     position: fixed content is duplicated per page, and Chrome/Firefox/
-     Edge all implement that part. bottom: 0 sits inside the @page margin
-     (15mm, well clear of this line's own height), not at the physical
-     paper edge. No page number here — see the verification report for
-     why that part specifically isn't attempted. */
-  .reports-print-footer {
-    display: block;
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    padding-top: 6px;
-    border-top: 1px solid #cbd5e1;
-    font-size: 10.5px;
-    color: #64748b;
-  }
-}
-
-.reports-print-footer {
-  display: none;
 }
 
 /* A4 portrait, 15mm margins — nothing in this file assumes a fixed pixel

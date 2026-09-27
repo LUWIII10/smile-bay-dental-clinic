@@ -1239,25 +1239,6 @@
     color: var(--portal-muted);
     text-align: center;
   }
-
-  /* Repeats on every printed page (position: fixed content is duplicated
-     per page in Chrome/Firefox/Edge). No page number — CSS has no
-     reliable way to produce one in these browsers without a paged-media
-     library (see the verification report), so this stays a single line
-     rather than a number that might be wrong, same call made for the
-     Reports print footer. */
-  .record-print-footer {
-    display: block;
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    padding-top: 6px;
-    border-top: 1px solid var(--portal-border-light);
-    font-size: 9.5px;
-    color: var(--portal-muted);
-    text-align: center;
-  }
 }
 
 /* A4 portrait, 15mm margins — same values as Reports.css's @page rule.
