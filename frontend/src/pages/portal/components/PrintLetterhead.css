@@ -122,19 +122,16 @@
 
   /* ============ Footer ============ */
 
-  /* Pinned to the page's own bottom margin, not just tacked on after the
-     table — position: fixed + bottom: 0 (CSS Paged Media repeats fixed
-     content on every page; 15mm @page margin, set in DentalRecords.css/
-     Reports.css, keeps this clear of the physical paper edge). Used by
-     all three printed documents now (Patient Dental Record, Patient
-     Appointments Report, Clinic Operations Report) — previously only
-     this one, with the other two each reimplementing their own footer. */
+  /* Normal document flow, NOT position: fixed — fixed content repeats on
+     EVERY page under CSS Paged Media (confirmed in a real print preview:
+     the wave printed mid-page, overlapping the Medical & Dental History
+     section, on any document long enough to span more than one page).
+     A short, single-page report never showed the difference, but the
+     Patient Dental Record often doesn't fit on one page. This renders
+     once, wherever the content naturally ends — correct either way. */
   .print-footer {
     display: block;
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    margin-top: 24px;
   }
 
   .print-footer-line {
