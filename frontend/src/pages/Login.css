@@ -159,7 +159,14 @@
   padding: 0.75rem 2.4rem 0.75rem 2.3rem;
   border: 1px solid rgba(203, 213, 225, 0.9);
   border-radius: 10px;
-  font-size: 0.85rem;
+  /* Never below 16px, on any breakpoint (see the mobile override below,
+     and .login-input-wrap select / .login-textarea further down) — iOS
+     Safari force-zooms the whole page on focus for any text input under
+     16px, which is exactly what real phone testing here caught: filling
+     out Register on a phone zoomed in so far the field being typed into
+     scrolled off screen. This isn't a size preference, it's the literal
+     threshold iOS uses to decide whether to zoom at all. */
+  font-size: 16px;
   outline: none;
   box-sizing: border-box;
   background: rgba(240, 247, 255, 0.6);
@@ -342,7 +349,7 @@
   }
 
   .login-input-wrap input {
-    font-size: 0.78rem;
+    font-size: 16px;
     padding: 0.65rem 2.2rem 0.65rem 2.1rem;
   }
 
@@ -429,7 +436,9 @@
   padding: 0.55rem 2.4rem 0.55rem 2.2rem;
   border: 1px solid rgba(203, 213, 225, 0.8);
   border-radius: 8px;
-  font-size: 0.82rem;
+  /* Same 16px floor as .login-input-wrap input above — iOS zooms on
+     focus below that regardless of element type. */
+  font-size: 16px;
   font-family: inherit;
   outline: none;
   box-sizing: border-box;
@@ -450,7 +459,8 @@
   padding: 0.55rem 0.8rem;
   border: 1px solid rgba(203, 213, 225, 0.8);
   border-radius: 8px;
-  font-size: 0.82rem;
+  /* Same 16px floor as .login-input-wrap input above. */
+  font-size: 16px;
   font-family: inherit;
   outline: none;
   box-sizing: border-box;
@@ -833,7 +843,7 @@
 /* Mobile */
 @media (max-width: 600px) {
   .login-textarea {
-    font-size: 0.78rem;
+    font-size: 16px;
   }
 
   .login-step-next,
