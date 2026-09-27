@@ -340,11 +340,19 @@ class AppointmentSlotService
      * "unrestricted", since an unseeded schedule should never accidentally
      * allow bookings).
      *
-     * Falls back to the clinic-wide clinic_schedules default only when this
-     * dentist has zero dentist_weekly_hours rows whatsoever — every dentist
-     * created going forward should get seeded rows immediately (see the My
-     * Availability feature's seed migration), so this fallback is defensive
-     * rather than the normal path.
+     * Falls back to the clinic-wide clinic_schedules default when this
+     * dentist has zero dentist_weekly_hours rows whatsoever (defensive —
+     * every dentist created going forward should get seeded rows
+     * immediately, see the My Availability feature's seed migration), OR
+     * when they're flagged is_on_call on their dentist_profiles row. An
+     * on-call dentist (currently just the pediatric dentist) has no fixed
+     * weekly schedule by design — their own dentist_weekly_hours toggle,
+     * even if saved all-inactive, is never consulted, so every clinic-open
+     * day stays requestable. What actually gates whether they can make it
+     * is their own manual approve/reject/reschedule
+     * (PediatricVerificationController), not this schedule check. A one-off
+     * dentist_day_off still applies to an on-call dentist — that's an
+     * explicit override they made, unlike the recurring weekly toggle.
      */
     private function operatingHoursFor(int $dentistId, string $date): ?array
     {
@@ -359,7 +367,9 @@ class AppointmentSlotService
             return null;
         }
 
-        $hasCustomHours = DB::table('dentist_weekly_hours')->where('dentist_id', $dentistId)->exists();
+        $isOnCall = (bool) DB::table('dentist_profiles')->where('user_id', $dentistId)->value('is_on_call');
+
+        $hasCustomHours = ! $isOnCall && DB::table('dentist_weekly_hours')->where('dentist_id', $dentistId)->exists();
 
         $row = $hasCustomHours
             ? DB::table('dentist_weekly_hours')->where('dentist_id', $dentistId)->where('day_of_week', $dayOfWeek)->first()

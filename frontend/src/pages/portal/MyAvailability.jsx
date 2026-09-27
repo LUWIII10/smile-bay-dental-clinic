@@ -7,7 +7,7 @@ import {
 } from '../../api/appointments';
 import Modal from './components/Modal';
 import PageHeader from './components/PageHeader';
-import { CalendarXIcon, TrashIcon, ClockIcon } from './icons';
+import { CalendarXIcon, TrashIcon, ClockIcon, AlertIcon } from './icons';
 import { formatDateLong, formatTime12h } from './dateTimeUtils';
 import './dashboards.css';
 import './Appointments.css';
@@ -74,6 +74,7 @@ function ConflictModal({ open, onClose, onConfirm, confirming, conflicts }) {
 function MyAvailability() {
   const [weeklyHours, setWeeklyHours] = useState([]);
   const [dayOffs, setDayOffs] = useState([]);
+  const [isOnCall, setIsOnCall] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -101,6 +102,7 @@ function MyAvailability() {
       const data = await getDentistAvailability();
       setWeeklyHours(data.weekly_hours);
       setDayOffs(data.day_offs);
+      setIsOnCall(!!data.is_on_call);
     } catch {
       setError('Could not load your availability. Please refresh the page.');
     } finally {
@@ -211,6 +213,14 @@ function MyAvailability() {
       {error && (
         <div className="dash-empty" style={{ marginBottom: 16 }}>
           <span className="dash-empty-title">{error}</span>
+        </div>
+      )}
+
+      {isOnCall && (
+        <div className="queue-card-overdue-note" style={{ marginBottom: 16 }}>
+          <AlertIcon /> You're on an on-call basis, so the weekly toggles below don't control your actual bookings —
+          patients can still request any clinic-open day. You confirm, reject, or reschedule each request yourself
+          from your Pediatric Queue instead. Use "Add a day off" below if you need to block a specific date.
         </div>
       )}
 

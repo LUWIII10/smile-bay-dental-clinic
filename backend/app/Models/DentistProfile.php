@@ -14,7 +14,15 @@ class DentistProfile extends Model
         'bio',
         'photo_path',
         'years_experience',
+        'is_on_call',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'is_on_call' => 'boolean',
+        ];
+    }
 
     public function user(): BelongsTo
     {

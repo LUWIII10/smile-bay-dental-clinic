@@ -20,7 +20,13 @@ class DentistAvailabilityController extends Controller
 
     public function index(Request $request)
     {
-        return response()->json(['data' => $this->availability->forDentist($request->user()->id)]);
+        $data = $this->availability->forDentist($request->user()->id);
+        // Lets the frontend explain that the toggle grid below is
+        // informational for this dentist — see AppointmentSlotService::
+        // operatingHoursFor()'s is_on_call bypass.
+        $data['is_on_call'] = (bool) $request->user()->dentistProfile?->is_on_call;
+
+        return response()->json(['data' => $data]);
     }
 
     /**

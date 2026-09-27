@@ -72,6 +72,11 @@ class PediatricDentistSeeder extends Seeder
                 'specialization' => 'Pediatric and Special Needs Dentistry',
                 'bio' => 'Doctor of Dental Medicine, University of the Philippines - Manila. Licensed to practice since June 2014.',
                 'years_experience' => now()->year - 2014,
+                // No fixed weekly schedule — see
+                // AppointmentSlotService::operatingHoursFor()'s is_on_call
+                // branch, which bypasses her own dentist_weekly_hours toggle
+                // entirely so patients can still request any clinic-open day.
+                'is_on_call' => true,
             ]
         );
 
