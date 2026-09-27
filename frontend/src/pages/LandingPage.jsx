@@ -489,10 +489,22 @@ function LandingPage() {
             </div>
             <p className="landing-footer-tagline">Online appointments and digital dental records, made simple.</p>
             <div className="landing-footer-social">
-              <a href="#" aria-label="Facebook" className="landing-social-icon landing-social-icon--fb">
+              <a
+                href="https://www.facebook.com/smilebayph"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Facebook"
+                className="landing-social-icon landing-social-icon--fb"
+              >
                 <FaFacebook size={24} />
               </a>
-              <a href="#" aria-label="Instagram" className="landing-social-icon landing-social-icon--ig">
+              <a
+                href="https://www.instagram.com/smilebayph"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Instagram"
+                className="landing-social-icon landing-social-icon--ig"
+              >
                 <FaInstagram size={24} />
               </a>
             </div>
