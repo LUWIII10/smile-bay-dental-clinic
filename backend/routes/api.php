@@ -140,6 +140,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::patch('/staff/appointments/{appointment}/verify', [StaffVerificationController::class, 'verify']);
         Route::post('/staff/appointments/{appointment}/notify-status', [StaffVerificationController::class, 'sendStatusUpdate']);
         Route::patch('/staff/appointments/{appointment}/hmo-info', [StaffVerificationController::class, 'updateHmoInfo']);
+        Route::get('/staff/appointments/{appointment}/available-slots', [StaffVerificationController::class, 'availableSlotsForEdit']);
 
         Route::get('/staff/appointments', [StaffAppointmentController::class, 'index']);
         // /stats must resolve before the {appointment} route below, or Laravel

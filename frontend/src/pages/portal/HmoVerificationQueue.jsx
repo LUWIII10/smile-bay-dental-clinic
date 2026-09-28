@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import api from '../../api';
-import { getHmoQueue, verifyHmoAppointment, sendHmoStatusUpdate, updatePatientHmoInfo } from '../../api/appointments';
+import {
+  getHmoQueue, verifyHmoAppointment, sendHmoStatusUpdate, updatePatientHmoInfo,
+  getServices, getDentists, getStaffEditAvailableSlots,
+} from '../../api/appointments';
 import StatusBadge from './components/StatusBadge';
 import RejectionModal from './components/RejectionModal';
 import Modal from './components/Modal';
@@ -11,6 +14,12 @@ import { formatDateLong, formatTime12h } from './dateTimeUtils';
 import { showSuccessToast } from '../../utils/toast';
 import './dashboards.css';
 import './Appointments.css';
+import './BookAppointment.css';
+
+function todayDateKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 
 // Matches StaffVerificationController::sendStatusUpdate()'s own guard —
 // checked client-side too so the button can honestly disable itself
@@ -90,7 +99,7 @@ function QueueCard({ appointment, actingId, sendingId, onApprove, onReject, onSe
           Reject
         </button>
         <button type="button" className="dash-btn dash-btn--outline" disabled={isActing} onClick={() => onEditHmoInfo(appointment)}>
-          Edit HMO Info
+          Edit Info
         </button>
         <button
           type="button"
@@ -132,9 +141,22 @@ function HmoVerificationQueue() {
   // ever selectable here either, for the same reason.
   const [hmoProviders, setHmoProviders] = useState([]);
   const [editTarget, setEditTarget] = useState(null);
-  const [editForm, setEditForm] = useState({ hmoProviderId: '', hmoNumber: '', hmoCompanyName: '' });
+  const [editForm, setEditForm] = useState({
+    hmoProviderId: '', hmoNumber: '', hmoCompanyName: '',
+    serviceId: '', dentistId: '', appointmentDate: '', appointmentTime: '',
+  });
   const [savingEdit, setSavingEdit] = useState(false);
   const [editError, setEditError] = useState('');
+
+  // Full staff-facing catalog (not the patient-bookable-only subset the
+  // booking wizard uses) — staff can reassign to anything the clinic
+  // offers, minus pediatric (blocked below, same as the backend guard —
+  // this queue is HMO-only and the pediatric dentist accepts Cash only).
+  const [services, setServices] = useState([]);
+  const [editDentists, setEditDentists] = useState([]);
+  const [loadingEditDentists, setLoadingEditDentists] = useState(false);
+  const [editSlots, setEditSlots] = useState([]);
+  const [loadingEditSlots, setLoadingEditSlots] = useState(false);
 
   const mountedRef = useRef(true);
 
@@ -169,6 +191,68 @@ function HmoVerificationQueue() {
       .then((response) => { if (mountedRef.current) setHmoProviders(response.data.data); })
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    getServices()
+      .then((list) => { if (mountedRef.current) setServices(list.filter((s) => !s.is_pediatric)); })
+      .catch(() => {});
+  }, []);
+
+  // Dentist list follows the picked service, same rule the booking wizard
+  // enforces (only dentists credentialed for that service). Keeps the
+  // already-assigned dentist selected if they're still valid for the
+  // (possibly unchanged) service — only clears it when the service
+  // actually changed to one they're not credentialed for, so opening the
+  // modal doesn't blank out a perfectly correct existing assignment.
+  useEffect(() => {
+    if (!editTarget || !editForm.serviceId) {
+      setEditDentists([]);
+      return undefined;
+    }
+    let cancelled = false;
+    (async () => {
+      setLoadingEditDentists(true);
+      try {
+        const list = await getDentists(editForm.serviceId);
+        if (cancelled) return;
+        setEditDentists(list);
+        setEditForm((prev) => {
+          const stillValid = list.some((d) => String(d.id) === String(prev.dentistId));
+          if (stillValid) return prev;
+          return { ...prev, dentistId: list.length === 1 ? String(list[0].id) : '', appointmentTime: '' };
+        });
+      } catch {
+        if (!cancelled) setEditDentists([]);
+      } finally {
+        if (!cancelled) setLoadingEditDentists(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [editTarget, editForm.serviceId]);
+
+  // Real slot-grid math (AppointmentSlotService), same as the patient
+  // booking wizard and RescheduleModal — this appointment's own current
+  // slot is excluded from "occupied" server-side, so it shows up here as
+  // pickable instead of the grid looking like nothing is free.
+  useEffect(() => {
+    if (!editTarget || !editForm.serviceId || !editForm.dentistId || !editForm.appointmentDate) {
+      setEditSlots([]);
+      return undefined;
+    }
+    let cancelled = false;
+    (async () => {
+      setLoadingEditSlots(true);
+      try {
+        const result = await getStaffEditAvailableSlots(editTarget.id, editForm.dentistId, editForm.serviceId, editForm.appointmentDate);
+        if (!cancelled) setEditSlots(result.slots || []);
+      } catch {
+        if (!cancelled) setEditSlots([]);
+      } finally {
+        if (!cancelled) setLoadingEditSlots(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [editTarget, editForm.serviceId, editForm.dentistId, editForm.appointmentDate]);
 
   const handleApprove = async (appointment) => {
     setActingId(appointment.id);
@@ -230,12 +314,30 @@ function HmoVerificationQueue() {
 
   const openEditHmoInfo = (appointment) => {
     setEditError('');
+    setEditDentists([]);
+    setEditSlots([]);
     setEditForm({
       hmoProviderId: appointment.patient?.hmo_provider_id ? String(appointment.patient.hmo_provider_id) : '',
       hmoNumber: appointment.patient?.hmo_number || '',
       hmoCompanyName: appointment.patient?.hmo_company_name || '',
+      serviceId: appointment.service_id ? String(appointment.service_id) : '',
+      dentistId: appointment.dentist_id ? String(appointment.dentist_id) : '',
+      appointmentDate: appointment.appointment_date.slice(0, 10),
+      appointmentTime: appointment.appointment_time.slice(0, 5),
     });
     setEditTarget(appointment);
+  };
+
+  const handleEditServiceChange = (serviceId) => {
+    setEditForm((prev) => ({ ...prev, serviceId, dentistId: '', appointmentTime: '' }));
+  };
+
+  const handleEditDentistChange = (dentistId) => {
+    setEditForm((prev) => ({ ...prev, dentistId, appointmentTime: '' }));
+  };
+
+  const handleEditDateChange = (appointmentDate) => {
+    setEditForm((prev) => ({ ...prev, appointmentDate, appointmentTime: '' }));
   };
 
   const handleSaveHmoInfo = async () => {
@@ -250,9 +352,9 @@ function HmoVerificationQueue() {
       // already give by removing the card immediately.
       setAppointments((prev) => prev.map((a) => (a.id === editTarget.id ? result.data : a)));
       setEditTarget(null);
-      showSuccessToast('HMO details updated.');
+      showSuccessToast('Booking details updated.');
     } catch (err) {
-      setEditError(err.response?.data?.message || 'Could not update these HMO details.');
+      setEditError(err.response?.data?.message || 'Could not update this booking.');
     } finally {
       setSavingEdit(false);
     }
@@ -351,17 +453,76 @@ function HmoVerificationQueue() {
         </div>
       </Modal>
 
-      <Modal open={!!editTarget} onClose={() => setEditTarget(null)} title="Edit HMO Details">
+      <Modal open={!!editTarget} onClose={() => setEditTarget(null)} title="Edit Booking Info">
         <p style={{ margin: '0 0 12px', fontSize: '0.85rem', color: 'var(--portal-muted)' }}>
           {editTarget && (
             <>
-              Corrects {editTarget.patient?.first_name} {editTarget.patient?.last_name}&rsquo;s own HMO info on file —
-              useful if it was mistyped at booking, before you call the provider to verify coverage.
+              Corrects anything on {editTarget.patient?.first_name} {editTarget.patient?.last_name}&rsquo;s booking —
+              service, dentist, date/time, or HMO info — useful if something was mistyped or miscommunicated at
+              booking, before you call the provider to verify coverage.
             </>
           )}
         </p>
 
-        <label className="modal-field-label">HMO Provider</label>
+        <label className="modal-field-label">Service</label>
+        <select
+          className="form-select"
+          value={editForm.serviceId}
+          onChange={(e) => handleEditServiceChange(e.target.value)}
+        >
+          <option value="">Select a service…</option>
+          {services.map((service) => (
+            <option key={service.id} value={service.id}>{service.name}</option>
+          ))}
+        </select>
+
+        <label className="modal-field-label">Assigned Dentist</label>
+        <select
+          className="form-select"
+          value={editForm.dentistId}
+          disabled={!editForm.serviceId || loadingEditDentists}
+          onChange={(e) => handleEditDentistChange(e.target.value)}
+        >
+          <option value="">
+            {loadingEditDentists ? 'Loading dentists…' : 'Select a dentist…'}
+          </option>
+          {editDentists.map((dentist) => (
+            <option key={dentist.id} value={dentist.id}>{dentist.name}</option>
+          ))}
+        </select>
+
+        <label className="modal-field-label">Date</label>
+        <input
+          type="date"
+          className="form-input"
+          value={editForm.appointmentDate}
+          min={todayDateKey()}
+          onChange={(e) => handleEditDateChange(e.target.value)}
+        />
+
+        <label className="modal-field-label" style={{ marginTop: 14, display: 'block' }}>Time</label>
+        {!editForm.dentistId ? (
+          <p style={{ fontSize: '0.85rem', color: 'var(--portal-muted)' }}>Pick a service and dentist first.</p>
+        ) : loadingEditSlots ? (
+          <p style={{ fontSize: '0.85rem', color: 'var(--portal-muted)' }}>Loading open slots…</p>
+        ) : editSlots.length === 0 ? (
+          <p style={{ fontSize: '0.85rem', color: 'var(--portal-muted)' }}>No open slots for this date.</p>
+        ) : (
+          <div className="slots-grid">
+            {editSlots.map((t) => (
+              <button
+                key={t}
+                type="button"
+                className={`slot-card${t === editForm.appointmentTime ? ' slot-card--selected' : ''}`}
+                onClick={() => setEditForm((p) => ({ ...p, appointmentTime: t }))}
+              >
+                {formatTime12h(t)}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <label className="modal-field-label" style={{ marginTop: 14, display: 'block' }}>HMO Provider</label>
         <select
           className="form-select"
           value={editForm.hmoProviderId}
@@ -398,7 +559,10 @@ function HmoVerificationQueue() {
           <button
             type="button"
             className="dash-btn"
-            disabled={savingEdit || !editForm.hmoProviderId || !editForm.hmoNumber.trim()}
+            disabled={
+              savingEdit || !editForm.hmoProviderId || !editForm.hmoNumber.trim()
+              || !editForm.serviceId || !editForm.dentistId || !editForm.appointmentDate || !editForm.appointmentTime
+            }
             onClick={handleSaveHmoInfo}
           >
             {savingEdit ? 'Saving…' : 'Save Changes'}

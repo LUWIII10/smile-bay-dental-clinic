@@ -41,8 +41,14 @@ class AppointmentSlotService
      * already taken/in the past. Only genuinely bookable start times are
      * ever returned — nothing conflicting or in the past is included for
      * the frontend to render as disabled; there's simply nothing to render.
+     *
+     * $excludeAppointmentId (optional, default null — every existing caller
+     * is unaffected) lets an appointment's OWN current slot count as free
+     * rather than self-conflicting, same as isSlotAvailable() already does —
+     * needed by the staff HMO-queue "Edit Info" slot picker, which shows
+     * available times for an appointment that itself already occupies one.
      */
-    public function getAvailableSlots(int $dentistId, string $date, int $durationMinutes): array
+    public function getAvailableSlots(int $dentistId, string $date, int $durationMinutes, ?int $excludeAppointmentId = null): array
     {
         $schedule = $this->operatingHoursFor($dentistId, $date);
 
@@ -51,7 +57,7 @@ class AppointmentSlotService
         }
 
         $candidates = $this->candidateStartTimes($date, $schedule, $durationMinutes);
-        $existing = $this->occupiedIntervals($dentistId, $date);
+        $existing = $this->occupiedIntervals($dentistId, $date, $excludeAppointmentId);
 
         return array_values(array_filter(
             $candidates,

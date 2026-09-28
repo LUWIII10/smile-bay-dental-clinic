@@ -251,18 +251,40 @@ export async function sendHmoStatusUpdate(appointmentId, statusLabel, note) {
   return response.data;
 }
 
-// Corrects the PATIENT's own hmo_provider_id/hmo_number/hmo_company_name
-// (not anything on the appointment itself) — scoped to one queue card so
-// staff can only reach it from a booking that's still actually awaiting
-// verification (StaffVerificationController::updateHmoInfo()'s own guard).
-export async function updatePatientHmoInfo(appointmentId, { hmoProviderId, hmoNumber, hmoCompanyName }) {
+// Corrects everything shown on an HMO queue card — the PATIENT's own
+// hmo_provider_id/hmo_number/hmo_company_name AND the appointment's own
+// service/dentist/date/time — scoped to one queue card so staff can only
+// reach it from a booking that's still actually awaiting verification
+// (StaffVerificationController::updateHmoInfo()'s own guard). Every field
+// is always sent — the modal keeps the full current state, not a partial
+// patch, so the backend can stay one predictable "save everything shown"
+// action.
+export async function updatePatientHmoInfo(appointmentId, {
+  hmoProviderId, hmoNumber, hmoCompanyName, serviceId, dentistId, appointmentDate, appointmentTime,
+}) {
   await api.get('/sanctum/csrf-cookie');
   const response = await api.patch(`/api/staff/appointments/${appointmentId}/hmo-info`, {
     hmo_provider_id: hmoProviderId,
     hmo_number: hmoNumber,
     hmo_company_name: hmoCompanyName || null,
+    service_id: serviceId,
+    dentist_id: dentistId,
+    appointment_date: appointmentDate,
+    appointment_time: appointmentTime,
   });
   return response.data;
+}
+
+// Time-slot picker for the "Edit Info" modal — same shape as
+// getAvailableSlots() above, but this appointment's own current slot counts
+// as free instead of self-conflicting (StaffVerificationController::
+// availableSlotsForEdit()), so leaving the schedule untouched while fixing
+// just the HMO info doesn't force re-picking a time first.
+export async function getStaffEditAvailableSlots(appointmentId, dentistId, serviceId, date) {
+  const response = await api.get(`/api/staff/appointments/${appointmentId}/available-slots`, {
+    params: { dentist_id: dentistId, service_id: serviceId, date },
+  });
+  return response.data.data;
 }
 
 // Marks a past confirmed/pending appointment that never actually happened as

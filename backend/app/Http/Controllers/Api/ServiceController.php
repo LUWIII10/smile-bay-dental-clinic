@@ -26,7 +26,7 @@ class ServiceController extends Controller
 
         return response()->json([
             'data' => $query->orderBy('id')
-                ->get(['id', 'name', 'description', 'category', 'duration_minutes']),
+                ->get(['id', 'name', 'description', 'category', 'duration_minutes', 'is_pediatric']),
         ]);
     }
 }

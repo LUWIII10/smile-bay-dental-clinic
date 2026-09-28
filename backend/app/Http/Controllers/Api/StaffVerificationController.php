@@ -9,6 +9,9 @@ use App\Mail\HmoStatusUpdateMail;
 use App\Models\Appointment;
 use App\Models\AppointmentStatusLog;
 use App\Models\Notification;
+use App\Models\Service;
+use App\Models\User;
+use App\Services\AppointmentSlotService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -17,6 +20,8 @@ use Illuminate\Validation\Rule;
 
 class StaffVerificationController extends Controller
 {
+    public function __construct(private AppointmentSlotService $slots) {}
+
     /**
      * The staff HMO review queue — did not exist before this pass (only the
      * approve/reject action below did). An appointment appears here only
@@ -239,26 +244,27 @@ class StaffVerificationController extends Controller
     }
 
     /**
-     * Correct the patient's own HMO details (provider, card number, company
-     * name) right from the queue card — a typo caught while staff are
-     * looking at it to call the provider shouldn't need a trip to a
-     * different page to fix first. Writes to the PATIENT row (hmo_provider_id/
-     * hmo_number/hmo_company_name live there, not on the appointment —
-     * see StaffVerificationController::index()'s own eager-load), scoped to
-     * this one appointment only so staff can't reach this action from
-     * anywhere but the queue card it's shown on.
+     * Correct anything shown on the queue card — HMO details (provider, card
+     * number, company name, on the PATIENT row) as well as the appointment's
+     * own service/dentist/date/time — right from the card, since a typo or a
+     * miscommunicated slot caught while staff are looking at it shouldn't
+     * need a trip to a different page to fix first. Every field is required
+     * on every save (the modal always resubmits the full current state, not
+     * a partial patch) so this stays one predictable "save everything shown"
+     * action rather than needing to reason about which subset changed.
      *
-     * Same guard as verify() — only valid while this is still the reason
-     * the patient is in the queue at all. Deliberately doesn't touch
-     * status/verified_by/pediatric_confirmed_at or anything scheduling-
-     * related (service, dentist, date/time) — those are a different,
-     * larger change this pass doesn't cover.
+     * Same guard as verify() — only valid while this is still the reason the
+     * patient is in the queue at all. Re-validates the new service/dentist/
+     * slot with the exact same rules real booking goes through (credentialing,
+     * pediatric-is-cash-only, real slot availability excluding this
+     * appointment's own current slot) — never trusts the dropdown values
+     * alone, same reasoning as every other slot-consuming action in this app.
      */
     public function updateHmoInfo(Request $request, Appointment $appointment)
     {
         if ($appointment->patient_type_snapshot !== 'hmo' || $appointment->status !== 'pending_verification') {
             return response()->json([
-                'message' => 'HMO details can only be edited for a booking still awaiting verification.',
+                'message' => 'This booking can only be edited while still awaiting verification.',
             ], 422);
         }
 
@@ -266,26 +272,150 @@ class StaffVerificationController extends Controller
             'hmo_provider_id' => ['required', 'integer', Rule::exists('hmo_providers', 'id')->where('is_active', true)],
             'hmo_number' => ['required', 'string', 'max:100'],
             'hmo_company_name' => ['nullable', 'string', 'max:255'],
+            'service_id' => ['required', 'integer', 'exists:services,id'],
+            'dentist_id' => ['required', 'integer', Rule::exists('users', 'id')->where('role', 'dentist')],
+            'appointment_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:today'],
+            'appointment_time' => ['required', 'date_format:H:i'],
         ]);
+
+        $service = Service::findOrFail($validated['service_id']);
+
+        // Same credentialing rule AppointmentController::store() enforces at
+        // booking time — reassigning to a dentist who doesn't offer this
+        // service would silently produce a booking that could never
+        // actually happen.
+        $dentistIsCredentialed = User::where('id', $validated['dentist_id'])
+            ->whereHas('services', fn ($q) => $q->where('services.id', $service->id))
+            ->exists();
+
+        if (! $dentistIsCredentialed) {
+            return response()->json(['message' => 'The selected dentist does not offer this service.'], 422);
+        }
+
+        // This entire queue is HMO-only (see index()) — the pediatric
+        // dentist accepts Cash only, so switching to a pediatric service
+        // here would produce a booking that violates that rule the moment
+        // it's saved.
+        if ($service->isPediatric()) {
+            return response()->json([
+                'message' => 'Pediatric Dentistry accepts Cash patients only — this HMO booking cannot be reassigned to a pediatric service.',
+            ], 422);
+        }
 
         $patient = $appointment->patient;
         $patient->loadMissing('hmoProvider');
         $oldProviderName = $patient->hmoProvider?->name ?? 'none on file';
         $oldNumber = $patient->hmo_number ?: 'none on file';
+        $oldServiceName = $appointment->service->name ?? 'unknown service';
+        $oldDentistName = $appointment->dentist->name ?? 'unassigned';
+        $oldDate = $appointment->appointment_date->toDateString();
+        $oldTime = $appointment->appointment_time;
 
-        $patient->update($validated);
+        $serviceChanged = $service->id !== $appointment->service_id;
+        $scheduleChanged = $serviceChanged
+            || $validated['dentist_id'] !== $appointment->dentist_id
+            || $validated['appointment_date'] !== $oldDate
+            || $validated['appointment_time'] !== substr($oldTime, 0, 5);
+
+        $saved = DB::transaction(function () use ($appointment, $service, $validated, $scheduleChanged) {
+            // Only re-check the slot when something that affects it actually
+            // changed — re-validating an unchanged slot is harmless, but
+            // skipping it when nothing moved avoids a spurious 409 from the
+            // appointment's own row locking itself out of its own count.
+            if ($scheduleChanged) {
+                $available = $this->slots->isSlotAvailable(
+                    $validated['dentist_id'],
+                    $validated['appointment_date'],
+                    $validated['appointment_time'],
+                    $service->duration_minutes,
+                    $appointment->id,
+                );
+
+                if (! $available) {
+                    return false;
+                }
+            }
+
+            $appointment->update([
+                'service_id' => $service->id,
+                'dentist_id' => $validated['dentist_id'],
+                'appointment_date' => $validated['appointment_date'],
+                'appointment_time' => $validated['appointment_time'],
+            ]);
+
+            $appointment->patient->update([
+                'hmo_provider_id' => $validated['hmo_provider_id'],
+                'hmo_number' => $validated['hmo_number'],
+                'hmo_company_name' => $validated['hmo_company_name'],
+            ]);
+
+            return true;
+        });
+
+        if (! $saved) {
+            return response()->json([
+                'message' => 'That time slot is no longer available. Please choose another.',
+            ], 409);
+        }
+
         $patient->refresh()->loadMissing('hmoProvider');
+        $appointment->refresh()->load(['patient.user', 'patient.hmoProvider', 'dentist', 'service']);
+
+        $logLines = [
+            "provider: {$oldProviderName} \u{2192} {$patient->hmoProvider?->name}",
+            "card #: {$oldNumber} \u{2192} {$patient->hmo_number}",
+        ];
+        if ($scheduleChanged) {
+            $logLines[] = "service: {$oldServiceName} \u{2192} {$appointment->service->name}";
+            $logLines[] = "dentist: {$oldDentistName} \u{2192} {$appointment->dentist->name}";
+            $logLines[] = "schedule: {$oldDate} {$oldTime} \u{2192} {$appointment->appointment_date->toDateString()} {$appointment->appointment_time}";
+        }
 
         AppointmentStatusLog::create([
             'appointment_id' => $appointment->id,
             'old_status' => $appointment->status,
             'new_status' => $appointment->status,
             'changed_by' => $request->user()->id,
-            'note' => "HMO details corrected by staff — provider: {$oldProviderName} \u{2192} {$patient->hmoProvider?->name}, card #: {$oldNumber} \u{2192} {$patient->hmo_number}.",
+            'note' => 'Booking details corrected by staff — '.implode(', ', $logLines).'.',
         ]);
 
-        $appointment->load(['patient.user', 'patient.hmoProvider', 'dentist', 'service']);
+        return response()->json(['message' => 'Booking details updated.', 'data' => $appointment]);
+    }
 
-        return response()->json(['message' => 'HMO details updated.', 'data' => $appointment]);
+    /**
+     * Backs the "Edit Info" modal's time-slot picker — same real
+     * AppointmentSlotService math the patient booking wizard and the
+     * dentist's own RescheduleModal use, with one difference: this
+     * appointment's OWN current slot counts as free instead of
+     * self-conflicting (see AppointmentSlotService::getAvailableSlots()'s
+     * $excludeAppointmentId), so editing just the HMO info without touching
+     * the schedule doesn't require re-picking a time first.
+     */
+    public function availableSlotsForEdit(Request $request, Appointment $appointment)
+    {
+        if ($appointment->patient_type_snapshot !== 'hmo' || $appointment->status !== 'pending_verification') {
+            return response()->json([
+                'message' => 'This booking can only be edited while still awaiting verification.',
+            ], 422);
+        }
+
+        $validated = $request->validate([
+            'service_id' => ['required', 'integer', 'exists:services,id'],
+            'dentist_id' => ['required', 'integer', 'exists:users,id'],
+            'date' => ['required', 'date_format:Y-m-d', 'after_or_equal:today'],
+        ]);
+
+        $service = Service::findOrFail($validated['service_id']);
+
+        $slots = $this->slots->getAvailableSlots(
+            $validated['dentist_id'],
+            $validated['date'],
+            $service->duration_minutes,
+            $appointment->id,
+        );
+
+        return response()->json([
+            'data' => ['slots' => array_map(fn ($slot) => $slot->format('H:i'), $slots)],
+        ]);
     }
 }
