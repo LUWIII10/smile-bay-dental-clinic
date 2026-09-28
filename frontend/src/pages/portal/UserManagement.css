@@ -36,3 +36,9 @@
 .restriction-count-caption--low { color: var(--portal-muted); }
 .restriction-count-caption--mid { color: var(--portal-amber-text); }
 .restriction-count-caption--high { color: var(--portal-red-text); }
+
+/* Cancellations column, non-patient row — dash instead of a "0" badge,
+   which would misleadingly imply the concept applies to staff/admin too. */
+.cancellation-count-na {
+  color: var(--portal-muted);
+}

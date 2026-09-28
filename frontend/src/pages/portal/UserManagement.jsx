@@ -97,8 +97,9 @@ function UserManagement() {
   }, [search, roleFilter, statusFilter, sort, perPage]);
 
   // Switching away from the patient filter drops a stale cancellations-sort
-  // — that column disappears with the filter, so the sort backing it
-  // shouldn't silently keep applying to the next role's list.
+  // — the Cancellations column itself stays visible for every role now, but
+  // every non-patient row reads as a dash (n/a), so sorting by it outside
+  // the patient filter would just be a no-op ordering, not a real sort.
   useEffect(() => {
     if (roleFilter !== 'patient') setSort('');
   }, [roleFilter]);
@@ -306,13 +307,15 @@ function UserManagement() {
         );
       },
     },
-    // Patient-only — a dentist/assistant/admin never has a cancellation
-    // count worth showing (their patientAppointments relation is always
-    // empty). Lets an admin spot frequent cancellers and, per row, jump
-    // straight to the existing Deactivate action below — no separate page,
-    // no new suspend mechanism, just visibility into the one that's already
-    // there.
-    ...(roleFilter === 'patient' ? [{
+    // Always visible now — was patient-role-filter-only, but that meant an
+    // admin had to know to filter to Patient first before this (or a
+    // frequent canceller) was visible at all. A dentist/assistant/admin
+    // still never has a real count (their patientAppointments relation is
+    // always empty) — shown as a plain dash for those rows instead of a
+    // misleading "0" badge. Sort control only makes sense scoped to
+    // patients (see toggleCancellationSort's own reset-on-role-change
+    // effect above), so it stays even though the column itself doesn't.
+    {
       key: 'cancellations',
       label: (
         <button type="button" className="th-sort-btn" onClick={toggleCancellationSort}>
@@ -324,11 +327,12 @@ function UserManagement() {
       minWidth: '12%',
       align: 'center',
       render: (row) => {
+        if (row.role !== 'patient') return <span className="cancellation-count-na">&mdash;</span>;
         const count = row.cancellation_count ?? 0;
         const tone = count >= 3 ? 'red' : count >= 1 ? 'amber' : 'gray';
         return <StatusBadge status={String(count)} tone={tone} />;
       },
-    }] : []),
+    },
     {
       key: 'actions',
       label: '',
