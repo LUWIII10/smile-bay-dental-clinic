@@ -10,13 +10,25 @@
 
   body { font-family: 'DejaVu Sans', sans-serif; color: #334155; font-size: 10.5px; }
 
+  /* "Smile Bay" in the letterhead is Pacifico everywhere else in the app
+     (BrandLogo.css's .sb-title, loaded there from Google Fonts) — dompdf
+     can't reach a remote @font-face src by default, so this is the same
+     font file, shipped locally instead, referenced by a real filesystem
+     path the way the logo image already is (public_path(), not asset()). */
+  @font-face {
+    font-family: 'Pacifico';
+    src: url('{{ public_path('fonts/Pacifico-Regular.ttf') }}') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+  }
+
   table { border-collapse: collapse; width: 100%; }
 
   .pdf-letterhead { width: 100%; margin-bottom: 16px; padding-bottom: 14px; border-bottom: 3px solid #2952e3; }
   .pdf-letterhead td { vertical-align: top; }
   .pdf-logo-cell { width: 42px; padding-right: 10px; }
   .pdf-logo-cell img { width: 38px; height: 38px; }
-  .pdf-brand-title { font-size: 15px; font-weight: bold; color: #2952e3; }
+  .pdf-brand-title { font-family: 'Pacifico', 'DejaVu Sans', cursive; font-size: 19px; font-weight: normal; color: #2952e3; }
   .pdf-brand-subtitle { font-size: 8.5px; letter-spacing: 1px; color: #64748b; }
   .pdf-tagline { font-size: 9px; font-style: italic; color: #64748b; padding-top: 6px; margin-top: 8px; border-top: 1px solid #dbeafe; }
   .pdf-contact { font-size: 9px; color: #334155; margin-top: 10px; line-height: 1.6; }
