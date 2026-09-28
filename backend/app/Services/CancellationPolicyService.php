@@ -16,7 +16,9 @@ use App\Models\Patient;
  *
  * Two escalating, automatic consequences — deliberately not a single jump
  * straight to deactivation:
- * - WARNING_THRESHOLD: informational only (statusFor(), read anywhere).
+ * - WARNING_THRESHOLD: informational only (statusFor(), read anywhere) —
+ *   fires starting on the 1st cancellation, so the patient sees a notice
+ *   every time from then on, not just once right before the cutoff.
  * - RESTRICTION_THRESHOLD: Patient::booking_restricted_at gets set — blocks
  *   new self-service bookings (AppointmentController::store()) but the
  *   account otherwise works normally (can still log in, view records,
@@ -28,7 +30,7 @@ use App\Models\Patient;
  */
 class CancellationPolicyService
 {
-    private const WARNING_THRESHOLD = 2;
+    private const WARNING_THRESHOLD = 1;
 
     private const RESTRICTION_THRESHOLD = 3;
 

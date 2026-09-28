@@ -502,7 +502,9 @@ function BookAppointment() {
               <div className="suggestion-banner" style={{ marginTop: 12 }}>
                 <span className="suggestion-banner-icon"><AlertIcon /></span>
                 <div className="suggestion-banner-text">
-                  <p className="suggestion-banner-title">You've had {cancellationPolicy.cancellation_count} cancelled appointments</p>
+                  <p className="suggestion-banner-title">
+                    You've had {cancellationPolicy.cancellation_count} cancelled appointment{cancellationPolicy.cancellation_count === 1 ? '' : 's'}
+                  </p>
                   <p className="suggestion-banner-subtitle">
                     Reaching {cancellationPolicy.restriction_threshold} will restrict new bookings on this account. Please only
                     book if you're sure you can make it.

@@ -76,7 +76,7 @@ function PatientDashboard() {
             <p className="suggestion-banner-title">
               {cancellationPolicy.restricted
                 ? 'New bookings are restricted on your account'
-                : `You've had ${cancellationPolicy.cancellation_count} cancelled appointments`}
+                : `You've had ${cancellationPolicy.cancellation_count} cancelled appointment${cancellationPolicy.cancellation_count === 1 ? '' : 's'}`}
             </p>
             <p className="suggestion-banner-subtitle">
               {cancellationPolicy.restricted
