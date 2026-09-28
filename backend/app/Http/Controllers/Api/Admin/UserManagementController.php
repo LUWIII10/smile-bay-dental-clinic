@@ -37,15 +37,44 @@ class UserManagementController extends Controller
 
         $query = User::query()
             ->withCount([
-                // Same patient-initiated-only scoping as CancellationPolicyService
+                // Same patient-initiated-only scoping AND same
+                // cancellation_count_reset_at cutoff as CancellationPolicyService
                 // ::cancellationCount() — a staff/dentist cancelling on a
-                // patient's behalf previously inflated this column with
-                // cancellations that weren't the patient's own doing.
+                // patient's behalf never counts here either, and an admin's
+                // Lift Restriction/Activate resets this column back toward 0
+                // exactly the way it resets the patient's own strike count,
+                // so the two never show conflicting numbers for the same
+                // patient. The reset cutoff is looked up via a correlated
+                // scalar subquery (not a relation traversal) since it lives
+                // on patients, one hop further than this subquery already
+                // has a clean alias for.
                 'patientAppointments as cancellation_count' => fn ($q) => $q
                     ->where('appointments.status', 'cancelled')
                     ->whereHas('statusLogs', fn ($sq) => $sq
                         ->where('new_status', 'cancelled')
-                        ->whereColumn('changed_by', 'users.id')),
+                        ->whereColumn('changed_by', 'users.id')
+                        ->whereRaw(
+                            // Strictly after (>), not >= — see
+                            // CancellationPolicyService::cancellationCount()'s
+                            // own comment on why: a reset and the
+                            // cancellation that triggered it can land in the
+                            // same whole-second timestamp.
+                            //
+                            // The OUTER parens around the whole OR are load-
+                            // bearing, not decoration: whereRaw() ANDs this
+                            // string onto the preceding where()/whereColumn()
+                            // calls, and SQL's AND binds tighter than OR — an
+                            // unparenthesized "...IS NULL OR created_at > ..."
+                            // would let the OR's right side satisfy the
+                            // *entire* WHERE clause on its own, silently
+                            // discarding the new_status/changed_by filters
+                            // above for any row where created_at happens to
+                            // be later than the reset cutoff. Caught this via
+                            // a real (rolled-back) test where the count came
+                            // back inflated after a reset, not by inspection.
+                            '((select cancellation_count_reset_at from patients where patients.user_id = users.id) is null '
+                            .'or appointment_status_log.created_at > (select cancellation_count_reset_at from patients where patients.user_id = users.id))'
+                        )),
             ])
             // Surfaces the automatic 3-strike restriction (see
             // CancellationPolicyService) alongside the manual Deactivate
@@ -169,7 +198,10 @@ class UserManagementController extends Controller
      * shows right back up as "Restricted Account" with booking still
      * blocked, needing a second, non-obvious "Lift Restriction" click to
      * actually finish restoring it. Admin clicking "Activate" means the
-     * account is back in good standing on both fronts.
+     * account is back in good standing on both fronts — including a reset
+     * cancellation_count_reset_at, a genuine clean slate on the strike
+     * count itself (see CancellationPolicyService's own doc comment),
+     * not just the block being removed while the count still sits at 3+.
      */
     public function updateStatus(Request $request, User $user)
     {
@@ -184,7 +216,7 @@ class UserManagementController extends Controller
         $user->update(['status' => $validated['status']]);
 
         if ($validated['status'] === 'active' && $user->patient?->isBookingRestricted()) {
-            $user->patient->update(['booking_restricted_at' => null]);
+            $user->patient->update(['booking_restricted_at' => null, 'cancellation_count_reset_at' => now()]);
             Notification::notifyUser(
                 $user->id,
                 'Account reactivated',
@@ -202,6 +234,10 @@ class UserManagementController extends Controller
      * system itself never clears it on its own. Deliberately separate from
      * updateStatus() above: this only ever touches booking_restricted_at
      * (self-service booking eligibility), never the account's login status.
+     * Also resets cancellation_count_reset_at — a genuine clean slate on
+     * the strike count itself (see CancellationPolicyService's own doc
+     * comment), not just the block being removed while the count that
+     * triggered it still sits at 3+ and re-fires on the next cancellation.
      */
     public function unrestrictBooking(User $user)
     {
@@ -215,7 +251,7 @@ class UserManagementController extends Controller
             return response()->json(['message' => 'This account is not currently restricted.'], 422);
         }
 
-        $patient->update(['booking_restricted_at' => null]);
+        $patient->update(['booking_restricted_at' => null, 'cancellation_count_reset_at' => now()]);
 
         Notification::notifyUser(
             $user->id,

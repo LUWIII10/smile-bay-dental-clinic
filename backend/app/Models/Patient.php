@@ -53,6 +53,7 @@ class Patient extends Model
         'consent_certified',
         'booking_restricted_at',
         'restriction_count',
+        'cancellation_count_reset_at',
     ];
 
     protected function casts(): array

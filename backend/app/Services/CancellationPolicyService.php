@@ -50,6 +50,15 @@ use App\Models\Patient;
  * actual restriction event — so a patient who was restricted, lifted, then
  * restricted again later shows that history instead of reading as a
  * first-time case each time.
+ *
+ * cancellation_count_reset_at is the opposite direction: lifting a
+ * restriction (or reactivating a deactivated account) gives the patient a
+ * genuine clean slate on the STRIKE COUNT itself — cancellationCount() only
+ * counts cancellations whose own status-log entry is AFTER this timestamp
+ * (null = no reset has ever happened, count everything, the original
+ * all-time behavior). Without this, lifting a restriction would remove the
+ * block but leave the count sitting at 3, immediately re-triggering on the
+ * very next cancellation regardless of behavior since.
  */
 class CancellationPolicyService
 {
@@ -61,9 +70,17 @@ class CancellationPolicyService
     {
         return Appointment::where('patient_id', $patient->id)
             ->where('status', 'cancelled')
-            ->whereHas('statusLogs', fn ($q) => $q
-                ->where('new_status', 'cancelled')
-                ->where('changed_by', $patient->user_id))
+            ->whereHas('statusLogs', function ($q) use ($patient) {
+                $q->where('new_status', 'cancelled')->where('changed_by', $patient->user_id);
+                if ($patient->cancellation_count_reset_at) {
+                    // Strictly after, not >= — a reset and the cancellation
+                    // that triggered it can land in the same second
+                    // (timestamp columns are whole-second here), and >=
+                    // would then fail to exclude the very cancellations the
+                    // reset was supposed to clear.
+                    $q->where('created_at', '>', $patient->cancellation_count_reset_at);
+                }
+            })
             ->count();
     }
 
