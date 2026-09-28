@@ -6,6 +6,7 @@ import {
   getFollowUpRecommendations,
   acceptProposedPediatricDate,
   requestDifferentPediatricDate,
+  getPatientDashboardSummary,
 } from '../../api/appointments';
 import StatusBadge from './components/StatusBadge';
 import Modal from './components/Modal';
@@ -129,6 +130,23 @@ function PatientAppointments() {
     getFollowUpRecommendations().then(setFollowUpRecommendations).catch(() => {});
   }, []);
 
+  // 3-strike cancellation policy (CancellationPolicyService, backend) — same
+  // banner/data shape as PatientDashboard.jsx. This is the page a patient
+  // cancels FROM, so it's the one place that most needs to show the count
+  // updating immediately after — see loadCancellationPolicy() re-called at
+  // the end of handleCancel() below, not just on mount.
+  const [cancellationPolicy, setCancellationPolicy] = useState(null);
+
+  const loadCancellationPolicy = useCallback(() => {
+    getPatientDashboardSummary()
+      .then((summary) => setCancellationPolicy(summary?.cancellationPolicy || null))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    loadCancellationPolicy();
+  }, [loadCancellationPolicy]);
+
   // silent=true (the periodic poll) never touches loading/error state, so a
   // background refetch can't flash the skeleton or bump a stale error away —
   // matches the same pattern already used by DentistSchedule/HmoVerificationQueue/
@@ -188,6 +206,10 @@ function PatientAppointments() {
         prev.map((a) => (a.id === cancelTarget.id ? { ...a, status: 'cancelled', cancellation_reason: cancelReason || null } : a))
       );
       setCancelTarget(null);
+      // The count/warning changes on every self-cancel (CancellationPolicyService
+      // ::evaluateAfterCancellation() just ran server-side) — reload so the
+      // banner reflects it immediately instead of only after a manual refresh.
+      loadCancellationPolicy();
     } catch (err) {
       setCancelError(err.response?.data?.message || 'Could not cancel this appointment.');
     } finally {
@@ -409,6 +431,28 @@ function PatientAppointments() {
           </Link>
         )}
       </PageHeader>
+
+      {/* 3-strike cancellation policy — same banner PatientDashboard.jsx
+          shows, reused verbatim here since this is the page a patient
+          actually cancels FROM (see loadCancellationPolicy() above, re-run
+          right after a successful cancel so this updates immediately). */}
+      {(cancellationPolicy?.warning || cancellationPolicy?.restricted) && (
+        <div className="suggestion-banner" style={{ marginBottom: 20 }}>
+          <span className="suggestion-banner-icon"><AlertIcon /></span>
+          <div className="suggestion-banner-text">
+            <p className="suggestion-banner-title">
+              {cancellationPolicy.restricted
+                ? 'New bookings are restricted on your account'
+                : `You've had ${cancellationPolicy.cancellation_count} cancelled appointment${cancellationPolicy.cancellation_count === 1 ? '' : 's'}`}
+            </p>
+            <p className="suggestion-banner-subtitle">
+              {cancellationPolicy.restricted
+                ? 'This is due to repeated cancellations. Please contact the clinic to resolve this.'
+                : `Reaching ${cancellationPolicy.restriction_threshold} will restrict new bookings on this account.`}
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="section-card">
         <div className="portal-tabs">
