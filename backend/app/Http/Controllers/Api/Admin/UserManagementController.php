@@ -37,7 +37,15 @@ class UserManagementController extends Controller
 
         $query = User::query()
             ->withCount([
-                'patientAppointments as cancellation_count' => fn ($q) => $q->where('status', 'cancelled'),
+                // Same patient-initiated-only scoping as CancellationPolicyService
+                // ::cancellationCount() — a staff/dentist cancelling on a
+                // patient's behalf previously inflated this column with
+                // cancellations that weren't the patient's own doing.
+                'patientAppointments as cancellation_count' => fn ($q) => $q
+                    ->where('appointments.status', 'cancelled')
+                    ->whereHas('statusLogs', fn ($sq) => $sq
+                        ->where('new_status', 'cancelled')
+                        ->whereColumn('changed_by', 'users.id')),
             ])
             // Surfaces the automatic 3-strike restriction (see
             // CancellationPolicyService) alongside the manual Deactivate

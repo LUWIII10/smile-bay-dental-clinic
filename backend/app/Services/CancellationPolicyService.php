@@ -10,9 +10,26 @@ use App\Models\Patient;
  * The "3-strike" self-cancellation policy: cash patients auto-confirm with
  * no down payment, so nothing else in the system discourages booking
  * repeatedly and cancelling instead of showing up. Only ever counts
- * patient-initiated cancellations (appointments.status = 'cancelled') —
- * never 'rejected' (staff-initiated, e.g. an HMO coverage issue), which
- * isn't the patient's doing.
+ * patient-initiated cancellations — status alone (cancelled vs rejected)
+ * turns out NOT to be enough to tell those apart: StaffAppointmentController
+ * ::cancel() and AppointmentController::cancel() (dentist) ALSO write
+ * status='cancelled' when the CLINIC cancels on a patient's behalf (e.g. a
+ * scheduling conflict) — same status, but not the patient's doing, and
+ * neither of those two controllers calls evaluateAfterCancellation() (nor
+ * should they). cancellationCount() below cross-checks each cancelled row's
+ * appointment_status_log entry and only counts ones where changed_by is the
+ * patient's own user_id.
+ *
+ * This isn't just a fairness fix — it's the actual fix for a real bug: a
+ * patient reached 4 total cancelled appointments (mixed patient- and
+ * clinic-initiated) without ever being restricted. With the old unscoped
+ * count, evaluateAfterCancellation() — which only ever runs on the
+ * patient's OWN cancel action — could read a total inflated by clinic-side
+ * cancels the patient never triggered a check for, so whether/when
+ * restriction fired depended on unpredictable timing rather than the
+ * patient's own 3rd self-cancellation. Scoping the count to changed_by
+ * fixes both problems at once: it's now exactly the patient's own count,
+ * checked exactly when their own count changes.
  *
  * Two escalating, automatic consequences — deliberately not a single jump
  * straight to deactivation:
@@ -40,9 +57,14 @@ class CancellationPolicyService
 
     private const RESTRICTION_THRESHOLD = 3;
 
-    public function cancellationCount(int $patientId): int
+    public function cancellationCount(Patient $patient): int
     {
-        return Appointment::where('patient_id', $patientId)->where('status', 'cancelled')->count();
+        return Appointment::where('patient_id', $patient->id)
+            ->where('status', 'cancelled')
+            ->whereHas('statusLogs', fn ($q) => $q
+                ->where('new_status', 'cancelled')
+                ->where('changed_by', $patient->user_id))
+            ->count();
     }
 
     /**
@@ -52,7 +74,7 @@ class CancellationPolicyService
      */
     public function statusFor(Patient $patient): array
     {
-        $count = $this->cancellationCount($patient->id);
+        $count = $this->cancellationCount($patient);
 
         return [
             'cancellation_count' => $count,
@@ -83,7 +105,7 @@ class CancellationPolicyService
             return;
         }
 
-        $count = $this->cancellationCount($patient->id);
+        $count = $this->cancellationCount($patient);
 
         if ($count >= self::RESTRICTION_THRESHOLD) {
             $patient->update([
