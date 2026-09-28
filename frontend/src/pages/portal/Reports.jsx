@@ -20,6 +20,7 @@ import Skeleton from './components/Skeleton';
 import PageHeader from './components/PageHeader';
 import PrintLetterhead from './components/PrintLetterhead';
 import PrintFooter from './components/PrintFooter';
+import DateRangePicker from './components/DateRangePicker';
 import {
   CalendarIcon, ClockIcon, CheckCircleIcon, XCircleIcon, UsersIcon, PrinterIcon, ChartIcon, AlertIcon, TrendingUpIcon,
   DownloadIcon,
@@ -214,18 +215,10 @@ function Reports() {
     <div>
       <PageHeader icon={ChartIcon} title="Reports" subtitle="Appointment activity and clinic operations at a glance.">
         <div className="reports-date-range">
-          <input
-            type="date"
-            className="form-input"
-            value={range.date_from}
-            onChange={(e) => setRange((p) => ({ ...p, date_from: e.target.value }))}
-          />
-          <span className="filter-date-range-sep" aria-hidden="true" />
-          <input
-            type="date"
-            className="form-input"
-            value={range.date_to}
-            onChange={(e) => setRange((p) => ({ ...p, date_to: e.target.value }))}
+          <DateRangePicker
+            mode="range"
+            value={{ from: range.date_from, to: range.date_to }}
+            onChange={({ from, to }) => setRange({ date_from: from, date_to: to })}
           />
           <button
             type="button"

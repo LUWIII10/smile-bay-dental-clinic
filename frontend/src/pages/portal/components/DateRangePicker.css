@@ -1,0 +1,322 @@
+/* DateRangePicker — replaces native <input type="date"> pairs (Reports'
+   range, Patient Records' single-day filter and print range) with one
+   field + a calendar popover. Approved design:
+   https://claude.ai/artifact/KvAXC7uKknN98KaqTc3az8
+   Positioned via useDropdownPosition + a document.body portal — same
+   pattern as NotificationBell/AvatarMenu/ActionMenu, so it's viewport-
+   clamped and dismisses on scroll/resize/click-outside for free. */
+
+.drp-wrap {
+  display: inline-flex;
+}
+
+.drp-trigger {
+  gap: 9px;
+}
+
+.drp-trigger svg:first-child {
+  color: var(--portal-blue);
+  flex-shrink: 0;
+}
+
+.drp-trigger--open {
+  border-color: var(--portal-blue);
+}
+
+.drp-panel {
+  position: fixed;
+  width: 620px;
+  max-width: calc(100vw - 24px);
+  background: var(--portal-card);
+  border-radius: 14px;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.18);
+  border: 1px solid var(--portal-border-light);
+  z-index: 1000;
+  overflow: hidden;
+}
+
+.drp-panel-body {
+  display: flex;
+}
+
+/* ---- Presets column (range mode only) ---- */
+
+.drp-presets {
+  width: 168px;
+  flex-shrink: 0;
+  border-right: 1px solid #eef2f7;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.drp-preset-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: none;
+  background: none;
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--portal-slate);
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.drp-preset-item:hover {
+  background: var(--portal-blue-bg);
+  color: var(--portal-blue);
+}
+
+/* ---- Calendar ---- */
+
+.drp-calendar {
+  flex-grow: 1;
+  min-width: 0;
+  padding: 16px 20px 18px;
+}
+
+.drp-calendar-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.drp-nav-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  border: none;
+  background: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--portal-slate);
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.drp-nav-btn:hover {
+  background: var(--portal-blue-bg);
+}
+
+.drp-month-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--portal-navy);
+}
+
+.drp-weekday-row {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  margin-bottom: 4px;
+}
+
+.drp-weekday {
+  text-align: center;
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: #94a3b8;
+  padding: 4px 0;
+}
+
+.drp-day-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.drp-day-cell {
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.drp-day-cell--inrange {
+  background: var(--portal-blue-bg);
+}
+
+.drp-day-cell--range-start {
+  background: linear-gradient(90deg, transparent 50%, var(--portal-blue-bg) 50%);
+}
+
+.drp-day-cell--range-end {
+  background: linear-gradient(90deg, var(--portal-blue-bg) 50%, transparent 50%);
+}
+
+.drp-day-bubble {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: none;
+  background: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.72rem;
+  color: var(--portal-slate);
+  cursor: pointer;
+}
+
+.drp-day-bubble:hover {
+  background: #eef2f7;
+}
+
+.drp-day-bubble--inrange {
+  color: var(--portal-blue-text);
+  font-weight: 600;
+}
+
+.drp-day-bubble--edge {
+  background: var(--portal-blue);
+  color: #fff;
+  font-weight: 700;
+}
+
+.drp-day-bubble--edge:hover {
+  background: var(--portal-blue-hover);
+}
+
+.drp-day-bubble--today {
+  box-shadow: inset 0 0 0 1.5px var(--portal-blue);
+}
+
+/* ---- Footer ---- */
+
+.drp-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid #eef2f7;
+  gap: 12px;
+}
+
+.drp-footer--single {
+  justify-content: flex-end;
+}
+
+.drp-footer-status {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.drp-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+}
+
+.drp-status--pending {
+  color: var(--portal-amber-text);
+  font-weight: 600;
+}
+
+.drp-status--confirmed {
+  color: var(--portal-green-text);
+  font-weight: 700;
+}
+
+.drp-status--applied {
+  color: var(--portal-navy);
+  font-weight: 700;
+}
+
+.drp-status-check {
+  color: var(--portal-green-text);
+}
+
+.drp-reset-link {
+  align-self: flex-start;
+  border: none;
+  background: none;
+  padding: 0;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #94a3b8;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.drp-footer-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.drp-cancel-btn {
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1.5px solid var(--portal-border-light);
+  background: var(--portal-card);
+  color: var(--portal-slate);
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.drp-cancel-btn:hover {
+  background: var(--portal-canvas);
+}
+
+.drp-apply-btn {
+  padding: 8px 18px;
+  border-radius: 8px;
+  border: none;
+  background: var(--portal-blue);
+  color: #fff;
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.drp-apply-btn:hover {
+  background: var(--portal-blue-hover);
+}
+
+.drp-apply-btn:disabled {
+  background: var(--portal-border-light);
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
+.drp-preset-item--today {
+  width: auto;
+}
+
+@media (max-width: 560px) {
+  .drp-panel {
+    width: calc(100vw - 24px);
+  }
+
+  .drp-panel-body {
+    flex-direction: column;
+  }
+
+  .drp-presets {
+    width: 100%;
+    flex-direction: row;
+    flex-wrap: wrap;
+    border-right: none;
+    border-bottom: 1px solid #eef2f7;
+  }
+
+  .drp-preset-item {
+    width: auto;
+  }
+}

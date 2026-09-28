@@ -22,6 +22,7 @@ import StatusBadge from './components/StatusBadge';
 import Modal from './components/Modal';
 import PageHeader from './components/PageHeader';
 import PrintLetterhead from './components/PrintLetterhead';
+import DateRangePicker from './components/DateRangePicker';
 import {
   CONDITION_META,
   PLAN_STATUS_TONE,
@@ -784,18 +785,10 @@ function PatientRecords() {
               on-screen edit affordances below are. */}
           {patient && record && (
             <div className="record-print-controls">
-              <input
-                type="date"
-                className="form-input"
-                value={printRange.date_from}
-                onChange={(e) => setPrintRange((p) => ({ ...p, date_from: e.target.value }))}
-              />
-              <span className="filter-date-range-sep" aria-hidden="true" />
-              <input
-                type="date"
-                className="form-input"
-                value={printRange.date_to}
-                onChange={(e) => setPrintRange((p) => ({ ...p, date_to: e.target.value }))}
+              <DateRangePicker
+                mode="range"
+                value={{ from: printRange.date_from, to: printRange.date_to }}
+                onChange={({ from, to }) => setPrintRange({ date_from: from, date_to: to })}
               />
               <button type="button" className="dash-btn dash-btn--outline" onClick={() => window.print()}>
                 <PrinterIcon /> Print Record
@@ -1701,12 +1694,7 @@ function PatientRecords() {
           </div>
 
           <div className="filter-field">
-            <input
-              type="date"
-              className="form-input"
-              value={dateFilter}
-              onChange={(e) => setDateFilter(e.target.value)}
-            />
+            <DateRangePicker mode="single" value={dateFilter} onChange={setDateFilter} placeholder="Pick a date" />
           </div>
 
           <button
