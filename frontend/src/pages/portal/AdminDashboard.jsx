@@ -154,6 +154,10 @@ function AdminDashboard() {
   );
   const entranceStyle = (i) => ({ transitionDelay: `${i * 60}ms` });
   const entranceClass = `entrance-item${ready ? ' is-visible' : ''}`;
+  // See dashboards.css's .entrance-item--stat comment — makes a stat card's
+  // wrapper stretch its child to the grid row's shared height/width
+  // instead of leaving it at its own natural size.
+  const statEntranceClass = `${entranceClass} entrance-item--stat`;
 
   const lineData = {
     labels: byDay.map((row) => formatDayLabel(row.date)),
@@ -198,10 +202,10 @@ function AdminDashboard() {
               <Skeleton variant="stat-card" count={4} />
             ) : (
               <>
-                <div className={entranceClass} style={entranceStyle(0)}>
+                <div className={statEntranceClass} style={entranceStyle(0)}>
                   <StatCard label="Appointments Today" value={counts.today} icon={CalendarIcon} tint="blue" />
                 </div>
-                <div className={entranceClass} style={entranceStyle(1)}>
+                <div className={statEntranceClass} style={entranceStyle(1)}>
                   <StatCard
                     label="Pending Verifications"
                     value={counts.pendingVerifications}
@@ -210,10 +214,10 @@ function AdminDashboard() {
                     to="/admin/hmo-verification"
                   />
                 </div>
-                <div className={entranceClass} style={entranceStyle(2)}>
+                <div className={statEntranceClass} style={entranceStyle(2)}>
                   <StatCard label="Confirmed Today" value={counts.confirmedToday} icon={UsersIcon} tint="green" />
                 </div>
-                <div className={entranceClass} style={entranceStyle(3)}>
+                <div className={statEntranceClass} style={entranceStyle(3)}>
                   <StatCard label="Completed This Week" value={counts.completedThisWeek} icon={CheckCircleIcon} tint="amber" />
                 </div>
               </>
@@ -225,10 +229,10 @@ function AdminDashboard() {
               <Skeleton variant="stat-card" count={2} />
             ) : (
               <>
-                <div className={entranceClass} style={entranceStyle(4)}>
+                <div className={statEntranceClass} style={entranceStyle(4)}>
                   <StatCard label="Total Patients" value={counts.totalPatients} icon={UsersIcon} tint="blue" />
                 </div>
-                <div className={entranceClass} style={entranceStyle(5)}>
+                <div className={statEntranceClass} style={entranceStyle(5)}>
                   <StatCard label="Active Users" value={counts.activeUsers} icon={UserIcon} tint="amber" />
                 </div>
               </>

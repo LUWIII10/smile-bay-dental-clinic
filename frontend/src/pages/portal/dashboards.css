@@ -473,6 +473,26 @@
   transform: translateY(0);
 }
 
+/* Stat-card wrapper only (AdminDashboard/Reports' KPI rows) — a plain block
+   wrapper stretches to the grid row's shared height (grid's own default
+   align-items: stretch) but its StatCard child then just sits at its own
+   shorter natural height inside that taller box, block layout doesn't pass
+   stretching down to children the way flex/grid do. display: flex here
+   makes the child stretch on the cross axis (height) automatically, and
+   flex: 1 on it fills the main axis (width) too, so every card in a row
+   ends up the same size again regardless of which ones have a subtitle
+   (e.g. Reports' No-Shows/Completion Rate, 3 lines) and which don't (e.g.
+   New Patients, 2 lines) — a real, previously-invisible bug that only
+   shows once cards in the same row actually have different content
+   heights. */
+.entrance-item--stat {
+  display: flex;
+}
+
+.entrance-item--stat > * {
+  flex: 1;
+}
+
 /* ============ Status badges ============ */
 
 .status-badge {

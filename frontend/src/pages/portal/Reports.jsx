@@ -205,6 +205,13 @@ function Reports() {
   );
   const entranceStyle = (i) => ({ transitionDelay: `${i * 60}ms` });
   const entranceClass = `entrance-item${ready ? ' is-visible' : ''}`;
+  // Stat-card wrappers specifically need display:flex — without it each
+  // wrapper's StatCard child sits at its own natural height instead of
+  // stretching to match the grid row's shared height, so a card with a
+  // subtitle (No-Shows, Completion Rate — 3 lines) ends up visibly taller
+  // than one without (New Patients — 2 lines) despite both wrappers
+  // technically filling the same row.
+  const statEntranceClass = `${entranceClass} entrance-item--stat`;
   const barStyle = (i, pctWidth) => ({
     width: ready ? `${pctWidth}%` : '0%',
     transition: 'width 700ms cubic-bezier(0.16, 1, 0.3, 1)',
@@ -267,22 +274,22 @@ function Reports() {
               <Skeleton variant="stat-card" count={6} />
             ) : (
               <>
-                <div className={entranceClass} style={entranceStyle(0)}>
+                <div className={statEntranceClass} style={entranceStyle(0)}>
                   <StatCard label="Total Appointments" value={counts.total} icon={CalendarIcon} tint="blue" />
                 </div>
-                <div className={entranceClass} style={entranceStyle(1)}>
+                <div className={statEntranceClass} style={entranceStyle(1)}>
                   <StatCard label="Completed" value={counts.completed} icon={CheckCircleIcon} tint="green" />
                 </div>
-                <div className={entranceClass} style={entranceStyle(2)}>
+                <div className={statEntranceClass} style={entranceStyle(2)}>
                   <StatCard label="Cancelled / Rejected" value={counts.cancelled} icon={XCircleIcon} tint="red" />
                 </div>
-                <div className={entranceClass} style={entranceStyle(3)}>
+                <div className={statEntranceClass} style={entranceStyle(3)}>
                   <StatCard label="New Patients" value={counts.newPatients} icon={UsersIcon} tint="amber" />
                 </div>
-                <div className={entranceClass} style={entranceStyle(4)}>
+                <div className={statEntranceClass} style={entranceStyle(4)}>
                   <StatCard label="No-Shows" value={counts.noShow} subtitle="missed visits" icon={AlertIcon} tint="red" />
                 </div>
-                <div className={entranceClass} style={entranceStyle(5)}>
+                <div className={statEntranceClass} style={entranceStyle(5)}>
                   <StatCard
                     label="Completion Rate"
                     value={`${counts.completionRate}%`}
