@@ -2,10 +2,10 @@
 <table class="pdf-letterhead">
   <tr>
     <td>
-      <table>
+      <table class="pdf-brand-row">
         <tr>
           <td class="pdf-logo-cell"><img src="{{ public_path('images/logo.png') }}"></td>
-          <td>
+          <td class="pdf-brand-text-cell">
             <div class="pdf-brand-title">Smile Bay</div>
             <div class="pdf-brand-subtitle">DENTAL CLINIC</div>
           </td>

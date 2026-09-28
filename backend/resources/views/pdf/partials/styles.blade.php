@@ -26,10 +26,18 @@
 
   .pdf-letterhead { width: 100%; margin-bottom: 16px; padding-bottom: 14px; border-bottom: 3px solid #2952e3; }
   .pdf-letterhead td { vertical-align: top; }
+
+  /* Same lockup as the real BrandLogo component (BrandLogo.css) — badge
+     and wordmark vertically centered against each other, both lines the
+     same blue (#1d4ed8, its variant="blue"), not this PDF's own guess at
+     the colors/alignment. Keep this in sync with BrandLogo.css if that
+     component's own logo/wordmark styling ever changes. */
+  .pdf-brand-row td { vertical-align: middle; }
   .pdf-logo-cell { width: 42px; padding-right: 10px; }
-  .pdf-logo-cell img { width: 38px; height: 38px; }
-  .pdf-brand-title { font-family: 'Pacifico', 'DejaVu Sans', cursive; font-size: 19px; font-weight: normal; color: #2952e3; }
-  .pdf-brand-subtitle { font-size: 8.5px; letter-spacing: 1px; color: #64748b; }
+  .pdf-logo-cell img { width: 38px; height: 38px; display: block; }
+  .pdf-brand-text-cell { line-height: 1; }
+  .pdf-brand-title { font-family: 'Pacifico', 'DejaVu Sans', cursive; font-size: 19px; font-weight: normal; color: #1d4ed8; line-height: 1; }
+  .pdf-brand-subtitle { font-size: 8.5px; font-weight: bold; letter-spacing: 1px; text-transform: uppercase; color: #1d4ed8; margin-top: 3px; }
   .pdf-tagline { font-size: 9px; font-style: italic; color: #64748b; padding-top: 6px; margin-top: 8px; border-top: 1px solid #dbeafe; }
   .pdf-contact { font-size: 9px; color: #334155; margin-top: 10px; line-height: 1.6; }
 
