@@ -98,8 +98,8 @@ function Reports() {
     setDownloadError('');
     try {
       await downloadReportsPdf(range);
-    } catch {
-      setDownloadError('Could not generate the PDF. Please try again.');
+    } catch (err) {
+      setDownloadError(err.message || 'Could not generate the PDF. Please try again.');
     } finally {
       setDownloadingPdf(false);
     }

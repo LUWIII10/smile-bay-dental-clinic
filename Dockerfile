@@ -24,7 +24,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         git \
         libzip-dev \
         libonig-dev \
-    && docker-php-ext-install pdo_mysql mbstring zip bcmath \
+        libpng-dev \
+        libjpeg62-turbo-dev \
+        libfreetype6-dev \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    # gd — not in dompdf's own required extensions (only require-dev), but
+    # it's what dompdf actually uses at runtime to decode/embed PNG/JPEG
+    # images (the clinic logo on every PDF report's letterhead). Without it,
+    # PDF generation throws instead of just rendering without the logo.
+    && docker-php-ext-install pdo_mysql mbstring zip bcmath gd \
     && a2enmod rewrite \
     # apt's own apache2 postinst re-enabled mpm_event alongside the base
     # image's mpm_prefork (mod_php needs prefork specifically, it isn't
@@ -63,6 +71,14 @@ RUN composer install --no-dev --optimize-autoloader --no-interaction
 # Stashing a copy outside the mount point means start.sh can still restore
 # them into the volume on first boot — see start.sh's "no-clobber" copy.
 RUN cp -r storage/app/public /var/www/seed-public-disk
+
+# dompdf caches parsed font metrics here (config/dompdf.php's font_cache,
+# published or not — the package default already points here) — doesn't
+# exist in the repo, so without creating it now it wouldn't exist until
+# dompdf's own runtime code tries to mkdir it under whatever permissions
+# apply at that point. Created here so it's unambiguously covered by the
+# chown right below instead.
+RUN mkdir -p storage/fonts
 
 # Apache's worker processes run as www-data, not the root user this build
 # runs as — without this, Laravel can't write storage/logs, the framework

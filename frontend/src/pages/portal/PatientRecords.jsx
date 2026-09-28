@@ -193,8 +193,8 @@ function PatientRecords() {
     setDownloadingRecordPdf(true);
     try {
       await downloadPatientRecordPdf(selectedPatientId, printRange);
-    } catch {
-      showErrorToast('Could not generate the PDF. Please try again.');
+    } catch (err) {
+      showErrorToast(err.message || 'Could not generate the PDF. Please try again.');
     } finally {
       setDownloadingRecordPdf(false);
     }
@@ -204,8 +204,8 @@ function PatientRecords() {
     setDownloadingByDatePdf(true);
     try {
       await downloadAppointmentsByDatePdf(dateFilter);
-    } catch {
-      showErrorToast('Could not generate the PDF. Please try again.');
+    } catch (err) {
+      showErrorToast(err.message || 'Could not generate the PDF. Please try again.');
     } finally {
       setDownloadingByDatePdf(false);
     }
