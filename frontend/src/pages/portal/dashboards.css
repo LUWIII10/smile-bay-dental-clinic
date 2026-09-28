@@ -334,6 +334,13 @@
   grid-template-columns: repeat(2, 1fr);
 }
 
+/* 3 cards, one row — AdminDashboard's account-status row (Total Patients /
+   Active Users / Restricted Accounts). Same minmax(0, ..) overflow guard
+   as --4/--6 above. */
+.stat-grid--3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 /* 6 cards, 3-per-row — Reports' KPI row (existing 4 metrics plus No-Shows
    and Completion Rate). Same minmax(0, ..) overflow guard as --4 above. */
 .stat-grid--6 {
@@ -1802,6 +1809,7 @@
 @media (max-width: 1024px) {
   .stat-grid,
   .stat-grid--4,
+  .stat-grid--3,
   .stat-grid--6 {
     grid-template-columns: repeat(2, 1fr);
   }
@@ -1811,6 +1819,7 @@
   .stat-grid,
   .stat-grid--4,
   .stat-grid--2,
+  .stat-grid--3,
   .stat-grid--6 {
     grid-template-columns: 1fr;
   }

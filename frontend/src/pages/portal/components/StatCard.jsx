@@ -6,10 +6,14 @@ import { Link } from 'react-router-dom';
 // Admin/Assistant's "Pending Verifications" card jumping straight to the
 // HMO queue) — every other card omits `to` and keeps its original
 // non-interactive div output unchanged.
-function StatCard({ label, value, subtitle, icon: Icon, tint = 'blue', highlight = false, to }) {
+function StatCard({ label, value, subtitle, icon: Icon, tint = 'blue', highlight = false, to, state }) {
   const className = `stat-card${highlight ? ' stat-card--highlight' : ''}${to ? ' stat-card--clickable' : ''}`;
   const Wrapper = to ? Link : 'div';
-  const wrapperProps = to ? { to } : {};
+  // state only ever paired with `to` (e.g. Restricted Accounts handing
+  // User Management its starting filters) — passed straight through to
+  // Link, read on the other end via useLocation().state same as every
+  // other nav-with-context handoff in the app (DentistSchedule.jsx etc.).
+  const wrapperProps = to ? { to, ...(state ? { state } : {}) } : {};
 
   return (
     <Wrapper className={className} {...wrapperProps}>

@@ -52,6 +52,7 @@ class Patient extends Model
         'hmo_company_name',
         'consent_certified',
         'booking_restricted_at',
+        'restriction_count',
     ];
 
     protected function casts(): array

@@ -15,3 +15,24 @@
   font-weight: 600;
   letter-spacing: 0.03em;
 }
+
+/* Restriction-count caption under the "Restricted Account" badge —
+   restriction_count only ever goes up (never cleared by Lift Restriction),
+   so this reads as real history, not just the current state. Color climbs
+   with severity: a first-time case is informational (gray), a repeat is
+   worth a second look (amber), three or more is a real pattern (red). */
+.status-cell-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+
+.restriction-count-caption {
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.restriction-count-caption--low { color: var(--portal-muted); }
+.restriction-count-caption--mid { color: var(--portal-amber-text); }
+.restriction-count-caption--high { color: var(--portal-red-text); }

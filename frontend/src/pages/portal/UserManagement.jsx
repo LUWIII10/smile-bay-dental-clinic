@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { searchUsers, createStaffUser, updateUser, setUserStatus, unrestrictBooking } from '../../api/userManagement';
 import DataTable from './components/DataTable';
@@ -31,8 +32,30 @@ function getInitials(name) {
   return (first + last).toUpperCase();
 }
 
+// "1st"/"2nd"/"3rd"/"4th"... — patients.restriction_count is how many
+// times CancellationPolicyService has ever set booking_restricted_at on
+// this patient (never decremented by Lift Restriction), so this reads as
+// "this is the Nth time", not just a bare count.
+function ordinal(n) {
+  const mod100 = n % 100;
+  if (mod100 >= 11 && mod100 <= 13) return `${n}th`;
+  switch (n % 10) {
+    case 1: return `${n}st`;
+    case 2: return `${n}nd`;
+    case 3: return `${n}rd`;
+    default: return `${n}th`;
+  }
+}
+
 function UserManagement() {
   const { user: currentUser } = useAuth();
+  // Arriving from AdminDashboard's "Restricted Accounts" card — same
+  // navigate(path, { state }) → useLocation().state handoff pattern
+  // DentistSchedule.jsx uses for Patient Records, just read once on mount
+  // rather than kept "live" (re-clicking the same card while already here
+  // wouldn't re-trigger a state change react-router would notice anyway).
+  const location = useLocation();
+  const incoming = location.state || {};
 
   const [users, setUsers] = useState([]);
   const [meta, setMeta] = useState(null);
@@ -41,8 +64,8 @@ function UserManagement() {
 
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
-  const [roleFilter, setRoleFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
+  const [roleFilter, setRoleFilter] = useState(incoming.roleFilter || '');
+  const [statusFilter, setStatusFilter] = useState(incoming.statusFilter || '');
   // '' = default alphabetical order; 'cancellations_desc' = worst
   // cancellers first — only meaningful (and only shown as a column) while
   // roleFilter === 'patient', see the Cancellations column below.
@@ -174,11 +197,20 @@ function UserManagement() {
 
   // Lifts the automatic 3-strike booking restriction — separate action from
   // toggleStatus above, since a restricted account is still fully active
-  // and logged-in-able; this only restores self-service booking.
+  // and logged-in-able; this only restores self-service booking. Repeat
+  // cases (restriction_count > 1) get an extra line so the admin sees the
+  // pattern before deciding, not just the current single event — a
+  // first-time case stays as the plain original text, no reason to flag it.
   const unrestrictAccount = async (row) => {
+    const restrictionCount = row.patient?.restriction_count ?? 0;
+    const baseText = `${row.name} will be able to book new appointments again. They'll be notified.`;
+    const text = restrictionCount > 1
+      ? `${baseText} This is the ${ordinal(restrictionCount)} time this patient has been restricted.`
+      : baseText;
+
     const confirmed = await confirmAction({
       title: 'Lift booking restriction?',
-      text: `${row.name} will be able to book new appointments again. They'll be notified.`,
+      text,
       confirmButtonText: 'Lift Restriction',
       confirmButtonColor: '#2952e3',
     });
@@ -257,12 +289,20 @@ function UserManagement() {
       // this column.
       render: (row) => {
         const isRestricted = row.status === 'active' && row.patient?.booking_restricted_at;
+        const restrictionCount = row.patient?.restriction_count ?? 0;
         return (
-          <StatusBadge
-            status={isRestricted ? 'Restricted Account' : (row.status === 'active' ? 'Active' : 'Inactive')}
-            tone={isRestricted ? 'amber' : (row.status === 'active' ? 'green' : 'red')}
-            className={isRestricted ? 'status-badge--wrap' : undefined}
-          />
+          <span className="status-cell-stack">
+            <StatusBadge
+              status={isRestricted ? 'Restricted Account' : (row.status === 'active' ? 'Active' : 'Inactive')}
+              tone={isRestricted ? 'amber' : (row.status === 'active' ? 'green' : 'red')}
+              className={isRestricted ? 'status-badge--wrap' : undefined}
+            />
+            {isRestricted && restrictionCount > 0 && (
+              <span className={`restriction-count-caption restriction-count-caption--${restrictionCount >= 3 ? 'high' : restrictionCount === 2 ? 'mid' : 'low'}`}>
+                {ordinal(restrictionCount)} time restricted
+              </span>
+            )}
+          </span>
         );
       },
     },
@@ -365,6 +405,7 @@ function UserManagement() {
               <option value="">All Statuses</option>
               <option value="active">Active</option>
               <option value="inactive">Inactive</option>
+              <option value="restricted">Restricted</option>
             </select>
           </div>
         </div>

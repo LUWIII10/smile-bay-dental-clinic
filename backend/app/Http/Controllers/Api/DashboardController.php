@@ -48,6 +48,11 @@ class DashboardController extends Controller
         $totalPatients = Patient::count();
         $activeUsers = User::where('status', 'active')->count();
 
+        // Only ever rendered on AdminDashboard.jsx (AssistantDashboard.jsx
+        // shares this same endpoint but doesn't read this field) — links to
+        // User Management, admin-only, so no reason to add it there too.
+        $restrictedAccounts = Patient::whereNotNull('booking_restricted_at')->count();
+
         return response()->json([
             'data' => [
                 'today' => $todayCount,
@@ -56,6 +61,7 @@ class DashboardController extends Controller
                 'completedThisWeek' => $completedThisWeek,
                 'totalPatients' => $totalPatients,
                 'activeUsers' => $activeUsers,
+                'restrictedAccounts' => $restrictedAccounts,
             ],
         ]);
     }

@@ -27,6 +27,12 @@ use App\Models\Patient;
  * - Cancelling again after already being restricted escalates once more,
  *   to users.status = 'inactive' (the app's one existing, already-proven
  *   account-disable mechanism — see UserManagementController).
+ *
+ * restriction_count (separate from booking_restricted_at, which gets
+ * cleared every time an admin lifts it) only ever increases, once per
+ * actual restriction event — so a patient who was restricted, lifted, then
+ * restricted again later shows that history instead of reading as a
+ * first-time case each time.
  */
 class CancellationPolicyService
 {
@@ -80,7 +86,10 @@ class CancellationPolicyService
         $count = $this->cancellationCount($patient->id);
 
         if ($count >= self::RESTRICTION_THRESHOLD) {
-            $patient->update(['booking_restricted_at' => now()]);
+            $patient->update([
+                'booking_restricted_at' => now(),
+                'restriction_count' => $patient->restriction_count + 1,
+            ]);
 
             Notification::notifyUser(
                 $patient->user_id,

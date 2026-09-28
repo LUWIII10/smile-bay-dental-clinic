@@ -23,7 +23,7 @@ import StatCard from './components/StatCard';
 import Skeleton from './components/Skeleton';
 import DataTable from './components/DataTable';
 import StatusBadge from './components/StatusBadge';
-import { UsersIcon, CalendarIcon, UserIcon, ShieldIcon, CheckCircleIcon, ActivityIcon, TrendingUpIcon, ChartIcon } from './icons';
+import { UsersIcon, CalendarIcon, UserIcon, ShieldIcon, CheckCircleIcon, ActivityIcon, TrendingUpIcon, ChartIcon, AlertIcon } from './icons';
 import './dashboards.css';
 import './Appointments.css';
 
@@ -149,6 +149,7 @@ function AdminDashboard() {
       completedThisWeek: summary?.completedThisWeek ?? 0,
       totalPatients: summary?.totalPatients ?? 0,
       activeUsers: summary?.activeUsers ?? 0,
+      restrictedAccounts: summary?.restrictedAccounts ?? 0,
     },
     !loading,
   );
@@ -224,9 +225,9 @@ function AdminDashboard() {
             )}
           </div>
 
-          <div className="stat-grid stat-grid--2">
+          <div className="stat-grid stat-grid--3">
             {loading ? (
-              <Skeleton variant="stat-card" count={2} />
+              <Skeleton variant="stat-card" count={3} />
             ) : (
               <>
                 <div className={statEntranceClass} style={entranceStyle(4)}>
@@ -235,12 +236,22 @@ function AdminDashboard() {
                 <div className={statEntranceClass} style={entranceStyle(5)}>
                   <StatCard label="Active Users" value={counts.activeUsers} icon={UserIcon} tint="amber" />
                 </div>
+                <div className={statEntranceClass} style={entranceStyle(6)}>
+                  <StatCard
+                    label="Restricted Accounts"
+                    value={counts.restrictedAccounts}
+                    icon={AlertIcon}
+                    tint="amber"
+                    to="/admin/users"
+                    state={{ roleFilter: 'patient', statusFilter: 'restricted' }}
+                  />
+                </div>
               </>
             )}
           </div>
 
           <div className="chart-grid">
-            <div className={`section-card ${entranceClass}`} style={entranceStyle(6)}>
+            <div className={`section-card ${entranceClass}`} style={entranceStyle(7)}>
               <div className="section-card-header">
                 <div className="section-card-heading">
                   <span className="section-card-icon"><TrendingUpIcon /></span>
@@ -256,7 +267,7 @@ function AdminDashboard() {
               )}
             </div>
 
-            <div className={`section-card ${entranceClass}`} style={entranceStyle(7)}>
+            <div className={`section-card ${entranceClass}`} style={entranceStyle(8)}>
               <div className="section-card-header">
                 <div className="section-card-heading">
                   <span className="section-card-icon"><ChartIcon /></span>
@@ -273,7 +284,7 @@ function AdminDashboard() {
             </div>
           </div>
 
-          <div className={`section-card ${entranceClass}`} style={entranceStyle(8)}>
+          <div className={`section-card ${entranceClass}`} style={entranceStyle(9)}>
             <div className="section-card-header">
               <div className="section-card-heading">
                 <span className="section-card-icon"><ActivityIcon /></span>

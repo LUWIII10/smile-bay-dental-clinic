@@ -23,7 +23,10 @@ class UserManagementController extends Controller
     {
         $validated = $request->validate([
             'role' => ['nullable', 'in:patient,dentist,dental_assistant,admin'],
-            'status' => ['nullable', 'in:active,inactive'],
+            // 'restricted' is a filter-only value, not a real users.status —
+            // handled separately below since it actually queries
+            // patients.booking_restricted_at, not the status column itself.
+            'status' => ['nullable', 'in:active,inactive,restricted'],
             'search' => ['nullable', 'string', 'max:100'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
             // 'cancellations_desc' backs the Cancellations column's sort
@@ -40,7 +43,10 @@ class UserManagementController extends Controller
             // CancellationPolicyService) alongside the manual Deactivate
             // action, so admin sees both the count AND whether the system
             // already auto-restricted new bookings for this patient.
-            ->with('patient:id,user_id,booking_restricted_at')
+            // restriction_count is the separate, never-cleared history of
+            // how many times this has happened in total (booking_restricted_at
+            // itself resets to null every time it's lifted).
+            ->with('patient:id,user_id,booking_restricted_at,restriction_count')
             // A dentist's photo lives on dentist_profiles.photo_path, not a
             // users column (see avatarUtils.js's getAvatarUrl()) — without
             // this, the list always fell back to initials for dentists even
@@ -50,7 +56,12 @@ class UserManagementController extends Controller
         if (! empty($validated['role'])) {
             $query->where('role', $validated['role']);
         }
-        if (! empty($validated['status'])) {
+        if (($validated['status'] ?? null) === 'restricted') {
+            // A restricted account is still status='active' underneath (see
+            // CancellationPolicyService) — this is the one filter value that
+            // doesn't map onto the status column directly.
+            $query->where('status', 'active')->whereHas('patient', fn ($q) => $q->whereNotNull('booking_restricted_at'));
+        } elseif (! empty($validated['status'])) {
             $query->where('status', $validated['status']);
         }
         if (! empty($validated['search'])) {
@@ -174,7 +185,7 @@ class UserManagementController extends Controller
             );
         }
 
-        return response()->json(['data' => $user->fresh()->load('patient:id,user_id,booking_restricted_at')]);
+        return response()->json(['data' => $user->fresh()->load('patient:id,user_id,booking_restricted_at,restriction_count')]);
     }
 
     /**
@@ -205,6 +216,6 @@ class UserManagementController extends Controller
             '/patient/book-appointment'
         );
 
-        return response()->json(['data' => $user->fresh()->load('patient:id,user_id,booking_restricted_at')]);
+        return response()->json(['data' => $user->fresh()->load('patient:id,user_id,booking_restricted_at,restriction_count')]);
     }
 }
