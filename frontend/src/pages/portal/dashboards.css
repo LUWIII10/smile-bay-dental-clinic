@@ -1408,6 +1408,20 @@
   background: var(--portal-canvas);
 }
 
+/* Same shape as --outline above, red instead of neutral — a destructive
+   action (Deactivate) that needs to sit next to a solid PRIMARY action
+   (User Management's restricted-row Lift Restriction) without visually
+   competing with it for attention the way a solid red button would. */
+.dash-btn--outline-danger {
+  background: none;
+  color: var(--portal-red-text);
+  border: 1px solid var(--portal-red-border);
+}
+
+.dash-btn--outline-danger:hover {
+  background: var(--portal-red-bg);
+}
+
 .dash-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;

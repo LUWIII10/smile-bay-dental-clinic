@@ -42,3 +42,39 @@
 .cancellation-count-na {
   color: var(--portal-muted);
 }
+
+/* Restricted-row action buttons — Lift Restriction (the one action that
+   only exists because of this state) full-width and solid on its own line;
+   Edit/Deactivate (routine account actions every row has) share a smaller
+   line underneath. Approved design:
+   https://claude.ai/artifact/HWLfvwQQpvcD4p3qNpiEd4 (Option A). The plain
+   (non-restricted) row layout is untouched — this only applies here. */
+.row-actions-grouped {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  max-width: 220px;
+  margin-left: auto;
+}
+
+.row-btn--lift {
+  width: 100%;
+  justify-content: center;
+  gap: 6px;
+}
+
+.row-btn--lift svg {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+}
+
+.row-actions-secondary {
+  display: flex;
+  gap: 6px;
+}
+
+.row-actions-secondary .row-btn {
+  flex: 1;
+}

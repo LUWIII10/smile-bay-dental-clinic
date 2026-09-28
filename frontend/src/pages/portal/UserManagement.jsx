@@ -8,7 +8,7 @@ import Skeleton from './components/Skeleton';
 import StatusBadge from './components/StatusBadge';
 import Modal from './components/Modal';
 import PageHeader from './components/PageHeader';
-import { SearchIcon, UsersIcon } from './icons';
+import { SearchIcon, UsersIcon, CheckCircleIcon } from './icons';
 import { showSuccessToast, showErrorToast, confirmAction } from '../../utils/toast';
 import { getAvatarUrl } from './avatarUtils';
 import './dashboards.css';
@@ -346,16 +346,43 @@ function UserManagement() {
       align: 'right',
       render: (row) => {
         const isRestricted = row.status === 'active' && row.patient?.booking_restricted_at;
+
+        // Restricted rows get their own grouped layout — Lift Restriction is
+        // the one action that only exists BECAUSE of this state, so it
+        // stands alone, full-width, solid; Edit/Deactivate are routine
+        // account actions every row has, demoted to a smaller shared row
+        // underneath (Deactivate outline instead of solid so it doesn't
+        // visually compete with Lift Restriction for attention). Approved
+        // design: https://claude.ai/artifact/HWLfvwQQpvcD4p3qNpiEd4 (Option A)
+        // — the non-restricted layout below is unchanged on purpose.
+        if (isRestricted) {
+          return (
+            <div className="row-actions-grouped">
+              <button type="button" className="dash-btn row-btn row-btn--lift" onClick={() => unrestrictAccount(row)}>
+                <CheckCircleIcon /> Lift Restriction
+              </button>
+              <div className="row-actions-secondary">
+                <button type="button" className="dash-btn dash-btn--outline row-btn" onClick={() => openEdit(row)}>
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  className="dash-btn dash-btn--outline-danger row-btn"
+                  onClick={() => toggleStatus(row)}
+                  disabled={row.id === currentUser?.id}
+                >
+                  Deactivate
+                </button>
+              </div>
+            </div>
+          );
+        }
+
         return (
           <div className="row-actions">
             <button type="button" className="dash-btn dash-btn--outline row-btn" onClick={() => openEdit(row)}>
               Edit
             </button>
-            {isRestricted && (
-              <button type="button" className="dash-btn row-btn" onClick={() => unrestrictAccount(row)}>
-                Lift Restriction
-              </button>
-            )}
             <button
               type="button"
               className={`dash-btn row-btn ${row.status === 'active' ? 'dash-btn--danger' : ''}`}
