@@ -11,6 +11,8 @@ import {
   updateTreatmentPlanStatus,
   updateTreatmentPlanItemStatus,
   addTreatmentHistory,
+  downloadAppointmentsByDatePdf,
+  downloadPatientRecordPdf,
 } from '../../api/patientRecords';
 import { completeAppointment, backfillTreatmentRecord } from '../../api/appointments';
 import DataTable from './components/DataTable';
@@ -184,6 +186,30 @@ function PatientRecords() {
   // regardless of this range; see the printed report for the reasoning on
   // why Treatment Plans also isn't filtered by it.
   const [printRange, setPrintRange] = useState(defaultPrintRange());
+  const [downloadingRecordPdf, setDownloadingRecordPdf] = useState(false);
+  const [downloadingByDatePdf, setDownloadingByDatePdf] = useState(false);
+
+  const handleDownloadRecordPdf = async () => {
+    setDownloadingRecordPdf(true);
+    try {
+      await downloadPatientRecordPdf(selectedPatientId, printRange);
+    } catch {
+      showErrorToast('Could not generate the PDF. Please try again.');
+    } finally {
+      setDownloadingRecordPdf(false);
+    }
+  };
+
+  const handleDownloadByDatePdf = async () => {
+    setDownloadingByDatePdf(true);
+    try {
+      await downloadAppointmentsByDatePdf(dateFilter);
+    } catch {
+      showErrorToast('Could not generate the PDF. Please try again.');
+    } finally {
+      setDownloadingByDatePdf(false);
+    }
+  };
 
   // ---- Completing a visit (arrived via DentistSchedule's Complete button) ----
   // Only ever true while still viewing the same patient this completing
@@ -773,6 +799,9 @@ function PatientRecords() {
               />
               <button type="button" className="dash-btn dash-btn--outline" onClick={() => window.print()}>
                 <PrinterIcon /> Print Record
+              </button>
+              <button type="button" className="dash-btn" disabled={downloadingRecordPdf} onClick={handleDownloadRecordPdf}>
+                <DownloadIcon /> {downloadingRecordPdf ? 'Generating…' : 'Download PDF'}
               </button>
             </div>
           )}
@@ -1689,19 +1718,13 @@ function PatientRecords() {
             <PrinterIcon /> Print
           </button>
 
-          {/* Same window.print() as Print above — the browser's own print
-              dialog is the app's one PDF path (its "Save as PDF" destination),
-              so no separate export/download plumbing exists to call here.
-              Kept as its own button, per the approved mockup, since Print
-              and "Download PDF" read as distinct intents even though they
-              share a mechanism. */}
           <button
             type="button"
             className="dash-btn"
-            disabled={!dateFilter || dateLoading || dateAppointments.length === 0}
-            onClick={() => window.print()}
+            disabled={!dateFilter || dateLoading || dateAppointments.length === 0 || downloadingByDatePdf}
+            onClick={handleDownloadByDatePdf}
           >
-            <DownloadIcon /> Download PDF
+            <DownloadIcon /> {downloadingByDatePdf ? 'Generating…' : 'Download PDF'}
           </button>
         </div>
 

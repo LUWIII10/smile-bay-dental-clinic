@@ -1,4 +1,5 @@
 import api from '../api';
+import { downloadFile } from '../utils/downloadFile';
 
 // Staff-facing "Patient Records" — search/list is shared by
 // dentist/dental_assistant/admin; every write action below is dentist-only
@@ -21,6 +22,15 @@ export async function getPatientRecord(patientId) {
 export async function getAppointmentsByDate(date) {
   const response = await api.get('/api/patient-records/by-date', { params: { date } });
   return response.data.data;
+}
+
+export async function downloadAppointmentsByDatePdf(date) {
+  await downloadFile('/api/patient-records/by-date/pdf', { date }, `patient-appointments-${date}.pdf`);
+}
+
+export async function downloadPatientRecordPdf(patientId, { date_from, date_to } = {}) {
+  const params = Object.fromEntries(Object.entries({ date_from, date_to }).filter(([, v]) => v));
+  await downloadFile(`/api/patient-records/${patientId}/pdf`, params, 'dental-record.pdf');
 }
 
 export async function addClinicalNote(patientId, note, appointmentId = null) {

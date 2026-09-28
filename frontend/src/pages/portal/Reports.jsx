@@ -12,7 +12,7 @@ import {
   Filler,
 } from 'chart.js';
 import { Line, Doughnut } from 'react-chartjs-2';
-import { getReportsOverview } from '../../api/reports';
+import { getReportsOverview, downloadReportsPdf } from '../../api/reports';
 import { useCountUp, useEntranceReady } from '../../hooks/useEntranceAnimation';
 import { centerTextPlugin } from './chartCenterText';
 import StatCard from './components/StatCard';
@@ -22,6 +22,7 @@ import PrintLetterhead from './components/PrintLetterhead';
 import PrintFooter from './components/PrintFooter';
 import {
   CalendarIcon, ClockIcon, CheckCircleIcon, XCircleIcon, UsersIcon, PrinterIcon, ChartIcon, AlertIcon, TrendingUpIcon,
+  DownloadIcon,
 } from './icons';
 import { formatDateLong } from './dateTimeUtils';
 import './dashboards.css';
@@ -89,6 +90,20 @@ function Reports() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const [downloadError, setDownloadError] = useState('');
+
+  const handleDownloadPdf = async () => {
+    setDownloadingPdf(true);
+    setDownloadError('');
+    try {
+      await downloadReportsPdf(range);
+    } catch {
+      setDownloadError('Could not generate the PDF. Please try again.');
+    } finally {
+      setDownloadingPdf(false);
+    }
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -220,7 +235,16 @@ function Reports() {
           >
             <PrinterIcon /> Print Report
           </button>
+          <button
+            type="button"
+            className="dash-btn"
+            disabled={loading || !!error || downloadingPdf}
+            onClick={handleDownloadPdf}
+          >
+            <DownloadIcon /> {downloadingPdf ? 'Generating…' : 'Download PDF'}
+          </button>
         </div>
+        {downloadError && <p className="reports-download-error">{downloadError}</p>}
       </PageHeader>
 
       {/* Screen-hidden, print-only letterhead — a printed report should read

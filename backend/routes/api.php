@@ -127,7 +127,12 @@ Route::middleware('auth:sanctum')->group(function () {
         // tries (and fails) to route-model-bind "by-date" as a patient id —
         // same reasoning as /staff/appointments/stats above {appointment}.
         Route::get('/patient-records/by-date', [PatientRecordController::class, 'appointmentsByDate']);
+        // Same ordering reason as by-date above, one level deeper — this
+        // must resolve before /patient-records/{patient}/pdf, or Laravel
+        // tries to route-model-bind "by-date" as {patient} there instead.
+        Route::get('/patient-records/by-date/pdf', [PatientRecordController::class, 'appointmentsByDatePdf']);
         Route::get('/patient-records/{patient}', [PatientRecordController::class, 'show']);
+        Route::get('/patient-records/{patient}/pdf', [PatientRecordController::class, 'showPdf']);
     });
 
     Route::middleware('role:dental_assistant,admin')->group(function () {
@@ -170,5 +175,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::patch('/admin/settings/hmo-providers/{hmoProvider}/toggle-active', [ClinicSettingsController::class, 'toggleHmoProviderActive']);
 
         Route::get('/admin/reports/overview', [ReportsController::class, 'overview']);
+        Route::get('/admin/reports/overview/pdf', [ReportsController::class, 'downloadPdf']);
     });
 });

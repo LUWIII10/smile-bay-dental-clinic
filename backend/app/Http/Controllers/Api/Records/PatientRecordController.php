@@ -11,6 +11,7 @@ use App\Models\ToothCondition;
 use App\Models\TreatmentHistory;
 use App\Models\TreatmentPlan;
 use App\Models\TreatmentPlanItem;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -85,6 +86,36 @@ class PatientRecordController extends Controller
     }
 
     /**
+     * Same list as appointmentsByDate() above, as a real PDF — the
+     * "Download PDF" button next to this report's existing browser-print
+     * "Print" button on the Patient Records page.
+     */
+    public function appointmentsByDatePdf(Request $request)
+    {
+        $validated = $request->validate([
+            'date' => ['required', 'date'],
+        ]);
+
+        $appointments = Appointment::whereDate('appointment_date', $validated['date'])
+            ->whereIn('status', ['confirmed', 'pending_verification', 'completed'])
+            ->with([
+                'patient:id,patient_number,first_name,last_name',
+                'service:id,name',
+                'dentist:id,name',
+            ])
+            ->orderBy('appointment_time')
+            ->get();
+
+        $pdf = Pdf::loadView('pdf.patient-appointments-report', [
+            'date' => $validated['date'],
+            'appointments' => $appointments,
+            'generatedAt' => now(),
+        ]);
+
+        return $pdf->download("patient-appointments-{$validated['date']}.pdf");
+    }
+
+    /**
      * Full profile + dental record for one patient — same eager-load shape
      * as PatientDentalRecordController::show(), just viewed by staff instead
      * of the patient themselves. Lazily provisions the dental record too
@@ -124,6 +155,74 @@ class PatientRecordController extends Controller
         ]);
 
         return response()->json(['data' => ['patient' => $patient, 'dental_record' => $record]]);
+    }
+
+    /**
+     * The full formal report show() above backs on-screen, as a real PDF —
+     * same eager-load shape, same lazy dental-record provisioning (in
+     * practice always a no-op here: by the time this button is clickable
+     * the page has already called show() once, which already provisioned
+     * it). date_from/date_to scope Treatment History and Clinical Notes
+     * only, matching PatientRecords.jsx's own printRange — everything else
+     * (patient info, dental chart, treatment plans) is always shown in full.
+     */
+    public function showPdf(Request $request, Patient $patient)
+    {
+        $validated = $request->validate([
+            'date_from' => ['nullable', 'date_format:Y-m-d'],
+            'date_to' => ['nullable', 'date_format:Y-m-d'],
+        ]);
+
+        $dateFrom = $validated['date_from'] ?? now()->subMonths(6)->toDateString();
+        $dateTo = $validated['date_to'] ?? now()->toDateString();
+
+        $patient->load('user', 'hmoProvider:id,name');
+
+        $record = $patient->dentalRecord;
+
+        if (! $record) {
+            $record = DB::transaction(function () use ($patient) {
+                $record = DentalRecord::create([
+                    'patient_id' => $patient->id,
+                    'opened_at' => now(),
+                    'record_number' => 'PENDING-'.$patient->id,
+                ]);
+                $record->update(['record_number' => DentalRecord::formatRecordNumber($record->id, $record->opened_at)]);
+
+                return $record;
+            });
+        }
+
+        $record->load([
+            'primaryDentist:id,name',
+            'toothConditions' => fn ($q) => $q->orderBy('tooth_number'),
+            'toothConditions.updatedBy:id,name',
+            'clinicalNotes' => fn ($q) => $q->with('dentist:id,name')->orderByDesc('created_at'),
+            'treatmentPlans' => fn ($q) => $q->with([
+                'dentist:id,name',
+                'items' => fn ($iq) => $iq->orderBy('sequence'),
+            ])->orderByDesc('created_at'),
+            'treatmentHistory' => fn ($q) => $q->with('performedBy:id,name')->orderByDesc('performed_at'),
+        ]);
+
+        $printHistory = $record->treatmentHistory
+            ->filter(fn ($h) => $h->performed_at->toDateString() >= $dateFrom && $h->performed_at->toDateString() <= $dateTo)
+            ->values();
+        $printNotes = $record->clinicalNotes
+            ->filter(fn ($n) => $n->created_at->toDateString() >= $dateFrom && $n->created_at->toDateString() <= $dateTo)
+            ->values();
+
+        $pdf = Pdf::loadView('pdf.patient-dental-record', [
+            'patient' => $patient,
+            'record' => $record,
+            'dateFrom' => $dateFrom,
+            'dateTo' => $dateTo,
+            'printHistory' => $printHistory,
+            'printNotes' => $printNotes,
+            'generatedAt' => now(),
+        ]);
+
+        return $pdf->download("dental-record-{$patient->patient_number}.pdf");
     }
 
     /**
