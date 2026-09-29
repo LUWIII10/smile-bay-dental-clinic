@@ -28,6 +28,15 @@ php artisan view:cache
 # starting.
 php artisan db:seed --class=ProductionSeeder --force || echo "ProductionSeeder reported an error — continuing so the app still starts."
 
+# Same "safe on every deploy" shape as the seeder above — BackfillActivityLog
+# refuses on its own once activity_logs has any rows (real usage, or an
+# earlier run of this exact line), so this only ever does real work the one
+# time it's actually needed. Runs automatically here instead of requiring a
+# one-off manual Railway Console command, so local (already backfilled
+# directly) and production both end up with the same history without a
+# separate manual step per environment.
+php artisan activity-log:backfill || echo "activity-log:backfill reported an error — continuing so the app still starts."
+
 # Railway only decides $PORT at container start, not at build time, so
 # Apache's own config (fixed at port 80) needs rewriting here before it
 # starts. ports.conf just has "Listen 80"; the vhost has "<VirtualHost
