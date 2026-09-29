@@ -11,16 +11,16 @@ use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 
 /**
- * Sent whenever an appointment becomes 'confirmed' — either instantly for a
- * cash booking (AppointmentController::store()) or after staff approve a
- * pending_verification HMO booking (StaffVerificationController::verify()).
- * One mailable for both, not two, per the requirement that the HMO-approved
- * email use "the same tone/content as the cash confirmation email" — the one
- * difference (a line noting HMO coverage was verified) is derived from
- * patient_type_snapshot rather than a constructor flag, since a cash
- * appointment's snapshot is never 'hmo'.
+ * Sent by StaffVerificationController::proposeNewDate() — coverage just got
+ * verified, but the patient's original requested date already passed, so a
+ * new one needs their confirmation. Deliberately its own mailable rather
+ * than reusing AppointmentRescheduledMail: that one's copy says "no action
+ * is needed from you", which would be actively wrong here — the whole point
+ * is the patient needs to sign in and respond (accept or pick a different
+ * date), same as AppointmentConfirmedMail is its own thing rather than a
+ * reused AppointmentRescheduledMail once the patient later confirms.
  */
-class AppointmentConfirmedMail extends Mailable
+class HmoCoverageVerifiedMail extends Mailable
 {
     use Queueable, SerializesModels;
 
@@ -29,7 +29,7 @@ class AppointmentConfirmedMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Your Smile Bay appointment is confirmed',
+            subject: 'Your HMO coverage is verified — please confirm your visit date',
         );
     }
 
@@ -38,14 +38,14 @@ class AppointmentConfirmedMail extends Mailable
         $this->appointment->loadMissing(['patient', 'dentist', 'service']);
 
         return new Content(
-            view: 'emails.appointment-confirmed',
+            view: 'emails.hmo-coverage-verified',
             with: [
                 'name' => $this->appointment->patient->first_name,
                 'serviceName' => $this->appointment->service->name,
                 'dentistName' => $this->appointment->dentist?->name,
                 'date' => $this->appointment->appointment_date->format('F j, Y'),
                 'time' => Carbon::parse($this->appointment->appointment_time)->format('g:i A'),
-                'viaHmoVerification' => $this->appointment->patient_type_snapshot === 'hmo',
+                'reason' => $this->appointment->dentist_reschedule_reason,
                 'coverageNotes' => $this->appointment->patient->hmo_coverage_notes,
             ],
         );

@@ -6,7 +6,7 @@ import { passwordChecklist } from '../auth/registerSteps/validation';
 import { getAvatarUrl } from './avatarUtils';
 import Skeleton from './components/Skeleton';
 import PageHeader from './components/PageHeader';
-import { UserIcon } from './icons';
+import { UserIcon, ShieldIcon } from './icons';
 import './dashboards.css';
 import './MyProfile.css';
 
@@ -453,6 +453,27 @@ function MyProfile() {
                   </>
                 )}
               </div>
+
+              {/* Read-only — staff fill this in after calling the provider to
+                  verify coverage (StaffVerificationController::proposeNewDate()/
+                  updateHmoInfo()), not something the patient edits here. Only
+                  shown once something has actually been recorded. */}
+              {form.patient_type === 'hmo' && profile?.patient?.hmo_coverage_notes && (
+                <div className="hmo-coverage-box">
+                  <div className="hmo-coverage-box-header">
+                    <ShieldIcon />
+                    <span>Your Verified Coverage</span>
+                  </div>
+                  <p className="hmo-coverage-box-text">{profile.patient.hmo_coverage_notes}</p>
+                  {profile.patient.hmo_coverage_verified_at && (
+                    <div className="hmo-coverage-box-time">
+                      Last verified {new Date(profile.patient.hmo_coverage_verified_at).toLocaleDateString('en-US', {
+                        month: 'short', day: 'numeric', year: 'numeric',
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </>
         )}

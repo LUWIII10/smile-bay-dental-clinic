@@ -21,8 +21,10 @@
                         <td style="padding:32px;">
                             <p style="margin:0 0 8px 0; color:#0f2557; font-size:16px;">Hi {{ $name }},</p>
                             <p style="margin:0 0 20px 0; color:#334155; font-size:14px; line-height:1.5;">
-                                Your appointment is confirmed{{ $viaHmoVerification ? " — your HMO coverage has been verified by our staff" : '' }}.
-                                No further action is needed. We look forward to seeing you!
+                                Good news — your HMO coverage has been verified by our staff. Your original requested
+                                date already passed, so we're proposing a new one below.
+                                <strong>Please sign in to accept it or request a different date</strong> — no further
+                                coverage verification is needed either way.
                             </p>
 
                             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f0fdf4; border-radius:10px; margin:0 0 20px;">
@@ -32,11 +34,22 @@
                                         @if($dentistName)
                                             <strong style="color:#0f2557;">Dentist:</strong> {{ $dentistName }}<br>
                                         @endif
-                                        <strong style="color:#0f2557;">Date:</strong> {{ $date }}<br>
-                                        <strong style="color:#0f2557;">Time:</strong> {{ $time }}
+                                        <strong style="color:#0f2557;">Proposed date:</strong> {{ $date }}<br>
+                                        <strong style="color:#0f2557;">Proposed time:</strong> {{ $time }}
                                     </td>
                                 </tr>
                             </table>
+
+                            @if($reason)
+                                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc; border-radius:10px; margin:0 0 20px;">
+                                    <tr>
+                                        <td style="padding:14px 18px; font-size:13px; color:#334155; line-height:1.6;">
+                                            <strong style="color:#0f2557;">Note from our staff:</strong><br>
+                                            {{ $reason }}
+                                        </td>
+                                    </tr>
+                                </table>
+                            @endif
 
                             @if($coverageNotes)
                                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eff6ff; border-radius:10px; margin:0 0 20px;">
@@ -50,7 +63,7 @@
                             @endif
 
                             <p style="margin:0; color:#64748b; font-size:13px;">
-                                Need to reschedule or cancel? Sign in to your Smile Bay patient portal or contact the clinic directly.
+                                Sign in to your Smile Bay patient portal, under My Appointments, to respond.
                             </p>
                         </td>
                     </tr>

@@ -2,15 +2,16 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import api from '../../api';
 import {
   getHmoQueue, verifyHmoAppointment, sendHmoStatusUpdate, updatePatientHmoInfo,
-  getServices, getDentists, getStaffEditAvailableSlots,
+  getServices, getDentists, getStaffEditAvailableSlots, proposeHmoNewDate,
 } from '../../api/appointments';
 import StatusBadge from './components/StatusBadge';
 import RejectionModal from './components/RejectionModal';
 import Modal from './components/Modal';
 import Skeleton from './components/Skeleton';
 import PageHeader from './components/PageHeader';
-import { ShieldIcon, CheckCircleIcon, MailIcon } from './icons';
-import { formatDateLong, formatTime12h } from './dateTimeUtils';
+import AvailableSlotPicker from './components/AvailableSlotPicker';
+import { ShieldIcon, CheckCircleIcon, MailIcon, CalendarIcon, AlertIcon } from './icons';
+import { formatDateLong, formatTime12h, toLocalDate } from './dateTimeUtils';
 import { showSuccessToast } from '../../utils/toast';
 import './dashboards.css';
 import './Appointments.css';
@@ -45,13 +46,27 @@ function formatSubmitted(isoTimestamp) {
   });
 }
 
-function QueueCard({ appointment, actingId, sendingId, onApprove, onReject, onSendUpdate, onEditHmoInfo }) {
+// HMO verification routinely takes days — a booking whose requested date
+// has already passed by the time staff get to it isn't an edge case, it's
+// routine. Confirming onto a date that's already gone would just quietly
+// produce a doomed-to-no-show appointment, so the plain "Approve" action
+// becomes "Approve & Reschedule" (opens the propose-new-date modal instead
+// of confirming outright) whenever this is true — matches the exact same
+// server-side guard StaffVerificationController::verify() enforces.
+function isOverdue(appointment) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return toLocalDate(appointment.appointment_date) < today;
+}
+
+function QueueCard({ appointment, actingId, sendingId, onApprove, onReject, onSendUpdate, onEditHmoInfo, onProposeNewDate }) {
   const isPediatricApproved = appointment.service?.name?.includes('Pediatric') && appointment.pediatric_confirmed_at;
   const hmoProviderName = appointment.patient?.hmo_provider?.name || appointment.patient?.hmo_company_name || 'HMO';
   const isActing = actingId === appointment.id;
   const isSending = sendingId === appointment.id;
   const patientEmail = appointment.patient?.user?.email || '';
   const hasNoEmailOnFile = patientEmail.endsWith(WALKIN_EMAIL_SUFFIX);
+  const overdue = isOverdue(appointment);
 
   return (
     <div className="queue-card">
@@ -66,6 +81,12 @@ function QueueCard({ appointment, actingId, sendingId, onApprove, onReject, onSe
         </div>
       </div>
 
+      {overdue && (
+        <div className="queue-card-overdue-note">
+          <AlertIcon /> Requested date already passed — reschedule needed before approving
+        </div>
+      )}
+
       <div className="queue-card-grid">
         <div>
           <span className="queue-card-field-label">Service</span>
@@ -77,7 +98,7 @@ function QueueCard({ appointment, actingId, sendingId, onApprove, onReject, onSe
         </div>
         <div>
           <span className="queue-card-field-label">Requested</span>
-          <span className="queue-card-field-value">
+          <span className={`queue-card-field-value${overdue ? ' queue-card-field-value--overdue' : ''}`}>
             {formatDateLong(appointment.appointment_date)} &middot; {formatTime12h(appointment.appointment_time)}
           </span>
         </div>
@@ -92,9 +113,15 @@ function QueueCard({ appointment, actingId, sendingId, onApprove, onReject, onSe
       </div>
 
       <div className="queue-card-actions">
-        <button type="button" className="dash-btn" disabled={isActing} onClick={() => onApprove(appointment)}>
-          <CheckCircleIcon /> {isActing ? 'Saving…' : 'Approve'}
-        </button>
+        {overdue ? (
+          <button type="button" className="dash-btn" disabled={isActing} onClick={() => onProposeNewDate(appointment)}>
+            <CalendarIcon /> Approve &amp; Reschedule
+          </button>
+        ) : (
+          <button type="button" className="dash-btn" disabled={isActing} onClick={() => onApprove(appointment)}>
+            <CheckCircleIcon /> {isActing ? 'Saving…' : 'Approve'}
+          </button>
+        )}
         <button type="button" className="dash-btn dash-btn--outline" disabled={isActing} onClick={() => onReject(appointment)}>
           Reject
         </button>
@@ -144,9 +171,23 @@ function HmoVerificationQueue() {
   const [editForm, setEditForm] = useState({
     hmoProviderId: '', hmoNumber: '', hmoCompanyName: '',
     serviceId: '', dentistId: '', appointmentDate: '', appointmentTime: '',
+    hmoCoverageNotes: '',
   });
   const [savingEdit, setSavingEdit] = useState(false);
   const [editError, setEditError] = useState('');
+
+  // "Approve & Reschedule" — verifies coverage AND proposes a new date in
+  // one action, for a booking whose requested date already passed
+  // (StaffVerificationController::proposeNewDate()). Separate state/modal
+  // from Edit Info above since this is a decision (verify + move the date),
+  // not a correction.
+  const [proposeTarget, setProposeTarget] = useState(null);
+  const [proposeDate, setProposeDate] = useState('');
+  const [proposeTime, setProposeTime] = useState('');
+  const [proposeReason, setProposeReason] = useState('');
+  const [proposeCoverageNotes, setProposeCoverageNotes] = useState('');
+  const [proposing, setProposing] = useState(false);
+  const [proposeError, setProposeError] = useState('');
 
   // Full staff-facing catalog (not the patient-bookable-only subset the
   // booking wizard uses) — staff can reassign to anything the clinic
@@ -324,6 +365,7 @@ function HmoVerificationQueue() {
       dentistId: appointment.dentist_id ? String(appointment.dentist_id) : '',
       appointmentDate: appointment.appointment_date.slice(0, 10),
       appointmentTime: appointment.appointment_time.slice(0, 5),
+      hmoCoverageNotes: appointment.patient?.hmo_coverage_notes || '',
     });
     setEditTarget(appointment);
   };
@@ -360,6 +402,40 @@ function HmoVerificationQueue() {
     }
   };
 
+  const openProposeNewDate = (appointment) => {
+    setProposeError('');
+    setProposeDate('');
+    setProposeTime('');
+    setProposeReason('');
+    setProposeCoverageNotes(appointment.patient?.hmo_coverage_notes || '');
+    setProposeTarget(appointment);
+  };
+
+  const handleProposeNewDate = async () => {
+    if (!proposeTarget) return;
+    if (!proposeDate || !proposeTime) {
+      setProposeError('Please pick a date and an available time.');
+      return;
+    }
+    setProposing(true);
+    setProposeError('');
+    try {
+      const result = await proposeHmoNewDate(proposeTarget.id, {
+        appointmentDate: proposeDate,
+        appointmentTime: proposeTime,
+        reason: proposeReason.trim() || null,
+        hmoCoverageNotes: proposeCoverageNotes.trim() || null,
+      });
+      setAppointments((prev) => prev.map((a) => (a.id === proposeTarget.id ? result.data : a)));
+      setProposeTarget(null);
+      showSuccessToast('Coverage verified — new date sent to the patient.');
+    } catch (err) {
+      setProposeError(err.response?.data?.message || 'Could not send this date.');
+    } finally {
+      setProposing(false);
+    }
+  };
+
   return (
     <div>
       <PageHeader
@@ -393,6 +469,7 @@ function HmoVerificationQueue() {
             onReject={openReject}
             onSendUpdate={openStatusUpdate}
             onEditHmoInfo={openEditHmoInfo}
+            onProposeNewDate={openProposeNewDate}
           />
         ))
       )}
@@ -548,6 +625,16 @@ function HmoVerificationQueue() {
           onChange={(e) => setEditForm((p) => ({ ...p, hmoCompanyName: e.target.value }))}
         />
 
+        <label className="modal-field-label">
+          Coverage Details <span style={{ fontWeight: 400, color: 'var(--portal-muted)' }}>(optional — saved to the patient's account)</span>
+        </label>
+        <textarea
+          className="form-textarea"
+          placeholder="e.g. 2 tooth extractions/year, 1 cleaning every 6 months, up to ₱5,000 crown allowance — as told by the provider."
+          value={editForm.hmoCoverageNotes}
+          onChange={(e) => setEditForm((p) => ({ ...p, hmoCoverageNotes: e.target.value }))}
+        />
+
         {editError && (
           <p style={{ margin: '10px 0 0', fontSize: '0.82rem', color: 'var(--portal-red-text)' }}>{editError}</p>
         )}
@@ -568,6 +655,71 @@ function HmoVerificationQueue() {
             {savingEdit ? 'Saving…' : 'Save Changes'}
           </button>
         </div>
+      </Modal>
+
+      {/* Approving this doubles as verifying HMO coverage — the appointment
+          stays pending_verification, now awaiting the PATIENT's own date
+          confirmation (see StaffVerificationController::proposeNewDate())
+          instead of confirming outright, since the requested date already
+          passed. */}
+      <Modal open={!!proposeTarget} onClose={() => setProposeTarget(null)} title="Approve & Reschedule">
+        {proposeTarget && (
+          <>
+            <div className="profile-alert profile-alert--success" style={{ marginBottom: 18, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+              <CheckCircleIcon />
+              <span>
+                Approving marks {proposeTarget.patient?.first_name}&rsquo;s HMO coverage as verified. Their original
+                date already passed, so pick a new one below — it&rsquo;ll be sent to the patient to confirm, no
+                further HMO verification needed.
+              </span>
+            </div>
+
+            <AvailableSlotPicker
+              dentistId={proposeTarget.dentist_id}
+              serviceId={proposeTarget.service_id}
+              date={proposeDate}
+              onDateChange={setProposeDate}
+              time={proposeTime}
+              onTimeChange={setProposeTime}
+              compact
+            />
+
+            <label className="modal-field-label" style={{ marginTop: 14, display: 'block' }}>
+              Note to Patient <span style={{ fontWeight: 400, color: 'var(--portal-muted)' }}>(optional)</span>
+            </label>
+            <textarea
+              className="form-textarea"
+              placeholder="e.g. Sorry for the delay verifying your coverage — here's the next open slot."
+              value={proposeReason}
+              onChange={(e) => setProposeReason(e.target.value)}
+            />
+
+            <div style={{ height: 1, background: 'var(--portal-border-light)', margin: '18px 0' }} />
+
+            <label className="modal-field-label" style={{ display: 'block' }}>
+              Coverage Details <span style={{ fontWeight: 400, color: 'var(--portal-muted)' }}>(optional — saved to the patient's account)</span>
+            </label>
+            <textarea
+              className="form-textarea"
+              placeholder="e.g. 2 tooth extractions/year, 1 cleaning every 6 months, up to ₱5,000 crown allowance — as told by the provider."
+              value={proposeCoverageNotes}
+              onChange={(e) => setProposeCoverageNotes(e.target.value)}
+            />
+
+            {proposeError && (
+              <p style={{ margin: '10px 0 0', fontSize: '0.82rem', color: 'var(--portal-red-text)' }}>{proposeError}</p>
+            )}
+
+            <div className="modal-actions">
+              <button type="button" className="dash-btn dash-btn--outline" onClick={() => setProposeTarget(null)}>
+                Cancel
+              </button>
+              <button type="button" className="dash-btn" disabled={proposing || !proposeTime} onClick={handleProposeNewDate}>
+                {proposing ? 'Sending…' : 'Send New Date to Patient'}
+              </button>
+            </div>
+          </>
+        )}
       </Modal>
     </div>
   );

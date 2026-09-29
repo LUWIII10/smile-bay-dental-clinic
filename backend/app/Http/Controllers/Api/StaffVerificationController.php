@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Mail\AppointmentConfirmedMail;
 use App\Mail\AppointmentRejectedMail;
+use App\Mail\HmoCoverageVerifiedMail;
 use App\Mail\HmoStatusUpdateMail;
 use App\Models\Appointment;
 use App\Models\AppointmentStatusLog;
@@ -86,6 +87,21 @@ class StaffVerificationController extends Controller
             ], 422);
         }
 
+        // A booking whose requested date has already passed can't be
+        // confirmed onto that date — verification here often takes days, so
+        // this is a routine case, not an edge case. proposeNewDate() below
+        // is the "approve, but the patient needs a new date" path instead;
+        // it marks coverage verified the same way this does, just without
+        // jumping straight to 'confirmed'.
+        if (
+            $validated['action'] === 'approve'
+            && $appointment->appointment_date->toDateString() < now()->toDateString()
+        ) {
+            return response()->json([
+                'message' => 'This booking\'s requested date has already passed — use "Approve & Reschedule" to verify coverage and propose a new date instead.',
+            ], 422);
+        }
+
         $newStatus = $validated['action'] === 'approve' ? 'confirmed' : 'rejected';
         $reason = $validated['action'] === 'reject' ? ($validated['reason'] ?? null) : null;
 
@@ -151,6 +167,129 @@ class StaffVerificationController extends Controller
 
         return response()->json([
             'message' => $newStatus === 'confirmed' ? 'Appointment approved and confirmed.' : 'Appointment rejected.',
+            'data' => $appointment,
+        ]);
+    }
+
+    /**
+     * Staff approves HMO coverage for a booking whose requested date has
+     * already passed — the same "coverage verified" event verify()'s
+     * approve branch represents, just without a still-valid date to confirm
+     * onto. Sets verified_by/verified_at exactly like a normal approval
+     * (coverage IS verified from this point on) plus
+     * dentist_proposed_new_date_at/dentist_reschedule_reason — reusing the
+     * same columns PediatricVerificationController::proposeNewDate() uses
+     * for its own "patient must respond" shape — so the appointment stays
+     * pending_verification, now in a third sub-state: coverage verified,
+     * only the date needs the patient's own confirmation. See
+     * PatientAppointmentController::acceptStaffProposedDate() /
+     * requestDifferentDateForVerifiedHmo() for what happens once they
+     * respond — unlike the pediatric flow's own accept/counter, both of
+     * those go straight to 'confirmed', since there's no further
+     * verification left to wait on once coverage is already verified here.
+     *
+     * hmo_coverage_notes is optional, same as updateHmoInfo()'s own copy of
+     * this field — staff may not have the detailed benefit breakdown yet, or
+     * may prefer to record it separately via Edit Info. Only overwrites the
+     * patient's stored notes (and bumps hmo_coverage_verified_at) when
+     * non-blank text actually different from what's on file is sent, so an
+     * empty submission never wipes a previously-recorded note.
+     */
+    public function proposeNewDate(Request $request, Appointment $appointment)
+    {
+        if ($appointment->patient_type_snapshot !== 'hmo' || $appointment->status !== 'pending_verification') {
+            return response()->json([
+                'message' => 'Only an HMO booking still awaiting verification can be given a new date here.',
+            ], 422);
+        }
+
+        if ($appointment->service->isPediatric() && ! $appointment->pediatric_confirmed_at) {
+            return response()->json([
+                'message' => 'This pediatric appointment must be reviewed by the pediatric dentist before staff can verify it.',
+            ], 422);
+        }
+
+        $validated = $request->validate([
+            'appointment_date' => ['required', 'date_format:Y-m-d', 'after:today'],
+            'appointment_time' => ['required', 'date_format:H:i'],
+            'reason' => ['nullable', 'string', 'max:1000'],
+            'hmo_coverage_notes' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $appointment->load('service:id,duration_minutes,is_pediatric');
+        $oldDate = $appointment->appointment_date->toDateString();
+        $oldTime = $appointment->appointment_time;
+
+        $patient = $appointment->patient;
+        $coverageNotesChanged = ! empty(trim((string) ($validated['hmo_coverage_notes'] ?? '')))
+            && trim((string) $validated['hmo_coverage_notes']) !== trim((string) $patient->hmo_coverage_notes);
+
+        $moved = DB::transaction(function () use ($appointment, $validated, $request, $patient, $coverageNotesChanged) {
+            $available = $this->slots->isSlotAvailable(
+                $appointment->dentist_id,
+                $validated['appointment_date'],
+                $validated['appointment_time'],
+                $appointment->service->duration_minutes,
+                $appointment->id,
+            );
+
+            if (! $available) {
+                return false;
+            }
+
+            $appointment->update([
+                'appointment_date' => $validated['appointment_date'],
+                'appointment_time' => $validated['appointment_time'],
+                'dentist_proposed_new_date_at' => now(),
+                'dentist_reschedule_reason' => $validated['reason'] ?? null,
+                'verified_by' => $request->user()->id,
+                'verified_at' => now(),
+            ]);
+
+            if ($coverageNotesChanged) {
+                $patient->update([
+                    'hmo_coverage_notes' => trim($validated['hmo_coverage_notes']),
+                    'hmo_coverage_verified_at' => now(),
+                ]);
+            }
+
+            return true;
+        });
+
+        if (! $moved) {
+            return response()->json([
+                'message' => 'That time is no longer available. Please choose another.',
+            ], 409);
+        }
+
+        AppointmentStatusLog::create([
+            'appointment_id' => $appointment->id,
+            'old_status' => $appointment->status,
+            'new_status' => $appointment->status,
+            'changed_by' => $request->user()->id,
+            'note' => "Staff verified HMO coverage and proposed a new date, from {$oldDate} {$oldTime} to {$validated['appointment_date']} {$validated['appointment_time']} — awaiting patient confirmation."
+                .(! empty($validated['reason']) ? ' Reason: '.$validated['reason'] : ''),
+        ]);
+
+        $appointment->load(['patient.user', 'patient.hmoProvider', 'service:id,name,duration_minutes', 'dentist:id,name']);
+        try {
+            Mail::to($appointment->patient->user->email)->send(new HmoCoverageVerifiedMail($appointment));
+        } catch (\Throwable $e) {
+            Log::warning('Appointment email failed to send', [
+                'mailable' => HmoCoverageVerifiedMail::class,
+                'appointment_id' => $appointment->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+        Notification::notifyUser(
+            $appointment->patient->user_id,
+            'HMO coverage verified — confirm your new date',
+            "Your {$appointment->service->name} coverage was verified. We proposed {$validated['appointment_date']} at {$validated['appointment_time']} since your original date already passed — please confirm.",
+            '/patient/appointments'
+        );
+
+        return response()->json([
+            'message' => 'Coverage verified — new date sent to the patient for confirmation.',
             'data' => $appointment,
         ]);
     }
@@ -276,6 +415,14 @@ class StaffVerificationController extends Controller
             'dentist_id' => ['required', 'integer', Rule::exists('users', 'id')->where('role', 'dentist')],
             'appointment_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:today'],
             'appointment_time' => ['required', 'date_format:H:i'],
+            // Optional and decoupled from Approve/Reject — staff may learn
+            // the patient's benefit details at any point while this card is
+            // still in the queue, not only at the moment they approve. Same
+            // "only overwrites on real, non-blank, changed text" rule as
+            // proposeNewDate()'s own copy of this field, so opening this
+            // modal to fix, say, just the card number never blanks out a
+            // note already on file.
+            'hmo_coverage_notes' => ['nullable', 'string', 'max:2000'],
         ]);
 
         $service = Service::findOrFail($validated['service_id']);
@@ -316,8 +463,10 @@ class StaffVerificationController extends Controller
             || $validated['dentist_id'] !== $appointment->dentist_id
             || $validated['appointment_date'] !== $oldDate
             || $validated['appointment_time'] !== substr($oldTime, 0, 5);
+        $coverageNotesChanged = ! empty(trim((string) ($validated['hmo_coverage_notes'] ?? '')))
+            && trim((string) $validated['hmo_coverage_notes']) !== trim((string) $patient->hmo_coverage_notes);
 
-        $saved = DB::transaction(function () use ($appointment, $service, $validated, $scheduleChanged) {
+        $saved = DB::transaction(function () use ($appointment, $service, $validated, $scheduleChanged, $coverageNotesChanged) {
             // Only re-check the slot when something that affects it actually
             // changed — re-validating an unchanged slot is harmless, but
             // skipping it when nothing moved avoids a spurious 409 from the
@@ -347,6 +496,10 @@ class StaffVerificationController extends Controller
                 'hmo_provider_id' => $validated['hmo_provider_id'],
                 'hmo_number' => $validated['hmo_number'],
                 'hmo_company_name' => $validated['hmo_company_name'],
+                ...($coverageNotesChanged ? [
+                    'hmo_coverage_notes' => trim($validated['hmo_coverage_notes']),
+                    'hmo_coverage_verified_at' => now(),
+                ] : []),
             ]);
 
             return true;
@@ -369,6 +522,9 @@ class StaffVerificationController extends Controller
             $logLines[] = "service: {$oldServiceName} \u{2192} {$appointment->service->name}";
             $logLines[] = "dentist: {$oldDentistName} \u{2192} {$appointment->dentist->name}";
             $logLines[] = "schedule: {$oldDate} {$oldTime} \u{2192} {$appointment->appointment_date->toDateString()} {$appointment->appointment_time}";
+        }
+        if ($coverageNotesChanged) {
+            $logLines[] = 'coverage details updated';
         }
 
         AppointmentStatusLog::create([

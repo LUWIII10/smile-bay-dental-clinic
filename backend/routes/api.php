@@ -81,6 +81,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::patch('/patient/appointments/{appointment}/cancel', [PatientAppointmentController::class, 'cancel']);
         Route::patch('/patient/appointments/{appointment}/accept-proposed-date', [PatientAppointmentController::class, 'acceptProposedDate']);
         Route::patch('/patient/appointments/{appointment}/request-different-date', [PatientAppointmentController::class, 'requestDifferentDate']);
+        Route::patch('/patient/appointments/{appointment}/accept-staff-date', [PatientAppointmentController::class, 'acceptStaffProposedDate']);
+        Route::patch('/patient/appointments/{appointment}/request-different-hmo-date', [PatientAppointmentController::class, 'requestDifferentDateForVerifiedHmo']);
         Route::get('/patient/dental-record', [PatientDentalRecordController::class, 'show']);
         Route::get('/patient/dashboard-summary', [PatientAppointmentController::class, 'summary']);
     });
@@ -141,6 +143,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/staff/appointments/{appointment}/notify-status', [StaffVerificationController::class, 'sendStatusUpdate']);
         Route::patch('/staff/appointments/{appointment}/hmo-info', [StaffVerificationController::class, 'updateHmoInfo']);
         Route::get('/staff/appointments/{appointment}/available-slots', [StaffVerificationController::class, 'availableSlotsForEdit']);
+        Route::patch('/staff/appointments/{appointment}/propose-new-date', [StaffVerificationController::class, 'proposeNewDate']);
 
         Route::get('/staff/appointments', [StaffAppointmentController::class, 'index']);
         // /stats must resolve before the {appointment} route below, or Laravel

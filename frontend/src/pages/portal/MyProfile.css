@@ -65,3 +65,47 @@
   font-size: 0.76rem;
   color: var(--portal-muted);
 }
+
+/* ============ HMO coverage (staff-entered, read-only) ============
+   Distinct from the editable HMO Provider/Card Number/Company Name fields
+   above it in .profile-grid — a filled box, not a bordered input, signals
+   "this isn't something you type into" at a glance. See
+   StaffVerificationController::proposeNewDate()/updateHmoInfo(). */
+.hmo-coverage-box {
+  margin-top: 16px;
+  padding: 16px 18px;
+  background: var(--portal-blue-bg);
+  border: 1px solid var(--portal-blue-border);
+  border-radius: var(--portal-radius-lg);
+}
+
+.hmo-coverage-box-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--portal-blue-text);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.hmo-coverage-box-header svg {
+  width: 16px;
+  height: 16px;
+}
+
+.hmo-coverage-box-text {
+  margin: 0 0 8px;
+  font-size: 0.85rem;
+  color: #1e3a8a;
+  line-height: 1.6;
+  white-space: pre-line;
+}
+
+.hmo-coverage-box-time {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #60a5fa;
+}

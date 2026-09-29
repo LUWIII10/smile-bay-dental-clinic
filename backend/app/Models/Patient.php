@@ -54,6 +54,8 @@ class Patient extends Model
         'booking_restricted_at',
         'restriction_count',
         'cancellation_count_reset_at',
+        'hmo_coverage_notes',
+        'hmo_coverage_verified_at',
     ];
 
     protected function casts(): array
@@ -65,6 +67,7 @@ class Patient extends Model
             'current_dental_symptoms' => 'array',
             'consent_certified' => 'boolean',
             'booking_restricted_at' => 'datetime',
+            'hmo_coverage_verified_at' => 'datetime',
         ];
     }
 

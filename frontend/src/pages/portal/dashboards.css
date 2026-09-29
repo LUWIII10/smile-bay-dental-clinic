@@ -1390,6 +1390,19 @@
   background: #92400e;
 }
 
+/* The one "this is the easy, recommended, positive choice" tone — none of
+   the existing variants (blue primary, amber, red) fit an action that's
+   meant to read as unambiguously safe/final (Accept This Date) sitting next
+   to a neutral alternative and a destructive one. See PatientAppointments.jsx's
+   staff-proposed-date response modal. */
+.dash-btn--success {
+  background: var(--portal-green-text);
+}
+
+.dash-btn--success:hover {
+  background: #0f5c2b;
+}
+
 .dash-btn--danger {
   background: var(--portal-red-text);
 }
@@ -1420,6 +1433,20 @@
 
 .dash-btn--outline-danger:hover {
   background: var(--portal-red-bg);
+}
+
+/* Same shape again, blue instead — a neutral-but-branded secondary choice
+   (Request a Different Date) that needs to read as "a real, fine option",
+   not as muted/discouraged as --outline's plain gray would make it look
+   next to a solid --success primary action. */
+.dash-btn--outline-blue {
+  background: var(--portal-blue-bg);
+  color: var(--portal-blue-text);
+  border: 1px solid var(--portal-blue-border);
+}
+
+.dash-btn--outline-blue:hover {
+  background: var(--portal-blue-border);
 }
 
 .dash-btn:disabled {
@@ -1766,6 +1793,16 @@
   font-size: 0.85rem;
   color: var(--portal-slate);
   font-weight: 500;
+}
+
+/* The "Requested" date/time specifically, once it's already passed (see
+   HmoVerificationQueue.jsx's isOverdue()) — struck through so it reads as
+   "this is what they asked for, but it's no longer valid," not just another
+   plain field. */
+.queue-card-field-value--overdue {
+  color: var(--portal-red-text);
+  text-decoration: line-through;
+  text-decoration-color: var(--portal-red-border);
 }
 
 .queue-card-actions {

@@ -6,6 +6,8 @@ import {
   getFollowUpRecommendations,
   acceptProposedPediatricDate,
   requestDifferentPediatricDate,
+  acceptStaffProposedDate,
+  requestDifferentDateForVerifiedHmo,
   getPatientDashboardSummary,
 } from '../../api/appointments';
 import StatusBadge from './components/StatusBadge';
@@ -94,6 +96,19 @@ function isOverdueUnresolved(appointment) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   return toLocalDate(appointment.appointment_date) < today;
+}
+
+// Two different "someone proposed a new date, please respond" situations
+// share the same dentist_proposed_new_date_at flag: the pediatric dentist's
+// own proposal (PediatricVerificationController::proposeNewDate() — HMO
+// verification, if any, still hasn't happened) vs staff verifying HMO
+// coverage on a booking whose original date already passed
+// (StaffVerificationController::proposeNewDate() — coverage IS verified,
+// verified_at is the tell). They need different copy and a different
+// outcome once the patient responds (see acceptStaffProposedDate() —
+// straight to 'confirmed', not another review step).
+function isStaffProposal(appointment) {
+  return !!appointment.dentist_proposed_new_date_at && !!appointment.verified_at;
 }
 
 function PatientAppointments() {
@@ -227,13 +242,16 @@ function PatientAppointments() {
 
   const handleAcceptProposedDate = async () => {
     if (!proposalTarget) return;
+    const staffProposal = isStaffProposal(proposalTarget);
     setResponding(true);
     setRespondError('');
     try {
-      const response = await acceptProposedPediatricDate(proposalTarget.id);
+      const response = staffProposal
+        ? await acceptStaffProposedDate(proposalTarget.id)
+        : await acceptProposedPediatricDate(proposalTarget.id);
       setAppointments((prev) => prev.map((a) => (a.id === proposalTarget.id ? response.data : a)));
       setProposalTarget(null);
-      showSuccessToast('Date confirmed.');
+      showSuccessToast(staffProposal ? 'Appointment confirmed.' : 'Date confirmed.');
     } catch (err) {
       setRespondError(err.response?.data?.message || 'Could not confirm this date.');
     } finally {
@@ -247,13 +265,16 @@ function PatientAppointments() {
       setRespondError('Please pick both a date and a time.');
       return;
     }
+    const staffProposal = isStaffProposal(proposalTarget);
     setResponding(true);
     setRespondError('');
     try {
-      const response = await requestDifferentPediatricDate(proposalTarget.id, newDate, newTime);
+      const response = staffProposal
+        ? await requestDifferentDateForVerifiedHmo(proposalTarget.id, newDate, newTime)
+        : await requestDifferentPediatricDate(proposalTarget.id, newDate, newTime);
       setAppointments((prev) => prev.map((a) => (a.id === proposalTarget.id ? response.data : a)));
       setProposalTarget(null);
-      showSuccessToast('New date sent for review.');
+      showSuccessToast(staffProposal ? 'Appointment confirmed.' : 'New date sent for review.');
     } catch (err) {
       setRespondError(err.response?.data?.message || 'Could not send this date.');
     } finally {
@@ -321,7 +342,9 @@ function PatientAppointments() {
       minWidthPx: '100px',
       align: 'center',
       render: (row) =>
-        isOverdueUnresolved(row) ? (
+        isStaffProposal(row) ? (
+          <StatusBadge status="hmo_awaiting_date_confirmation" />
+        ) : isOverdueUnresolved(row) ? (
           <StatusBadge status="Awaiting Update" tone="amber" />
         ) : (
           <StatusBadge status={row.status} />
@@ -333,6 +356,21 @@ function PatientAppointments() {
       minWidth: '18%',
       minWidthPx: '150px',
       render: (row) => {
+        if (isStaffProposal(row)) {
+          return (
+            <div className="appt-hmo-status" style={{ margin: 0 }}>
+              <span className="appt-hmo-status-label">Coverage verified — awaiting your date</span>
+              <span className="appt-hmo-status-note">
+                Proposed: {formatDateLong(row.appointment_date)} at {formatTime12h(row.appointment_time)}.
+              </span>
+              {row.dentist_reschedule_reason && (
+                <span className="appt-hmo-status-note" style={{ fontStyle: 'italic' }}>
+                  "{row.dentist_reschedule_reason}"
+                </span>
+              )}
+            </div>
+          );
+        }
         if (row.dentist_proposed_new_date_at) {
           return (
             <div className="appt-hmo-status" style={{ margin: 0 }}>
@@ -379,7 +417,11 @@ function PatientAppointments() {
       render: (row) => {
         if (row.dentist_proposed_new_date_at) {
           return (
-            <button type="button" className="dash-btn dash-btn--amber row-btn" onClick={() => openProposal(row)}>
+            <button
+              type="button"
+              className={`dash-btn row-btn ${isStaffProposal(row) ? 'dash-btn--success' : 'dash-btn--amber'}`}
+              onClick={() => openProposal(row)}
+            >
               Respond
             </button>
           );
@@ -570,22 +612,35 @@ function PatientAppointments() {
         )}
       </Modal>
 
-      {/* Dr. Suchelle (or whichever pediatric dentist) moved this visit to a
-          new date because the original one passed with no decision — the
-          patient either accepts it or counters with a date of their own,
-          which goes back to the dentist for confirmation again. */}
+      {/* Two different reasons this modal opens (see isStaffProposal() above):
+          the pediatric dentist's own proposal (unchanged from before — a
+          two-up outline/solid button pair), or staff verifying HMO coverage
+          on a booking whose date already passed (a stacked, color-coded set
+          of 3 buttons — green solid Accept, blue-outline Request Different,
+          red-outline Cancel — so the safe/final action reads as unmistakably
+          different from the other two at a glance). */}
       <Modal
         open={!!proposalTarget}
         onClose={() => setProposalTarget(null)}
-        title="New Date Proposed"
+        title={proposalTarget && isStaffProposal(proposalTarget) ? 'Confirm Your Visit Date' : 'New Date Proposed'}
       >
         {proposalTarget && (
           <>
-            <div className="queue-card-overdue-note">
-              <AlertIcon /> {proposalTarget.dentist?.name || 'Your dentist'} couldn't confirm your original date in
-              time, so they've proposed a new one below. You can accept it or request a different date.
-            </div>
-            <p style={{ margin: '0 0 14px', fontSize: '0.85rem', color: 'var(--portal-slate)' }}>
+            {isStaffProposal(proposalTarget) ? (
+              <div className="profile-alert profile-alert--success" style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                <CheckCircleIcon />
+                <span>
+                  Good news — your HMO coverage has been verified by our staff. Your original request already
+                  passed, so we&rsquo;re just missing a confirmed date now. Nothing else is waiting on approval.
+                </span>
+              </div>
+            ) : (
+              <div className="queue-card-overdue-note">
+                <AlertIcon /> {proposalTarget.dentist?.name || 'Your dentist'} couldn't confirm your original date in
+                time, so they've proposed a new one below. You can accept it or request a different date.
+              </div>
+            )}
+            <p style={{ margin: '14px 0 14px', fontSize: '0.85rem', color: 'var(--portal-slate)' }}>
               <strong>{formatDateLong(proposalTarget.appointment_date)}</strong> at{' '}
               <strong>{formatTime12h(proposalTarget.appointment_time)}</strong>
               {proposalTarget.service?.name ? ` — ${proposalTarget.service.name}` : ''}
@@ -602,32 +657,70 @@ function PatientAppointments() {
                 {respondError && (
                   <p style={{ margin: '0 0 10px', fontSize: '0.82rem', color: 'var(--portal-red-text)' }}>{respondError}</p>
                 )}
-                <div className="modal-actions">
-                  <button
-                    type="button"
-                    className="dash-btn dash-btn--outline"
-                    disabled={responding}
-                    onClick={() => setRequestingDifferent(true)}
-                  >
-                    Request a Different Date
-                  </button>
-                  <button type="button" className="dash-btn" disabled={responding} onClick={handleAcceptProposedDate}>
-                    {responding ? 'Confirming…' : 'Accept This Date'}
-                  </button>
-                </div>
-                <button
-                  type="button"
-                  className="dash-btn dash-btn--danger"
-                  disabled={responding}
-                  style={{ width: '100%', marginTop: 10 }}
-                  onClick={() => {
-                    const target = proposalTarget;
-                    setProposalTarget(null);
-                    openCancel(target);
-                  }}
-                >
-                  Cancel This Appointment Instead
-                </button>
+                {isStaffProposal(proposalTarget) ? (
+                  <>
+                    <button
+                      type="button"
+                      className="dash-btn dash-btn--success"
+                      disabled={responding}
+                      style={{ width: '100%', marginBottom: 10 }}
+                      onClick={handleAcceptProposedDate}
+                    >
+                      <CheckCircleIcon /> {responding ? 'Confirming…' : 'Accept This Date — Confirm My Visit'}
+                    </button>
+                    <button
+                      type="button"
+                      className="dash-btn dash-btn--outline-blue"
+                      disabled={responding}
+                      style={{ width: '100%', marginBottom: 10 }}
+                      onClick={() => setRequestingDifferent(true)}
+                    >
+                      Request a Different Date Instead
+                    </button>
+                    <button
+                      type="button"
+                      className="dash-btn dash-btn--outline-danger"
+                      disabled={responding}
+                      style={{ width: '100%' }}
+                      onClick={() => {
+                        const target = proposalTarget;
+                        setProposalTarget(null);
+                        openCancel(target);
+                      }}
+                    >
+                      Cancel This Appointment Instead
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div className="modal-actions">
+                      <button
+                        type="button"
+                        className="dash-btn dash-btn--outline"
+                        disabled={responding}
+                        onClick={() => setRequestingDifferent(true)}
+                      >
+                        Request a Different Date
+                      </button>
+                      <button type="button" className="dash-btn" disabled={responding} onClick={handleAcceptProposedDate}>
+                        {responding ? 'Confirming…' : 'Accept This Date'}
+                      </button>
+                    </div>
+                    <button
+                      type="button"
+                      className="dash-btn dash-btn--danger"
+                      disabled={responding}
+                      style={{ width: '100%', marginTop: 10 }}
+                      onClick={() => {
+                        const target = proposalTarget;
+                        setProposalTarget(null);
+                        openCancel(target);
+                      }}
+                    >
+                      Cancel This Appointment Instead
+                    </button>
+                  </>
+                )}
               </>
             ) : (
               <>

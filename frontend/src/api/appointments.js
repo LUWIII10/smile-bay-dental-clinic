@@ -112,6 +112,29 @@ export async function requestDifferentPediatricDate(appointmentId, date, time) {
   return response.data;
 }
 
+// Patient accepts the date STAFF proposed after verifying HMO coverage on a
+// booking whose original date had already passed
+// (StaffVerificationController::proposeNewDate()) — distinct from the
+// pediatric-dentist pair above: this always goes straight to 'confirmed',
+// since coverage is already verified by the time this is offered.
+export async function acceptStaffProposedDate(appointmentId) {
+  await api.get('/sanctum/csrf-cookie');
+  const response = await api.patch(`/api/patient/appointments/${appointmentId}/accept-staff-date`);
+  return response.data;
+}
+
+// Patient counters the staff-proposed date with a different one of their
+// own — also goes straight to 'confirmed' (not back to a review queue),
+// same reasoning as acceptStaffProposedDate() above.
+export async function requestDifferentDateForVerifiedHmo(appointmentId, date, time) {
+  await api.get('/sanctum/csrf-cookie');
+  const response = await api.patch(`/api/patient/appointments/${appointmentId}/request-different-hmo-date`, {
+    appointment_date: date,
+    appointment_time: time,
+  });
+  return response.data;
+}
+
 export async function getDentistSchedule() {
   const response = await api.get('/api/dentist/schedule');
   return response.data.data;
@@ -260,7 +283,7 @@ export async function sendHmoStatusUpdate(appointmentId, statusLabel, note) {
 // patch, so the backend can stay one predictable "save everything shown"
 // action.
 export async function updatePatientHmoInfo(appointmentId, {
-  hmoProviderId, hmoNumber, hmoCompanyName, serviceId, dentistId, appointmentDate, appointmentTime,
+  hmoProviderId, hmoNumber, hmoCompanyName, serviceId, dentistId, appointmentDate, appointmentTime, hmoCoverageNotes,
 }) {
   await api.get('/sanctum/csrf-cookie');
   const response = await api.patch(`/api/staff/appointments/${appointmentId}/hmo-info`, {
@@ -271,6 +294,7 @@ export async function updatePatientHmoInfo(appointmentId, {
     dentist_id: dentistId,
     appointment_date: appointmentDate,
     appointment_time: appointmentTime,
+    hmo_coverage_notes: hmoCoverageNotes || null,
   });
   return response.data;
 }
@@ -285,6 +309,24 @@ export async function getStaffEditAvailableSlots(appointmentId, dentistId, servi
     params: { dentist_id: dentistId, service_id: serviceId, date },
   });
   return response.data.data;
+}
+
+// Staff verifies HMO coverage AND proposes a new date in one action — for a
+// booking whose requested date already passed by the time verification
+// caught up (StaffVerificationController::proposeNewDate()). Distinct from
+// the plain Approve action: the appointment stays pending_verification,
+// now awaiting the PATIENT's own date confirmation instead of confirming
+// outright. hmoCoverageNotes is optional, same field the Edit Info modal
+// also offers.
+export async function proposeHmoNewDate(appointmentId, { appointmentDate, appointmentTime, reason, hmoCoverageNotes }) {
+  await api.get('/sanctum/csrf-cookie');
+  const response = await api.patch(`/api/staff/appointments/${appointmentId}/propose-new-date`, {
+    appointment_date: appointmentDate,
+    appointment_time: appointmentTime,
+    reason: reason || null,
+    hmo_coverage_notes: hmoCoverageNotes || null,
+  });
+  return response.data;
 }
 
 // Marks a past confirmed/pending appointment that never actually happened as

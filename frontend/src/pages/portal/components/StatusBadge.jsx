@@ -26,6 +26,11 @@ const STATUS_TONE = {
   // booking is sitting at.
   pediatric_review_required: 'amber',
   pediatric_confirmed_pending_hmo: 'blue',
+  // HMO Verification Queue (StaffVerificationController::proposeNewDate())
+  // and My Appointments — an appointment.status still reads
+  // pending_verification here too, but verified_at IS already set: coverage
+  // cleared, only the date needs the patient's own confirmation.
+  hmo_awaiting_date_confirmation: 'blue',
 };
 
 // Full-phrase overrides for the two composite pediatric labels above —
@@ -43,6 +48,7 @@ const CUSTOM_LABELS = {
   pending_verification: 'Pending',
   pediatric_review_required: '👶 Pediatric Slot Review Required',
   pediatric_confirmed_pending_hmo: '👶 Pediatric Slot Confirmed — Pending HMO Verification',
+  hmo_awaiting_date_confirmation: 'Coverage Verified — Awaiting Your Date',
 };
 
 // icon is optional (a component reference, e.g. CheckCircleIcon) — every
