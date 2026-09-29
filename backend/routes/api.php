@@ -164,10 +164,16 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::middleware('role:admin')->group(function () {
         Route::get('/admin/users', [UserManagementController::class, 'index']);
+        // Must resolve before /admin/users/{user} below, or Laravel tries
+        // (and fails) to route-model-bind "dormant-count" as a user id —
+        // same reasoning as /staff/appointments/stats's own ordering note.
+        Route::get('/admin/users/dormant-count', [UserManagementController::class, 'dormantCount']);
         Route::post('/admin/users', [UserManagementController::class, 'store']);
         Route::patch('/admin/users/{user}', [UserManagementController::class, 'update']);
         Route::patch('/admin/users/{user}/status', [UserManagementController::class, 'updateStatus']);
         Route::patch('/admin/users/{user}/unrestrict-booking', [UserManagementController::class, 'unrestrictBooking']);
+        Route::patch('/admin/users/{user}/archive', [UserManagementController::class, 'archivePatient']);
+        Route::patch('/admin/users/{user}/restore', [UserManagementController::class, 'restorePatient']);
 
         Route::get('/admin/activity-log', [ActivityLogController::class, 'index']);
 

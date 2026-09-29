@@ -78,3 +78,177 @@
 .row-actions-secondary .row-btn {
   flex: 1;
 }
+
+/* ============ Archive (dormant patients) ============
+   Modeled on real dental practice-management conventions (Open Dental):
+   Archived is orthogonal to Active/Inactive/Restricted, always a deliberate
+   admin action, never automatic — see Patient::isArchived()'s own doc
+   comment. Approved design: https://claude.ai/artifact/72btdLB43zseJBKpP7Nz21 */
+
+.dormant-suggestion-banner {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  background: linear-gradient(120deg, var(--portal-amber-bg), #fff);
+  border: 1px solid var(--portal-amber-border);
+  border-radius: 14px;
+  margin: 14px 0;
+}
+
+.dormant-suggestion-icon {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--portal-amber-bg);
+  color: var(--portal-amber-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dormant-suggestion-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.dormant-suggestion-text {
+  flex-grow: 1;
+  min-width: 0;
+}
+
+.dormant-suggestion-title {
+  margin: 0;
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: #92400e;
+}
+
+.dormant-suggestion-sub {
+  margin: 2px 0 0;
+  font-size: 0.76rem;
+  color: #a16207;
+}
+
+.dormant-suggestion-dismiss {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: none;
+  background: none;
+  color: #c2996b;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.dormant-suggestion-dismiss:hover {
+  background: rgba(180, 83, 9, 0.1);
+}
+
+/* "Review N Patients" mode — replaces the suggestion banner while active,
+   same slot in the layout. */
+.dormant-review-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 18px;
+  background: var(--portal-canvas);
+  border: 1px solid var(--portal-border-light);
+  border-radius: 12px;
+  margin: 14px 0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--portal-slate);
+}
+
+.dormant-review-bar span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dormant-review-bar svg {
+  width: 16px;
+  height: 16px;
+  color: var(--portal-muted);
+  flex-shrink: 0;
+}
+
+/* Archive confirmation modal */
+.archive-target-chip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--portal-canvas);
+  border: 1px solid var(--portal-border-light);
+  border-radius: 12px;
+  margin-bottom: 16px;
+}
+
+.archive-target-name {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--portal-navy);
+}
+
+.archive-target-hint {
+  margin-top: 2px;
+  display: inline-flex;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--portal-amber-text);
+}
+
+.archive-checklist-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--portal-muted);
+  margin-bottom: 8px;
+}
+
+.archive-checklist {
+  padding: 2px 14px;
+  background: var(--portal-green-bg);
+  border: 1px solid var(--portal-green-border);
+  border-radius: 12px;
+  margin-bottom: 16px;
+}
+
+.archive-check-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 0;
+  font-size: 0.82rem;
+  color: var(--portal-green-text);
+}
+
+.archive-check-row + .archive-check-row {
+  border-top: 1px solid rgba(21, 128, 61, 0.15);
+}
+
+.archive-check-icon {
+  flex-shrink: 0;
+  color: var(--portal-green-text);
+  display: flex;
+}
+
+.archive-check-icon svg {
+  width: 15px;
+  height: 15px;
+}
+
+.archive-reason-optional {
+  font-weight: 400;
+  color: var(--portal-muted);
+}

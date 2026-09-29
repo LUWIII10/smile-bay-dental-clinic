@@ -2,13 +2,23 @@ import api from '../api';
 
 // sort is optional — 'cancellations_desc' backs the patient-only
 // Cancellations column's sort control; omitted (or any other value) keeps
-// the default alphabetical-by-name order.
-export async function searchUsers({ search = '', role = '', status = '', sort = '', page = 1, per_page = 10 } = {}) {
+// the default alphabetical-by-name order. dormant is a separate, orthogonal
+// flag (not another `status` value) — see UserManagementController::index()'s
+// own comment on why "Review N Patients" isn't just another status option.
+export async function searchUsers({ search = '', role = '', status = '', sort = '', dormant = false, page = 1, per_page = 10 } = {}) {
   const params = Object.fromEntries(
-    Object.entries({ search, role, status, sort, page, per_page }).filter(([, v]) => v !== '' && v != null)
+    Object.entries({ search, role, status, sort, dormant: dormant ? 1 : '', page, per_page }).filter(([, v]) => v !== '' && v != null)
   );
   const response = await api.get('/api/admin/users', { params });
   return response.data;
+}
+
+// Backs the "N patients haven't visited in over 12 months" suggestion
+// banner — same dormant criteria searchUsers({ dormant: true }) itself
+// filters by, see UserManagementController::applyDormantScope().
+export async function getDormantPatientCount() {
+  const response = await api.get('/api/admin/users/dormant-count');
+  return response.data.count;
 }
 
 export async function createStaffUser({ name, email, mobile_number, role }) {
@@ -35,5 +45,22 @@ export async function setUserStatus(userId, status) {
 export async function unrestrictBooking(userId) {
   await api.get('/sanctum/csrf-cookie');
   const response = await api.patch(`/api/admin/users/${userId}/unrestrict-booking`);
+  return response.data.data;
+}
+
+// Archiving is always a deliberate admin action — reason is optional, kept
+// only for admin's own future reference (shown on the Archived filter).
+export async function archivePatient(userId, reason) {
+  await api.get('/sanctum/csrf-cookie');
+  const response = await api.patch(`/api/admin/users/${userId}/archive`, { reason: reason || null });
+  return response.data.data;
+}
+
+// No confirmation needed on the frontend for this one — nothing risky to
+// weigh, it only ever moves a patient back into the default list. The same
+// thing also happens automatically the moment they book a new appointment.
+export async function restorePatient(userId) {
+  await api.get('/sanctum/csrf-cookie');
+  const response = await api.patch(`/api/admin/users/${userId}/restore`);
   return response.data.data;
 }

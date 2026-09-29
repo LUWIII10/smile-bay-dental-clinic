@@ -171,6 +171,21 @@ class AppointmentController extends Controller
             "{$request->user()->name} booked a {$service->name} appointment for {$validated['appointment_date']}."
         );
 
+        // Archiving is never permanent by design (see Patient::isArchived()'s
+        // own doc comment) — booking again is the clearest possible signal
+        // this patient is back, so this silently undoes it here rather than
+        // making them (or admin) deal with a stale archived flag no one
+        // asked them to notice. Silent on purpose: this isn't a decision
+        // worth interrupting the booking flow over.
+        if ($patient->isArchived()) {
+            $patient->update(['archived_at' => null, 'archived_by' => null, 'archive_reason' => null]);
+            ActivityLog::record(
+                null,
+                'patient_restored',
+                "{$request->user()->name}'s patient record was automatically restored from the archive after booking a new appointment."
+            );
+        }
+
         if ($isPediatric) {
             // Regardless of cash/HMO — pediatric bookings always need the
             // pediatric dentist's review first, so neither the instant-cash

@@ -56,6 +56,9 @@ class Patient extends Model
         'cancellation_count_reset_at',
         'hmo_coverage_notes',
         'hmo_coverage_verified_at',
+        'archived_at',
+        'archived_by',
+        'archive_reason',
     ];
 
     protected function casts(): array
@@ -68,6 +71,7 @@ class Patient extends Model
             'consent_certified' => 'boolean',
             'booking_restricted_at' => 'datetime',
             'hmo_coverage_verified_at' => 'datetime',
+            'archived_at' => 'datetime',
         ];
     }
 
@@ -114,5 +118,17 @@ class Patient extends Model
     public function isBookingRestricted(): bool
     {
         return $this->booking_restricted_at !== null;
+    }
+
+    public function archivedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'archived_by');
+    }
+
+    // Orthogonal to isBookingRestricted() and the account's own
+    // users.status — see the 2026_09_30_140000 migration's doc comment.
+    public function isArchived(): bool
+    {
+        return $this->archived_at !== null;
     }
 }

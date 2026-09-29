@@ -1449,6 +1449,18 @@
   background: var(--portal-blue-border);
 }
 
+/* Muted slate tone for a deliberate-but-not-destructive confirm (Archive
+   Patient) — archiving isn't dangerous (auto-restores on next booking, see
+   Patient::isArchived()), so red is wrong; it also isn't the routine
+   happy-path action, so primary blue overstates it. */
+.dash-btn--archive-confirm {
+  background: #475569;
+}
+
+.dash-btn--archive-confirm:hover {
+  background: #334155;
+}
+
 .dash-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;

@@ -225,6 +225,14 @@ export const AlertIcon = () => (
   </svg>
 );
 
+export const ArchiveIcon = () => (
+  <svg {...base}>
+    <path d="M21 8v13H3V8" />
+    <path d="M1 3h22v5H1z" />
+    <line x1="10" y1="12" x2="14" y2="12" />
+  </svg>
+);
+
 export const TrendingUpIcon = () => (
   <svg {...base}>
     <polyline points="3 17 9 11 13 15 21 6" />

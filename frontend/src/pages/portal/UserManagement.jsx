@@ -1,14 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { searchUsers, createStaffUser, updateUser, setUserStatus, unrestrictBooking } from '../../api/userManagement';
+import {
+  searchUsers, createStaffUser, updateUser, setUserStatus, unrestrictBooking,
+  archivePatient, restorePatient, getDormantPatientCount,
+} from '../../api/userManagement';
 import DataTable from './components/DataTable';
 import Pagination from './components/Pagination';
 import Skeleton from './components/Skeleton';
 import StatusBadge from './components/StatusBadge';
 import Modal from './components/Modal';
 import PageHeader from './components/PageHeader';
-import { SearchIcon, UsersIcon, CheckCircleIcon } from './icons';
+import { SearchIcon, UsersIcon, CheckCircleIcon, ArchiveIcon, AlertIcon } from './icons';
 import { showSuccessToast, showErrorToast, confirmAction } from '../../utils/toast';
 import { getAvatarUrl } from './avatarUtils';
 import './dashboards.css';
@@ -86,6 +89,18 @@ function UserManagement() {
   const [editing, setEditing] = useState(false);
   const [editError, setEditError] = useState('');
 
+  // "Review N Patients" — a separate, orthogonal filter from statusFilter
+  // (see searchUsers()'s own comment on why), so a patient can be dormant
+  // regardless of which status they're currently sitting in.
+  const [dormantOnly, setDormantOnly] = useState(false);
+  const [dormantCount, setDormantCount] = useState(0);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
+
+  const [archiveTarget, setArchiveTarget] = useState(null);
+  const [archiveReason, setArchiveReason] = useState('');
+  const [archiving, setArchiving] = useState(false);
+  const [archiveError, setArchiveError] = useState('');
+
   useEffect(() => {
     clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => setSearch(searchInput.trim()), SEARCH_DEBOUNCE_MS);
@@ -94,7 +109,18 @@ function UserManagement() {
 
   useEffect(() => {
     setPage(1);
-  }, [search, roleFilter, statusFilter, sort, perPage]);
+  }, [search, roleFilter, statusFilter, sort, perPage, dormantOnly]);
+
+  // Loaded once on mount, then refreshed after any archive/restore — the
+  // banner's own number and what "Review N Patients" shows must never
+  // silently drift apart from each other.
+  const loadDormantCount = useCallback(() => {
+    getDormantPatientCount().then(setDormantCount).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    loadDormantCount();
+  }, [loadDormantCount]);
 
   // Switching away from the patient filter drops a stale cancellations-sort
   // — the Cancellations column itself stays visible for every role now, but
@@ -108,7 +134,7 @@ function UserManagement() {
     setLoading(true);
     setError('');
     try {
-      const result = await searchUsers({ search, role: roleFilter, status: statusFilter, sort, page, per_page: perPage });
+      const result = await searchUsers({ search, role: roleFilter, status: statusFilter, sort, dormant: dormantOnly, page, per_page: perPage });
       setUsers(result.data);
       setMeta({
         current_page: result.current_page,
@@ -123,7 +149,7 @@ function UserManagement() {
     } finally {
       setLoading(false);
     }
-  }, [search, roleFilter, statusFilter, sort, page, perPage]);
+  }, [search, roleFilter, statusFilter, sort, dormantOnly, page, perPage]);
 
   useEffect(() => {
     load();
@@ -228,6 +254,72 @@ function UserManagement() {
 
   const toggleCancellationSort = () => setSort((s) => (s === 'cancellations_desc' ? '' : 'cancellations_desc'));
 
+  // Same dormant criteria as UserManagementController::applyDormantScope()
+  // — no appointment (any status) in DORMANT_MONTHS, and nothing upcoming.
+  // Only meaningful for a patient who isn't already archived; row.patient
+  // is absent entirely for non-patient roles.
+  const isDormant = (row) => {
+    if (row.role !== 'patient' || !row.patient || row.patient.archived_at) return false;
+    if (row.has_upcoming_appointment) return false;
+    if (!row.last_appointment_date) return true;
+    const cutoff = new Date();
+    cutoff.setMonth(cutoff.getMonth() - 12);
+    return new Date(row.last_appointment_date) < cutoff;
+  };
+
+  const formatLastVisit = (dateStr) => {
+    if (!dateStr) return 'Never had an appointment';
+    const then = new Date(dateStr);
+    const months = Math.max(0, Math.floor((Date.now() - then.getTime()) / (1000 * 60 * 60 * 24 * 30.44)));
+    if (months < 1) return 'No visit in under a month';
+    if (months < 12) return `No visit in ${months} mo${months === 1 ? '' : 's'}`;
+    const years = Math.floor(months / 12);
+    const remMonths = months % 12;
+    return `No visit in ${years} yr${years === 1 ? '' : 's'}${remMonths ? ` ${remMonths} mo${remMonths === 1 ? '' : 's'}` : ''}`;
+  };
+
+  const openArchive = (row) => {
+    setArchiveError('');
+    setArchiveReason('');
+    setArchiveTarget(row);
+  };
+
+  const submitArchive = async () => {
+    if (!archiveTarget) return;
+    setArchiving(true);
+    setArchiveError('');
+    try {
+      await archivePatient(archiveTarget.id, archiveReason.trim() || null);
+      setArchiveTarget(null);
+      load();
+      loadDormantCount();
+      showSuccessToast(`${archiveTarget.name} moved to Archived.`);
+    } catch (err) {
+      setArchiveError(err.response?.data?.message || 'Could not archive this patient.');
+    } finally {
+      setArchiving(false);
+    }
+  };
+
+  // No confirmation dialog here on purpose — unlike archiving, restoring
+  // has nothing risky to weigh (see restorePatient()'s own comment).
+  const restoreAccount = async (row) => {
+    try {
+      await restorePatient(row.id);
+      load();
+      loadDormantCount();
+      showSuccessToast(`${row.name} restored to the active list.`);
+    } catch (err) {
+      showErrorToast(err.response?.data?.message || 'Could not restore this patient.');
+    }
+  };
+
+  const openDormantReview = () => {
+    setDormantOnly(true);
+    setStatusFilter('');
+    setRoleFilter('patient');
+  };
+
   const columns = [
     {
       key: 'name',
@@ -291,6 +383,25 @@ function UserManagement() {
       render: (row) => {
         const isRestricted = row.status === 'active' && row.patient?.booking_restricted_at;
         const restrictionCount = row.patient?.restriction_count ?? 0;
+        const isArchived = !!row.patient?.archived_at;
+
+        // Archived is orthogonal to the account's own status (see
+        // Patient::isArchived()'s doc comment) — shown in place of Active/
+        // Inactive here since "archived" is the more useful fact to a
+        // reviewer looking at the Archived filter specifically, same
+        // "replace rather than stack" reasoning Restricted already uses.
+        if (isArchived) {
+          return (
+            <span className="status-cell-stack">
+              <StatusBadge status="Archived" tone="gray" />
+              <span className="restriction-count-caption restriction-count-caption--low">
+                {new Date(row.patient.archived_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                {row.patient.archived_by?.name ? ` by ${row.patient.archived_by.name}` : ''}
+              </span>
+            </span>
+          );
+        }
+
         return (
           <span className="status-cell-stack">
             <StatusBadge
@@ -301,6 +412,11 @@ function UserManagement() {
             {isRestricted && restrictionCount > 0 && (
               <span className={`restriction-count-caption restriction-count-caption--${restrictionCount >= 3 ? 'high' : restrictionCount === 2 ? 'mid' : 'low'}`}>
                 {ordinal(restrictionCount)} time restricted
+              </span>
+            )}
+            {!isRestricted && isDormant(row) && (
+              <span className="restriction-count-caption restriction-count-caption--mid">
+                {formatLastVisit(row.last_appointment_date)}
               </span>
             )}
           </span>
@@ -346,6 +462,23 @@ function UserManagement() {
       align: 'right',
       render: (row) => {
         const isRestricted = row.status === 'active' && row.patient?.booking_restricted_at;
+        const isArchived = !!row.patient?.archived_at;
+
+        // Archived rows: Restore replaces Deactivate one-for-one (same
+        // shape, same 2 buttons every other row already has) — no
+        // confirmation needed, see restorePatient()'s own comment.
+        if (isArchived) {
+          return (
+            <div className="row-actions">
+              <button type="button" className="dash-btn dash-btn--outline row-btn" onClick={() => openEdit(row)}>
+                Edit
+              </button>
+              <button type="button" className="dash-btn row-btn dash-btn--success" onClick={() => restoreAccount(row)}>
+                <CheckCircleIcon /> Restore
+              </button>
+            </div>
+          );
+        }
 
         // Restricted rows get their own grouped layout — Lift Restriction is
         // the one action that only exists BECAUSE of this state, so it
@@ -378,11 +511,19 @@ function UserManagement() {
           );
         }
 
+        // Archive only ever shows on the rows it's actually relevant to —
+        // every other row (the overwhelming majority) renders exactly as
+        // before, same 2 buttons, nothing new to notice.
         return (
           <div className="row-actions">
             <button type="button" className="dash-btn dash-btn--outline row-btn" onClick={() => openEdit(row)}>
               Edit
             </button>
+            {isDormant(row) && (
+              <button type="button" className="dash-btn dash-btn--outline row-btn" onClick={() => openArchive(row)}>
+                <ArchiveIcon /> Archive
+              </button>
+            )}
             <button
               type="button"
               className={`dash-btn row-btn ${row.status === 'active' ? 'dash-btn--danger' : ''}`}
@@ -432,14 +573,55 @@ function UserManagement() {
             </select>
           </div>
           <div className="filter-field">
-            <select className="form-select" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+            <select
+              className="form-select"
+              value={statusFilter}
+              onChange={(e) => { setStatusFilter(e.target.value); setDormantOnly(false); }}
+            >
               <option value="">All Statuses</option>
               <option value="active">Active</option>
               <option value="inactive">Inactive</option>
               <option value="restricted">Restricted</option>
+              <option value="archived">Archived</option>
             </select>
           </div>
         </div>
+
+        {dormantOnly && (
+          <div className="dormant-review-bar">
+            <span>
+              <ArchiveIcon /> Reviewing {dormantCount} dormant patient{dormantCount === 1 ? '' : 's'} — none of this happens automatically.
+            </span>
+            <button type="button" className="dash-btn dash-btn--outline" onClick={() => setDormantOnly(false)}>
+              &larr; Back to All Patients
+            </button>
+          </div>
+        )}
+
+        {!dormantOnly && statusFilter !== 'archived' && dormantCount > 0 && !bannerDismissed && (
+          <div className="dormant-suggestion-banner">
+            <span className="dormant-suggestion-icon"><AlertIcon /></span>
+            <div className="dormant-suggestion-text">
+              <p className="dormant-suggestion-title">
+                {dormantCount} patient{dormantCount === 1 ? '' : 's'} haven&rsquo;t visited in over 12 months
+              </p>
+              <p className="dormant-suggestion-sub">
+                Just a suggestion — nothing happens automatically. Review and archive only the ones you choose.
+              </p>
+            </div>
+            <button type="button" className="dash-btn dash-btn--amber" onClick={openDormantReview}>
+              Review {dormantCount} Patient{dormantCount === 1 ? '' : 's'}
+            </button>
+            <button
+              type="button"
+              className="dormant-suggestion-dismiss"
+              aria-label="Dismiss"
+              onClick={() => setBannerDismissed(true)}
+            >
+              &times;
+            </button>
+          </div>
+        )}
 
         {loading ? (
           <Skeleton variant="row" count={6} />
@@ -532,6 +714,61 @@ function UserManagement() {
             {editing ? 'Saving…' : 'Save Changes'}
           </button>
         </div>
+      </Modal>
+
+      <Modal open={!!archiveTarget} onClose={() => setArchiveTarget(null)} title="Archive Patient?">
+        {archiveTarget && (
+          <>
+            <div className="archive-target-chip">
+              <span className="cell-avatar">{getInitials(archiveTarget.name)}</span>
+              <div>
+                <div className="archive-target-name">{archiveTarget.name}</div>
+                <div className="archive-target-hint">{formatLastVisit(archiveTarget.last_appointment_date)}</div>
+              </div>
+            </div>
+
+            <div className="archive-checklist-label">What happens when you archive</div>
+            <div className="archive-checklist">
+              <div className="archive-check-row">
+                <span className="archive-check-icon"><CheckCircleIcon /></span>
+                Nothing is deleted — records, history, everything stays
+              </div>
+              <div className="archive-check-row">
+                <span className="archive-check-icon"><CheckCircleIcon /></span>
+                Hidden from the main Active list only
+              </div>
+              <div className="archive-check-row">
+                <span className="archive-check-icon"><CheckCircleIcon /></span>
+                Restorable any time from the "Archived" filter
+              </div>
+              <div className="archive-check-row">
+                <span className="archive-check-icon"><CheckCircleIcon /></span>
+                Auto-restored the moment they book a new visit
+              </div>
+            </div>
+
+            <label className="modal-field-label">
+              Reason <span className="archive-reason-optional">(optional, for your own reference)</span>
+            </label>
+            <textarea
+              className="form-textarea"
+              placeholder="e.g. Moved to another city, per patient's phone call."
+              value={archiveReason}
+              onChange={(e) => setArchiveReason(e.target.value)}
+            />
+
+            {archiveError && <p className="modal-field-error">{archiveError}</p>}
+
+            <div className="modal-actions">
+              <button type="button" className="dash-btn dash-btn--outline" onClick={() => setArchiveTarget(null)}>
+                Cancel
+              </button>
+              <button type="button" className="dash-btn dash-btn--archive-confirm" disabled={archiving} onClick={submitArchive}>
+                <ArchiveIcon /> {archiving ? 'Archiving…' : 'Archive Patient'}
+              </button>
+            </div>
+          </>
+        )}
       </Modal>
     </div>
   );

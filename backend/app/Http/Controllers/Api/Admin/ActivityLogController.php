@@ -35,6 +35,8 @@ class ActivityLogController extends Controller
         'restriction_lifted' => 'Restriction Lifted',
         'account_activated' => 'Account Activated',
         'account_deactivated' => 'Account Deactivated',
+        'patient_archived' => 'Patient Archived',
+        'patient_restored' => 'Patient Restored',
     ];
 
     public function index(Request $request)
