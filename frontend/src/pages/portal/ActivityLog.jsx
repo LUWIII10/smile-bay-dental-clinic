@@ -219,6 +219,7 @@ function ActivityLog() {
             <SearchIcon />
             <input
               type="text"
+              className="form-input"
               placeholder="Search by name..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
