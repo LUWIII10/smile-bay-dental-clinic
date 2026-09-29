@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\ActivityLog;
 use App\Models\Appointment;
 use App\Models\Notification;
 use App\Models\Patient;
@@ -118,6 +119,14 @@ class CancellationPolicyService
                 'Account deactivated',
                 'Your account has been deactivated after cancelling another appointment while booking-restricted. Please contact the clinic to resolve this.',
             );
+            // No human actor — this is the system's own automatic
+            // escalation, not an admin clicking Deactivate (see
+            // UserManagementController::updateStatus() for that one).
+            ActivityLog::record(
+                null,
+                'account_deactivated',
+                "{$patient->user->name}'s account was automatically deactivated after cancelling again while booking-restricted."
+            );
 
             return;
         }
@@ -135,6 +144,14 @@ class CancellationPolicyService
                 'New bookings restricted',
                 "You've had {$count} cancelled appointments. New bookings are restricted until our staff clears this — please contact the clinic.",
                 '/patient/dashboard',
+            );
+            // No human actor — the automatic 3-strike policy, not an admin
+            // action (see UserManagementController::unrestrictBooking() for
+            // the human-initiated Lift Restriction counterpart).
+            ActivityLog::record(
+                null,
+                'account_restricted',
+                "{$patient->user->name}'s new bookings were automatically restricted after {$count} cancelled appointments."
             );
         }
     }

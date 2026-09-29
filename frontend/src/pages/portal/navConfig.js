@@ -52,6 +52,7 @@ export const NAV_CONFIG = {
     { label: 'HMO Verification', path: '/admin/hmo-verification', icon: 'shield' },
     { label: 'Patient Records', path: '/admin/patient-records', icon: 'file' },
     { label: 'User Management', path: '/admin/users', icon: 'users' },
+    { label: 'Activity Log', path: '/admin/activity-log', icon: 'activity' },
     { label: 'Reports', path: '/admin/reports', icon: 'chart' },
     { label: 'Settings', path: '/admin/settings', icon: 'settings' },
   ],

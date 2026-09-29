@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Mail\AppointmentConfirmedMail;
+use App\Models\ActivityLog;
 use App\Models\Appointment;
 use App\Models\AppointmentStatusLog;
 use App\Models\Notification;
@@ -206,6 +207,12 @@ class PatientAppointmentController extends Controller
         });
 
         $appointment->load(['dentist:id,name', 'service:id,name']);
+
+        ActivityLog::record(
+            $request->user()->id,
+            'appointment_cancelled',
+            "{$request->user()->name} cancelled their {$appointment->service->name} visit for {$appointment->appointment_date->toDateString()}."
+        );
 
         // Only the assigned dentist cares that their slot just freed up —
         // staff already see every cancellation via the All Appointments

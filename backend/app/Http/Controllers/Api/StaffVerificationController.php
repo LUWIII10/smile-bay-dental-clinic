@@ -7,6 +7,7 @@ use App\Mail\AppointmentConfirmedMail;
 use App\Mail\AppointmentRejectedMail;
 use App\Mail\HmoCoverageVerifiedMail;
 use App\Mail\HmoStatusUpdateMail;
+use App\Models\ActivityLog;
 use App\Models\Appointment;
 use App\Models\AppointmentStatusLog;
 use App\Models\Notification;
@@ -147,6 +148,11 @@ class StaffVerificationController extends Controller
                 "Your HMO coverage was verified — your {$appointment->service->name} appointment is confirmed.",
                 '/patient/appointments'
             );
+            ActivityLog::record(
+                $request->user()->id,
+                'hmo_verified',
+                "{$request->user()->name} approved {$appointment->patient->first_name} {$appointment->patient->last_name}'s HMO coverage for {$appointment->service->name}."
+            );
         } else {
             try {
                 Mail::to($patientEmail)->send(new AppointmentRejectedMail($appointment, $reason));
@@ -162,6 +168,11 @@ class StaffVerificationController extends Controller
                 'Appointment rejected',
                 $reason ? "Your booking couldn't be confirmed: {$reason}" : 'Your HMO booking could not be confirmed.',
                 '/patient/appointments'
+            );
+            ActivityLog::record(
+                $request->user()->id,
+                'appointment_rejected',
+                "{$request->user()->name} rejected {$appointment->patient->first_name} {$appointment->patient->last_name}'s {$appointment->service->name} booking."
             );
         }
 
@@ -286,6 +297,11 @@ class StaffVerificationController extends Controller
             'HMO coverage verified — confirm your new date',
             "Your {$appointment->service->name} coverage was verified. We proposed {$validated['appointment_date']} at {$validated['appointment_time']} since your original date already passed — please confirm.",
             '/patient/appointments'
+        );
+        ActivityLog::record(
+            $request->user()->id,
+            'hmo_verified',
+            "{$request->user()->name} approved {$appointment->patient->first_name} {$appointment->patient->last_name}'s HMO coverage and proposed a new date for {$appointment->service->name}."
         );
 
         return response()->json([
@@ -534,6 +550,11 @@ class StaffVerificationController extends Controller
             'changed_by' => $request->user()->id,
             'note' => 'Booking details corrected by staff — '.implode(', ', $logLines).'.',
         ]);
+        ActivityLog::record(
+            $request->user()->id,
+            'hmo_info_updated',
+            "{$request->user()->name} corrected {$appointment->patient->first_name} {$appointment->patient->last_name}'s booking info — ".implode(', ', $logLines).'.'
+        );
 
         return response()->json(['message' => 'Booking details updated.', 'data' => $appointment]);
     }

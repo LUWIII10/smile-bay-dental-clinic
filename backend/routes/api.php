@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\Admin\ActivityLogController;
 use App\Http\Controllers\Api\Admin\ClinicSettingsController;
 use App\Http\Controllers\Api\Admin\ReportsController;
 use App\Http\Controllers\Api\Admin\UserManagementController;
@@ -167,6 +168,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::patch('/admin/users/{user}', [UserManagementController::class, 'update']);
         Route::patch('/admin/users/{user}/status', [UserManagementController::class, 'updateStatus']);
         Route::patch('/admin/users/{user}/unrestrict-booking', [UserManagementController::class, 'unrestrictBooking']);
+
+        Route::get('/admin/activity-log', [ActivityLogController::class, 'index']);
 
         Route::get('/admin/settings', [ClinicSettingsController::class, 'show']);
         Route::put('/admin/settings/clinic-info', [ClinicSettingsController::class, 'updateClinicInfo']);

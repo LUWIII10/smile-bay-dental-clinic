@@ -382,4 +382,5 @@ export const ICONS = {
   chart: ChartIcon,
   settings: SettingsIcon,
   checkCircle: CheckCircleIcon,
+  activity: ActivityIcon,
 };

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\LoginRequest;
 use App\Http\Requests\RegisterRequest;
 use App\Mail\OtpMail;
+use App\Models\ActivityLog;
 use App\Models\EmailOtp;
 use App\Models\Patient;
 use App\Models\User;
@@ -101,6 +102,8 @@ class AuthController extends Controller
 
             return $user;
         });
+
+        ActivityLog::record($user->id, 'account_created', "{$user->name} registered a new patient account.");
 
         $this->issueOtp($user);
 

@@ -9,6 +9,7 @@ use App\Mail\AppointmentRejectedMail;
 use App\Mail\AppointmentRescheduledMail;
 use App\Mail\HmoBookingSubmittedMail;
 use App\Mail\PediatricBookingSubmittedMail;
+use App\Models\ActivityLog;
 use App\Models\Appointment;
 use App\Models\AppointmentStatusLog;
 use App\Models\DentalRecord;
@@ -163,6 +164,12 @@ class AppointmentController extends Controller
                 'message' => 'This time slot is no longer available. Please choose another.',
             ], 409);
         }
+
+        ActivityLog::record(
+            $request->user()->id,
+            'appointment_booked',
+            "{$request->user()->name} booked a {$service->name} appointment for {$validated['appointment_date']}."
+        );
 
         if ($isPediatric) {
             // Regardless of cash/HMO — pediatric bookings always need the

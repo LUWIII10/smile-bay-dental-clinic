@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\ActivityLog;
 use App\Models\DentistProfile;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -133,6 +134,8 @@ class ProfileController extends Controller
             }
         });
 
+        ActivityLog::record($user->id, 'profile_updated', "{$user->name} updated their profile information.");
+
         return response()->json([
             'data' => $user->fresh()->load(['patient.hmoProvider', 'dentistProfile']),
         ]);
@@ -161,6 +164,8 @@ class ProfileController extends Controller
         }
 
         $user->forceFill(['password' => Hash::make($validated['password'])])->save();
+
+        ActivityLog::record($user->id, 'password_changed', "{$user->name} changed their account password.");
 
         return response()->json(['message' => 'Password changed successfully.']);
     }

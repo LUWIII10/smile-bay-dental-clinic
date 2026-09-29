@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\ActivityLog;
 use App\Models\Notification;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -151,6 +152,12 @@ class UserManagementController extends Controller
         // account created here doesn't get silently stuck at "unverified".
         $user->forceFill(['email_verified_at' => now()])->save();
 
+        ActivityLog::record(
+            $request->user()->id,
+            'staff_account_created',
+            "{$request->user()->name} created a new {$validated['role']} account for {$user->name}."
+        );
+
         return response()->json(['data' => $user, 'temporary_password' => $temporaryPassword], 201);
     }
 
@@ -225,6 +232,12 @@ class UserManagementController extends Controller
             );
         }
 
+        ActivityLog::record(
+            $request->user()->id,
+            $validated['status'] === 'active' ? 'account_activated' : 'account_deactivated',
+            "{$request->user()->name} " . ($validated['status'] === 'active' ? 'activated' : 'deactivated') . " {$user->name}'s account."
+        );
+
         return response()->json(['data' => $user->fresh()->load('patient:id,user_id,booking_restricted_at,restriction_count')]);
     }
 
@@ -239,7 +252,7 @@ class UserManagementController extends Controller
      * comment), not just the block being removed while the count that
      * triggered it still sits at 3+ and re-fires on the next cancellation.
      */
-    public function unrestrictBooking(User $user)
+    public function unrestrictBooking(Request $request, User $user)
     {
         $patient = $user->patient;
 
@@ -258,6 +271,11 @@ class UserManagementController extends Controller
             'Booking restriction lifted',
             'Your account can now book new appointments again.',
             '/patient/book-appointment'
+        );
+        ActivityLog::record(
+            $request->user()->id,
+            'restriction_lifted',
+            "{$request->user()->name} lifted the booking restriction on {$user->name}'s account."
         );
 
         return response()->json(['data' => $user->fresh()->load('patient:id,user_id,booking_restricted_at,restriction_count')]);

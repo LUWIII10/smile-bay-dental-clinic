@@ -20,6 +20,7 @@ import PatientDentalRecords from '../pages/portal/PatientDentalRecords';
 import PatientRecords from '../pages/portal/PatientRecords';
 import MyProfile from '../pages/portal/MyProfile';
 import UserManagement from '../pages/portal/UserManagement';
+import ActivityLog from '../pages/portal/ActivityLog';
 import Settings from '../pages/portal/Settings';
 import Reports from '../pages/portal/Reports';
 import DentistSchedule from '../pages/portal/DentistSchedule';
@@ -119,6 +120,7 @@ function AppRoutes() {
                     '/admin/hmo-verification': HmoVerificationQueue,
                     '/admin/patient-records': PatientRecords,
                     '/admin/users': UserManagement,
+                    '/admin/activity-log': ActivityLog,
                     '/admin/settings': Settings,
                     '/admin/reports': Reports,
                 })}

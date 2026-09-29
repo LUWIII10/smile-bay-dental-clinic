@@ -23,6 +23,10 @@
 //   - clampLines: caps text to N lines with an ellipsis (for longer free
 //     text like a service name) instead of either wrapping indefinitely
 //     or truncating to one line.
+//   - headerColor: tints just that column's <th> text (e.g. a CSS color
+//     value) — for a table like Activity Log's where each column heading
+//     gets its own accent color. Omit it for the normal muted-gray header
+//     text every other table already has.
 function DataTable({ columns, rows, keyField = 'id', emptyMessage = 'No records found.' }) {
   if (!rows || rows.length === 0) {
     return <div className="data-table-empty">{emptyMessage}</div>;
@@ -34,6 +38,12 @@ function DataTable({ columns, rows, keyField = 'id', emptyMessage = 'No records 
     const style = {};
     if (column.align) style.textAlign = column.align;
     if (column.minWidthPx) style.minWidth = column.minWidthPx;
+    return Object.keys(style).length ? style : undefined;
+  };
+
+  const headerStyle = (column) => {
+    const style = cellStyle(column) || {};
+    if (column.headerColor) style.color = column.headerColor;
     return Object.keys(style).length ? style : undefined;
   };
 
@@ -55,7 +65,7 @@ function DataTable({ columns, rows, keyField = 'id', emptyMessage = 'No records 
         <thead>
           <tr>
             {columns.map((column) => (
-              <th key={column.key} style={cellStyle(column)}>
+              <th key={column.key} style={headerStyle(column)}>
                 {column.label}
               </th>
             ))}
