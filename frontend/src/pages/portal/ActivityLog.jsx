@@ -7,6 +7,7 @@ import PageHeader from './components/PageHeader';
 import FilterDropdown from './components/FilterDropdown';
 import DateRangePicker from './components/DateRangePicker';
 import { ActivityIcon, SearchIcon, UsersIcon } from './icons';
+import { getAvatarUrl } from './avatarUtils';
 import './dashboards.css';
 import './Appointments.css';
 
@@ -145,9 +146,12 @@ function ActivityLog() {
       render: (row) => {
         const name = row.actor?.name || 'System';
         const roleLabel = row.actor ? (ROLE_LABELS[row.actor.role] || row.actor.role) : 'Automatic';
+        const avatarUrl = row.actor ? getAvatarUrl(row.actor) : null;
         return (
           <span className="cell-person">
-            <span className="cell-avatar">{row.actor ? getInitials(name) : '⚙'}</span>
+            <span className="cell-avatar">
+              {avatarUrl ? <img src={avatarUrl} alt="" /> : (row.actor ? getInitials(name) : '⚙')}
+            </span>
             <span className="cell-person-text">
               <span className="cell-person-name">{name}</span>
               <span className="cell-person-sub">{roleLabel}</span>

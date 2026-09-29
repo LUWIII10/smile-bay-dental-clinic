@@ -18,22 +18,43 @@ use Illuminate\Support\Facades\DB;
  * what CAN be honestly reconstructed from timestamps/columns that already
  * exist, and skips anything that can't be (see each section's own note).
  *
- * Guarded to run at most once: if activity_logs already has any rows (real
- * usage since launch, or an earlier backfill run), this refuses rather than
- * risk duplicating entries.
+ * Guarded to run at most once via a dedicated marker row (action =
+ * system_backfill_completed, filtered out of ActivityLogController::index()
+ * so it never shows up as a real event) — NOT a blanket "does activity_logs
+ * have any rows" check. This runs automatically on every deploy (see
+ * docker/start.sh), and real usage can easily write a row (someone books an
+ * appointment) before this line ever gets to run for the first time; a
+ * blanket check would see that one real row and skip the backfill entirely,
+ * forever, having done nothing.
+ *
+ * Also guards against duplicating that kind of already-logged real event:
+ * only backfills rows dated strictly BEFORE the earliest real (non-marker)
+ * row already on file, if any exists. Everything this command reconstructs
+ * is inherently historical (from before this feature existed), so it can
+ * never legitimately need to insert anything at or after that point —
+ * whatever's already there from real usage is left alone.
  */
 class BackfillActivityLog extends Command
 {
+    private const COMPLETED_MARKER = 'system_backfill_completed';
+
     protected $signature = 'activity-log:backfill';
 
     protected $description = 'One-time backfill of ActivityLog rows from existing historical data (accounts, appointments, status changes) so the Activity Log page reflects real history instead of starting empty.';
 
     public function handle(): int
     {
-        if (ActivityLog::query()->exists()) {
-            $this->warn('activity_logs already has rows — refusing to run again (this backfill is meant to run exactly once). Nothing was changed.');
+        if (ActivityLog::where('action', self::COMPLETED_MARKER)->exists()) {
+            $this->warn('The backfill has already completed once — refusing to run again. Nothing was changed.');
 
             return self::SUCCESS;
+        }
+
+        // Anything already logged for real (live ActivityLog::record() calls
+        // since this feature shipped) must never be duplicated below.
+        $cutoff = ActivityLog::where('action', '!=', self::COMPLETED_MARKER)->min('created_at');
+        if ($cutoff) {
+            $this->info("Existing real activity found — only backfilling entries strictly before {$cutoff}.");
         }
 
         $rows = [];
@@ -200,26 +221,40 @@ class BackfillActivityLog extends Command
 
         $this->info('Queued deactivation entries — running total: '.count($rows));
 
-        if (empty($rows)) {
-            $this->warn('Nothing to backfill.');
-
-            return self::SUCCESS;
-        }
-
         // Model::insert() is a raw query-builder bulk insert — it skips
         // Eloquent's own datetime casting, so every Carbon instance is
         // normalized to a plain MySQL datetime string here rather than
-        // trusting PDO to stringify it correctly on its own.
+        // trusting PDO to stringify it correctly on its own. 'Y-m-d H:i:s'
+        // sorts correctly as a plain string, so the cutoff filter right
+        // after can compare these as strings too.
         $rows = array_map(function (array $row) {
             $row['created_at'] = $row['created_at']?->format('Y-m-d H:i:s') ?? now()->format('Y-m-d H:i:s');
 
             return $row;
         }, $rows);
 
+        if ($cutoff) {
+            $before = count($rows);
+            $rows = array_values(array_filter($rows, fn (array $row) => $row['created_at'] < $cutoff));
+            $skipped = $before - count($rows);
+            if ($skipped > 0) {
+                $this->info("Skipped {$skipped} entries at or after the cutoff (already covered by real activity).");
+            }
+        }
+
         DB::transaction(function () use ($rows) {
             foreach (array_chunk($rows, 500) as $chunk) {
                 ActivityLog::insert($chunk);
             }
+
+            // Written LAST, inside the same transaction, so a run that
+            // fails partway through never leaves this marker behind without
+            // the data it's supposed to vouch for.
+            ActivityLog::create([
+                'actor_id' => null,
+                'action' => self::COMPLETED_MARKER,
+                'description' => 'Historical activity backfill completed.',
+            ]);
         });
 
         $this->info('Backfilled '.count($rows).' activity log entries.');

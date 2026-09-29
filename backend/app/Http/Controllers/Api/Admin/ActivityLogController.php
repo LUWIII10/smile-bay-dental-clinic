@@ -49,7 +49,15 @@ class ActivityLogController extends Controller
         ]);
 
         $query = ActivityLog::query()
-            ->with('actor:id,name,role')
+            // system_backfill_completed is an internal marker row
+            // (BackfillActivityLog's own idempotency guard) — never a real
+            // event, so it never belongs in what admin actually sees here.
+            ->where('action', '!=', 'system_backfill_completed')
+            // A dentist's photo lives on dentist_profiles.photo_path, not a
+            // users column (see avatarUtils.js's getAvatarUrl()) — without
+            // this the User column always falls back to initials for
+            // dentists even after they upload a real photo.
+            ->with(['actor:id,name,role,avatar_path', 'actor.dentistProfile:id,user_id,photo_path'])
             ->orderByDesc('created_at');
 
         if (! empty($validated['role'])) {
