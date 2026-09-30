@@ -174,6 +174,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::patch('/admin/users/{user}/unrestrict-booking', [UserManagementController::class, 'unrestrictBooking']);
         Route::patch('/admin/users/{user}/archive', [UserManagementController::class, 'archivePatient']);
         Route::patch('/admin/users/{user}/restore', [UserManagementController::class, 'restorePatient']);
+        Route::patch('/admin/users/{user}/reset-password', [UserManagementController::class, 'resetPassword']);
 
         Route::get('/admin/activity-log', [ActivityLogController::class, 'index']);
 

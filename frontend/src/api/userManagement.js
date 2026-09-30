@@ -64,3 +64,13 @@ export async function restorePatient(userId) {
   const response = await api.patch(`/api/admin/users/${userId}/restore`);
   return response.data.data;
 }
+
+// Fallback for when the account holder can't get in any other way (e.g. a
+// staff account's one-time temporary password was lost before it was ever
+// copied down). Same response shape as createStaffUser() — { data,
+// temporary_password } — shown once via the same credentials modal.
+export async function resetUserPassword(userId) {
+  await api.get('/sanctum/csrf-cookie');
+  const response = await api.patch(`/api/admin/users/${userId}/reset-password`);
+  return response.data;
+}

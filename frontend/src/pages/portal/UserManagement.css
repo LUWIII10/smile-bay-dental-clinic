@@ -38,6 +38,41 @@
   height: 15px;
 }
 
+/* Tucked below the normal fields, separated by a rule — a deliberate
+   "not a routine action" placement (see resetPasswordAction's own
+   comment), not sitting alongside Cancel/Save Changes as an equal peer. */
+.edit-reset-password-row {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--portal-border-light);
+}
+
+.edit-reset-password-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--portal-red-text);
+  cursor: pointer;
+}
+
+.edit-reset-password-link:hover {
+  text-decoration: underline;
+}
+
+.edit-reset-password-link:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.edit-reset-password-hint {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.72rem;
+  color: var(--portal-muted);
+}
+
 /* Restriction-count caption under the "Restricted Account" badge —
    restriction_count only ever goes up (never cleared by Lift Restriction),
    so this reads as real history, not just the current state. Color climbs

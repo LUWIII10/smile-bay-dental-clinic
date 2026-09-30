@@ -37,6 +37,7 @@ class ActivityLogController extends Controller
         'account_deactivated' => 'Account Deactivated',
         'patient_archived' => 'Patient Archived',
         'patient_restored' => 'Patient Restored',
+        'password_reset_by_admin' => 'Password Reset by Admin',
     ];
 
     public function index(Request $request)

@@ -8,6 +8,7 @@ use App\Models\Appointment;
 use App\Models\Notification;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -407,6 +408,44 @@ class UserManagementController extends Controller
         return response()->json([
             'data' => $user->fresh()->load('patient:id,user_id,booking_restricted_at,restriction_count,archived_at'),
         ]);
+    }
+
+    /**
+     * Admin-issued password reset — a fallback for when the account holder
+     * genuinely can't get in any other way (e.g. a just-created staff
+     * account's one-time temporary password was lost before it could be
+     * copied down, before they've ever logged in once). The normal path
+     * stays self-service Forgot Password (AuthController::forgotPassword/
+     * resetPassword, email-OTP verified, no admin involved) — this exists
+     * only because that path assumes the account holder still has access
+     * to their own inbox, which a brand-new staff account can't be assumed
+     * to have exercised yet.
+     *
+     * Same response shape as store() — a system-generated temporary
+     * password returned once for the admin to hand off out-of-band, never
+     * stored in plain text. Invalidates any existing sessions so a stale
+     * logged-in session elsewhere doesn't outlive this.
+     */
+    public function resetPassword(Request $request, User $user)
+    {
+        if ($user->id === $request->user()->id) {
+            return response()->json(['message' => 'Use My Profile to change your own password.'], 422);
+        }
+
+        $temporaryPassword = Str::password(12);
+
+        DB::transaction(function () use ($user, $temporaryPassword) {
+            $user->forceFill(['password' => Hash::make($temporaryPassword)])->save();
+            DB::table('sessions')->where('user_id', $user->id)->delete();
+        });
+
+        ActivityLog::record(
+            $request->user()->id,
+            'password_reset_by_admin',
+            "{$request->user()->name} reset {$user->name}'s password."
+        );
+
+        return response()->json(['data' => $user->fresh(), 'temporary_password' => $temporaryPassword]);
     }
 
     /**

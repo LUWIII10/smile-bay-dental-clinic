@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import {
   searchUsers, createStaffUser, updateUser, setUserStatus, unrestrictBooking,
-  archivePatient, restorePatient, getDormantPatientCount,
+  archivePatient, restorePatient, getDormantPatientCount, resetUserPassword,
 } from '../../api/userManagement';
 import DataTable from './components/DataTable';
 import Pagination from './components/Pagination';
@@ -82,13 +82,18 @@ function UserManagement() {
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState('');
 
-  const [credentialsResult, setCredentialsResult] = useState(null); // { user, temporary_password }
+  const [credentialsResult, setCredentialsResult] = useState(null); // { data: user, temporary_password }
+  // Same modal/state serves two triggers — creating a staff account and an
+  // admin-issued password reset — since the response shape is identical.
+  // Only the title/intro wording differs, driven by this.
+  const [credentialsMode, setCredentialsMode] = useState('created'); // 'created' | 'reset'
   // The password is hashed on the backend the moment this account is
   // created — this modal is the ONLY place it's ever recoverable in plain
   // text, so accidentally closing it before copying it down means it's
   // gone for good. Tracked separately from credentialsResult so closing
   // can warn first instead of silently losing it.
   const [passwordCopied, setPasswordCopied] = useState(false);
+  const [resettingPassword, setResettingPassword] = useState(false);
 
   const [editUser, setEditUser] = useState(null);
   const [editForm, setEditForm] = useState(EMPTY_EDIT_FORM);
@@ -173,6 +178,7 @@ function UserManagement() {
     try {
       const result = await createStaffUser(createForm);
       setCreateOpen(false);
+      setCredentialsMode('created');
       setCredentialsResult(result);
       setPasswordCopied(false);
       load();
@@ -233,6 +239,34 @@ function UserManagement() {
       setEditError(err.response?.data?.message || 'Could not save these changes.');
     } finally {
       setEditing(false);
+    }
+  };
+
+  // Fallback for when Forgot Password (self-service, email-OTP) isn't an
+  // option — mainly a just-created staff account whose one-time temporary
+  // password was lost before it was ever copied down, before they've
+  // logged in even once. Reuses the same credentials modal as account
+  // creation, since the response shape is identical.
+  const resetPasswordAction = async (row) => {
+    const confirmed = await confirmAction({
+      title: "Reset this account's password?",
+      text: `A new temporary password will be generated for ${row.name}, and any device they're currently signed into will be signed out.`,
+      confirmButtonText: 'Reset Password',
+      confirmButtonColor: '#b42318',
+    });
+    if (!confirmed) return;
+
+    setResettingPassword(true);
+    try {
+      const result = await resetUserPassword(row.id);
+      setEditUser(null);
+      setCredentialsMode('reset');
+      setCredentialsResult(result);
+      setPasswordCopied(false);
+    } catch (err) {
+      showErrorToast(err.response?.data?.message || 'Could not reset this password.');
+    } finally {
+      setResettingPassword(false);
     }
   };
 
@@ -702,16 +736,19 @@ function UserManagement() {
         </div>
       </Modal>
 
-      <Modal open={!!credentialsResult} onClose={closeCredentials} title="Account Created">
+      <Modal open={!!credentialsResult} onClose={closeCredentials} title={credentialsMode === 'reset' ? 'Password Reset' : 'Account Created'}>
         {credentialsResult && (
           <>
             <p className="user-credentials-intro">
-              Share these sign-in details with <strong>{credentialsResult.data.name}</strong>. This temporary password is
-              shown only once — it won&apos;t be retrievable after you close this window.
+              {credentialsMode === 'reset' ? (
+                <>Share this new password with <strong>{credentialsResult.data.name}</strong>. Any device they were signed into has been signed out.</>
+              ) : (
+                <>Share these sign-in details with <strong>{credentialsResult.data.name}</strong>.</>
+              )}{' '}This password is shown only once — it won&apos;t be retrievable after you close this window.
             </p>
             <label className="modal-field-label">Email</label>
             <input className="form-input" value={credentialsResult.data.email} readOnly />
-            <label className="modal-field-label">Temporary Password</label>
+            <label className="modal-field-label">{credentialsMode === 'reset' ? 'New Temporary Password' : 'Temporary Password'}</label>
             <div className="user-credentials-password-row">
               <input className="form-input user-credentials-password" value={credentialsResult.temporary_password} readOnly />
               <button type="button" className="dash-btn dash-btn--outline user-credentials-copy-btn" onClick={copyPassword}>
@@ -746,6 +783,22 @@ function UserManagement() {
               ))}
             </select>
           </>
+        )}
+
+        {editUser && editUser.id !== currentUser?.id && (
+          <div className="edit-reset-password-row">
+            <button
+              type="button"
+              className="edit-reset-password-link"
+              disabled={resettingPassword}
+              onClick={() => resetPasswordAction(editUser)}
+            >
+              Reset Password&hellip;
+            </button>
+            <span className="edit-reset-password-hint">
+              For when they can&rsquo;t use Forgot Password themselves — generates a new temporary password and signs them out everywhere.
+            </span>
+          </div>
         )}
 
         <div className="modal-actions">
