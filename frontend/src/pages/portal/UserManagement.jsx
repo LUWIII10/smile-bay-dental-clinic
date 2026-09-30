@@ -11,7 +11,7 @@ import Skeleton from './components/Skeleton';
 import StatusBadge from './components/StatusBadge';
 import Modal from './components/Modal';
 import PageHeader from './components/PageHeader';
-import { SearchIcon, UsersIcon, CheckCircleIcon, ArchiveIcon, AlertIcon } from './icons';
+import { SearchIcon, UsersIcon, CheckCircleIcon, ArchiveIcon, AlertIcon, CopyIcon } from './icons';
 import { showSuccessToast, showErrorToast, confirmAction } from '../../utils/toast';
 import { getAvatarUrl } from './avatarUtils';
 import './dashboards.css';
@@ -83,6 +83,12 @@ function UserManagement() {
   const [createError, setCreateError] = useState('');
 
   const [credentialsResult, setCredentialsResult] = useState(null); // { user, temporary_password }
+  // The password is hashed on the backend the moment this account is
+  // created — this modal is the ONLY place it's ever recoverable in plain
+  // text, so accidentally closing it before copying it down means it's
+  // gone for good. Tracked separately from credentialsResult so closing
+  // can warn first instead of silently losing it.
+  const [passwordCopied, setPasswordCopied] = useState(false);
 
   const [editUser, setEditUser] = useState(null);
   const [editForm, setEditForm] = useState(EMPTY_EDIT_FORM);
@@ -168,12 +174,41 @@ function UserManagement() {
       const result = await createStaffUser(createForm);
       setCreateOpen(false);
       setCredentialsResult(result);
+      setPasswordCopied(false);
       load();
     } catch (err) {
       setCreateError(err.response?.data?.message || 'Could not create this account.');
     } finally {
       setCreating(false);
     }
+  };
+
+  const copyPassword = async () => {
+    if (!credentialsResult) return;
+    try {
+      await navigator.clipboard.writeText(credentialsResult.temporary_password);
+      setPasswordCopied(true);
+      showSuccessToast('Password copied to clipboard.');
+    } catch {
+      showErrorToast('Could not copy automatically — please select and copy it manually.');
+    }
+  };
+
+  // Guards every way this modal can close (Done button, the X, Escape, and
+  // clicking the backdrop all funnel through Modal's own onClose) — if the
+  // password hasn't been copied yet, confirm first rather than silently
+  // losing the only copy that will ever exist.
+  const closeCredentials = async () => {
+    if (!passwordCopied) {
+      const confirmed = await confirmAction({
+        title: 'Close without copying?',
+        text: "This temporary password won't be shown again once you close this window.",
+        confirmButtonText: 'Close Anyway',
+        confirmButtonColor: '#b42318',
+      });
+      if (!confirmed) return;
+    }
+    setCredentialsResult(null);
   };
 
   const openEdit = (row) => {
@@ -667,7 +702,7 @@ function UserManagement() {
         </div>
       </Modal>
 
-      <Modal open={!!credentialsResult} onClose={() => setCredentialsResult(null)} title="Account Created">
+      <Modal open={!!credentialsResult} onClose={closeCredentials} title="Account Created">
         {credentialsResult && (
           <>
             <p className="user-credentials-intro">
@@ -677,9 +712,14 @@ function UserManagement() {
             <label className="modal-field-label">Email</label>
             <input className="form-input" value={credentialsResult.data.email} readOnly />
             <label className="modal-field-label">Temporary Password</label>
-            <input className="form-input user-credentials-password" value={credentialsResult.temporary_password} readOnly />
+            <div className="user-credentials-password-row">
+              <input className="form-input user-credentials-password" value={credentialsResult.temporary_password} readOnly />
+              <button type="button" className="dash-btn dash-btn--outline user-credentials-copy-btn" onClick={copyPassword}>
+                <CopyIcon /> {passwordCopied ? 'Copied' : 'Copy'}
+              </button>
+            </div>
             <div className="modal-actions">
-              <button type="button" className="dash-btn" onClick={() => setCredentialsResult(null)}>Done</button>
+              <button type="button" className="dash-btn" onClick={closeCredentials}>Done</button>
             </div>
           </>
         )}

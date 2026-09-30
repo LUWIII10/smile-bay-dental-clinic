@@ -16,6 +16,28 @@
   letter-spacing: 0.03em;
 }
 
+.user-credentials-password-row {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.user-credentials-password-row .user-credentials-password {
+  flex: 1;
+  min-width: 0;
+}
+
+.user-credentials-copy-btn {
+  flex-shrink: 0;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.user-credentials-copy-btn svg {
+  width: 15px;
+  height: 15px;
+}
+
 /* Restriction-count caption under the "Restricted Account" badge —
    restriction_count only ever goes up (never cleared by Lift Restriction),
    so this reads as real history, not just the current state. Color climbs
