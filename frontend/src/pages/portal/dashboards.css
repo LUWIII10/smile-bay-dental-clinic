@@ -3,35 +3,41 @@
    dashboards only add the handful of rules specific to their own layout
    (e.g. the dentist timeline, the admin chart grid). */
 
-/* Same gradient-card + tooth/sparkle watermark treatment as .page-hero
-   (PageHeader.jsx) — reused here (not switched to PageHeader itself) since
-   a greeting has no icon box or actions slot, just the two lines of text;
-   .dash-greeting-decoration below is a trimmed copy of .page-hero-decoration
-   for that reason. */
+/* Solid navy-to-blue card (the same two blues already used everywhere else
+   as --portal-blue/--portal-navy, not an invented palette) with a wave-line
+   motif along the bottom edge — a deliberate callback to the wave lines
+   under the tooth in the actual Smile Bay logo (the "Bay"), replacing the
+   previous generic faint tooth watermark. Approved design:
+   https://claude.ai/artifact/Wx6vx4t9izLi8jN7QXb4RU (Option A, no logo mark
+   — kept as a wave-only treatment per explicit follow-up feedback). Shared
+   by every role's dashboard (Admin/Dentist/Assistant/Patient all render
+   DashGreeting), so this applies to all four, not just Patient. */
 .dash-greeting {
   position: relative;
   overflow: hidden;
-  background: linear-gradient(135deg, var(--portal-blue-tint), var(--portal-card) 65%);
+  background: linear-gradient(135deg, var(--portal-blue) 0%, var(--portal-navy) 100%);
   border-radius: var(--portal-radius-lg);
-  box-shadow: var(--portal-shadow);
+  box-shadow: 0 10px 28px rgba(15, 37, 87, 0.28);
   padding: 22px 26px;
   margin-bottom: 18px;
 }
 
-.dash-greeting-decoration {
+.dash-greeting-wave {
   position: absolute;
-  inset: 0;
-  pointer-events: none;
-  color: var(--portal-blue);
-  opacity: 0.07;
+  left: 0;
+  bottom: -2px;
+  width: 100%;
+  fill: #ffffff;
 }
 
-.dash-greeting-decoration svg {
-  position: absolute;
-  top: -26px;
-  right: 24px;
-  width: 150px;
-  height: 150px;
+.dash-greeting-wave--back {
+  height: 44px;
+  opacity: 0.1;
+}
+
+.dash-greeting-wave--front {
+  height: 30px;
+  opacity: 0.16;
 }
 
 .dash-greeting h2 {
@@ -40,14 +46,14 @@
   font-family: 'Poppins', sans-serif;
   font-weight: 600;
   font-size: 1.3rem;
-  color: var(--portal-navy);
+  color: #ffffff;
 }
 
 .dash-greeting p {
   position: relative;
   margin: 0;
   font-size: 0.85rem;
-  color: var(--portal-muted);
+  color: rgba(255, 255, 255, 0.72);
 }
 
 /* ============ Page hero header (PageHeader.jsx) ============
