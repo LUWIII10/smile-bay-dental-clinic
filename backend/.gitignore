@@ -16,6 +16,13 @@
 /public/build
 /public/hot
 /public/storage
+# The React build, copied in locally by run-offline-backup.ps1 (mirrors what
+# the Dockerfile does inside the image at build time) — regenerated on
+# demand, never meant to be committed here.
+/public/assets
+/public/index.html
+/public/favicon.svg
+/public/icons.svg
 /storage/*.key
 /storage/fonts
 /storage/pail
