@@ -412,6 +412,16 @@
 .notif-panel-list {
   max-height: 380px;
   overflow-y: auto;
+  /* Without this, scrolling to the top/bottom of this list "chains" into
+     scrolling the page behind it (standard touch-scroll behavior once an
+     inner scrollable area hits its own boundary) — and useDropdownPosition's
+     own scroll listener (correctly) treats a real page scroll as "the
+     dropdown's position is stale, dismiss it", so the panel closed itself
+     the moment a touch scroll inside the list reached either end. Keeping
+     the scroll contained here is what actually fixes it, not the dismiss
+     logic itself (already correctly ignores scrolls that stay inside the
+     dropdown). */
+  overscroll-behavior: contain;
   scrollbar-width: thin;
   scrollbar-color: rgba(41, 82, 227, 0.35) var(--portal-canvas);
 }
