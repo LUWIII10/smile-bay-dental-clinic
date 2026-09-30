@@ -415,7 +415,7 @@ function UserManagement() {
               </span>
             )}
             {!isRestricted && isDormant(row) && (
-              <span className="restriction-count-caption restriction-count-caption--mid">
+              <span className="dormant-hint-caption">
                 {formatLastVisit(row.last_appointment_date)}
               </span>
             )}

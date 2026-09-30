@@ -37,6 +37,16 @@
 .restriction-count-caption--mid { color: var(--portal-amber-text); }
 .restriction-count-caption--high { color: var(--portal-red-text); }
 
+/* Dedicated (not restriction-count-caption--mid, deliberately) — the "no
+   visit in N months" hint isn't a warning like a strike count is, so it
+   shouldn't read as one. Same slot/size as the restriction captions above,
+   plain muted gray and regular weight instead of bold amber. */
+.dormant-hint-caption {
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: var(--portal-muted);
+}
+
 /* Cancellations column, non-patient row — dash instead of a "0" badge,
    which would misleadingly imply the concept applies to staff/admin too. */
 .cancellation-count-na {
@@ -202,9 +212,9 @@
 .archive-target-hint {
   margin-top: 2px;
   display: inline-flex;
-  font-size: 0.68rem;
-  font-weight: 700;
-  color: var(--portal-amber-text);
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--portal-muted);
 }
 
 .archive-checklist-label {
