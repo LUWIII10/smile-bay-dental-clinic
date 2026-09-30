@@ -42,6 +42,9 @@ const ACTION_META = {
   restriction_lifted: { label: 'Restriction Lifted', tone: 'green' },
   account_activated: { label: 'Account Activated', tone: 'green' },
   account_deactivated: { label: 'Account Deactivated', tone: 'red' },
+  patient_archived: { label: 'Patient Archived', tone: 'gray' },
+  patient_restored: { label: 'Patient Restored', tone: 'green' },
+  password_reset_by_admin: { label: 'Password Reset by Admin', tone: 'indigo' },
 };
 
 const TONE_COLORS = {
