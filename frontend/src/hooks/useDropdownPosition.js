@@ -61,13 +61,23 @@ export function useDropdownPosition() {
       }
     };
     const handleDismiss = () => setOpen(false);
+    // 'scroll' doesn't bubble, so capture (true) is the only way to hear it
+    // fire on a descendant at all — but that means it also fires for
+    // scrolling the dropdown's OWN internal list (e.g. a long notification
+    // list with its own scrollbar), which isn't "the page moved under a
+    // fixed-position dropdown" at all and shouldn't dismiss it. Skip when
+    // the scroll originated inside the dropdown itself.
+    const handleScroll = (e) => {
+      if (dropdownRef.current && dropdownRef.current.contains(e.target)) return;
+      setOpen(false);
+    };
 
     document.addEventListener('mousedown', handleClickOutside);
-    window.addEventListener('scroll', handleDismiss, true);
+    window.addEventListener('scroll', handleScroll, true);
     window.addEventListener('resize', handleDismiss);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
-      window.removeEventListener('scroll', handleDismiss, true);
+      window.removeEventListener('scroll', handleScroll, true);
       window.removeEventListener('resize', handleDismiss);
     };
   }, [open]);
