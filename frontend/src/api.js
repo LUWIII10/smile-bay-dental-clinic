@@ -7,8 +7,8 @@ import axios from 'axios';
 // .env.development, so VITE_API_URL is unset and this falls back to '' —
 // Laravel serves the built frontend itself in production, so a relative
 // path already resolves to the right place with no origin needed.
-const api = axios.create({
-    baseURL: import.meta.env.VITE_API_URL || '',
+const api = axios.create({  
+    baseURL: import.meta.env.VITE_API_URL ?? (import.meta.env.DEV ? 'http://localhost:8000' : window.location.origin),
     withCredentials: true,
     withXSRFToken: true,
 });
