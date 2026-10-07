@@ -12,12 +12,13 @@ use RuntimeException;
 class DemoPatientSeeder extends Seeder
 {
     public ?Carbon $anchor = null;
+    public bool $presentation = false;
     private array $reserved = [];
 
     public function run(): void
     {
         $today = ($this->anchor ?? Carbon::today('Asia/Manila'))->copy()->startOfDay();
-        $emails = array_map(fn ($n) => sprintf('demo.patient%03d@example.com', $n), range(1, 50));
+        $emails = $this->patientEmails();
         $existing = User::whereIn('email', $emails)->get();
         if ($existing->count() === 50 && Patient::whereIn('user_id', $existing->modelKeys())->count() === 50) {
             $this->command?->info('The 50 demo patients already exist; no records changed.');
@@ -95,7 +96,7 @@ class DemoPatientSeeder extends Seeder
                         'date_of_birth' => $dob, 'sex' => $i % 2 === 0 ? 'male' : 'female',
                         'civil_status' => $age < 25 ? 'Single' : ($i % 3 === 0 ? 'Single' : 'Married'), 'nationality' => 'Filipino',
                         'occupation' => $age < 22 ? 'Student' : ($age >= 60 ? 'Retired' : ['Teacher','Office employee','Store owner','Technician','Accountant'][$i % 5]),
-                        'address_line' => 'Block '.(2 + $i % 8).' Lot '.(3 + $i).' '.$streets[$i % 6].' Street, Likha Meadows (fictional)',
+                        'address_line' => 'Block '.(2 + $i % 8).' Lot '.(3 + $i).' '.$streets[$i % 6].' Street, Likha Meadows',
                         'city' => $city, 'province' => $province, 'zip_code' => $zip,
                         'emergency_contact_name' => $contact, 'emergency_contact_relationship' => $age < 18 ? 'Mother' : 'Sibling',
                         'emergency_contact_number' => $phone,
@@ -107,8 +108,8 @@ class DemoPatientSeeder extends Seeder
                         'dental_procedures_history' => [], 'current_dental_symptoms' => [],
                         'visit_reason' => ['Routine dental check-up','Mild tooth sensitivity','Routine dental cleaning','Follow-up consultation'][$i % 4],
                         'patient_type' => $hmo ? 'hmo' : 'cash', 'hmo_provider_id' => $provider?->id,
-                        'hmo_number' => $hmo ? sprintf('DEMO-HMO-%04d', $i + 1) : null,
-                        'hmo_company_name' => $hmo ? 'Likha Community Enterprises (fictional)' : null,
+                        'hmo_number' => $hmo ? sprintf('SBD-2026-%06d', $i + 1) : null,
+                        'hmo_company_name' => $hmo ? 'Likha Community Enterprises' : null,
                         'consent_certified' => true, 'created_at' => $registered, 'updated_at' => $registered,
                     ]);
                     $patient->update(['patient_number' => Patient::formatPatientNumber($patient->id, $registered)]);
@@ -137,7 +138,7 @@ class DemoPatientSeeder extends Seeder
                     }
                     $pending = ($hmo || $service->isPediatric()) && $i % 3 !== 2;
                     $future = $this->appointment($patient, $service, $dentists, $staff,
-                        $today->copy()->addDays(1 + $i % 21), 1, $pending ? 'pending_verification' : 'confirmed', $i + 50, $today);
+                        $today->copy()->addDays(($this->presentation ? 0 : 1) + $i % 21), 1, $pending ? 'pending_verification' : 'confirmed', $i + 50, $today);
                     if ($i % 5 === 0 && $future->status === 'confirmed') {
                         // Rescheduling retains status, just as AppointmentController does.
                         [$oldDate, $oldTime] = $this->slot($service, $future->dentist, $future->appointment_date->copy()->addDays(3), 1);
@@ -148,6 +149,26 @@ class DemoPatientSeeder extends Seeder
             });
         });
         $this->command?->info('Created 50 fictional patients, 100 appointments and 40 completed treatment histories.');
+    }
+
+    public function patientEmails(): array
+    {
+        if (! $this->presentation) {
+            return array_map(fn ($n) => sprintf('demo.patient%03d@example.com', $n), range(1, 50));
+        }
+
+        $names = ['gabriel.navarro','sofia.soriano','nathaniel.velasco','chloe.domingo','rafael.salazar',
+            'bianca.manalo','liam.dizon','mikaela.aguilar','adrian.tolentino','camille.valdez',
+            'christian.ocampo','janelle.panganiban','daniel.rosales','alyssa.evangelista','vincent.devera',
+            'erika.alcantara','francis.lacson','dianne.alonzo','patrick.cabrera','trisha.serrano',
+            'kenneth.fajardo','rochelle.montes','jerome.pascual','kristine.escobar','aaron.abad',
+            'mariel.natividad','roland.buenaventura','hazel.delrosario','dennis.villaflor','joanna.arce',
+            'eduardo.balagtas','liza.deleon','roberto.austria','monica.zamora','alfredo.quintana',
+            'catherine.pineda','rodrigo.magbanua','teresa.valencia','mario.samson','imelda.marquez',
+            'ernesto.ledesma','rosario.bermudez','ricardo.balao','leonora.sison','danilo.aguinaldo',
+            'gloria.cordero','nestor.paloma','cecilia.mallari','arturo.soliman','virginia.estrella'];
+
+        return array_map(fn ($name) => $name.'@example.com', $names);
     }
 
     private function appointment(Patient $patient, Service $service, $dentists, User $staff, Carbon $target, int $direction, string $status, int $index, Carbon $today): Appointment
