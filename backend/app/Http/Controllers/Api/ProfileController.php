@@ -187,7 +187,13 @@ class ProfileController extends Controller
         $oldUrl = $this->currentAvatarUrl($user);
 
         $path = $request->file('avatar')->store('avatars', 'public');
-        $url = Storage::disk('public')->url($path);
+        // Site-relative, not Storage::disk('public')->url($path) — that bakes
+        // in whatever APP_URL the server happens to have *right now* (e.g.
+        // local dev's http://localhost:8000) permanently into the DB. A
+        // relative /storage/... path resolves against whichever origin is
+        // actually serving the page, so it's correct on every environment
+        // (local, Railway, Hostinger) without caring which one uploaded it.
+        $url = '/storage/'.$path;
 
         $this->setAvatarUrl($user, $url);
         $this->deleteIfLocal($oldUrl);
@@ -238,8 +244,11 @@ class ProfileController extends Controller
             return;
         }
 
-        $prefix = Storage::disk('public')->url('avatars/');
-        if (str_starts_with($url, $prefix)) {
+        // Matches both the new relative format (/storage/avatars/...) and
+        // any already-stored absolute one (http://whatever-host/storage/
+        // avatars/...) from before this was changed to relative — still one
+        // of ours to delete either way, just basename() it off.
+        if (str_contains($url, '/storage/avatars/')) {
             Storage::disk('public')->delete('avatars/'.basename($url));
         }
     }

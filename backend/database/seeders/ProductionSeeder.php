@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\ClinicSchedule;
 use App\Models\DentistProfile;
+use App\Models\HmoProvider;
 use App\Models\Service;
 use App\Models\User;
 use Illuminate\Database\Seeder;
@@ -137,11 +138,11 @@ class ProductionSeeder extends Seeder
         if ($pediatric?->dentistProfile && ! $pediatric->dentistProfile->photo_path
             && Storage::disk('public')->exists('avatars/ef7d908dde5ac460cc34e5a90955d289201bf050.jpg')) {
             $pediatric->dentistProfile->update([
-                'photo_path' => Storage::disk('public')->url('avatars/ef7d908dde5ac460cc34e5a90955d289201bf050.jpg'),
+                'photo_path' => '/storage/avatars/ef7d908dde5ac460cc34e5a90955d289201bf050.jpg',
             ]);
         }
 
-        $this->repairBrokenDentistPhotos();
+        $this->repairBrokenMediaUrls();
     }
 
     private function firstOrCreateStaff(string $email, string $name, string $role, ?string $password): ?User
@@ -208,21 +209,49 @@ class ProductionSeeder extends Seeder
     // the frontend's KNOWN_DENTIST_PHOTOS map (which only kicks in when
     // photo_path is null/empty) — self-heals here on every deploy until a
     // persistent volume makes this unnecessary.
-    private function repairBrokenDentistPhotos(): void
+    // Runs on every deploy (seeder re-runs are safe/idempotent — see this
+    // class's own docblock), so any photo/avatar/logo uploaded while a
+    // DIFFERENT host was running (a dev machine's http://localhost:8000, or
+    // a previous deploy's own APP_URL) self-heals here instead of staying
+    // permanently broken on whichever environment views it next. Superseded
+    // its old name (repairBrokenDentistPhotos) — now covers every upload
+    // column, not just dentist photos, and rewrites a cross-host URL to the
+    // current site-relative format instead of only ever clearing it.
+    private function repairBrokenMediaUrls(): void
     {
-        $publicUrlPrefix = rtrim(config('app.url'), '/').'/storage/';
-
-        DentistProfile::whereNotNull('photo_path')->get()->each(function (DentistProfile $profile) use ($publicUrlPrefix) {
-            if (! str_starts_with($profile->photo_path, $publicUrlPrefix)) {
-                return;
+        $normalize = function (?string $value): ?string {
+            if (! $value || str_starts_with($value, '/storage/')) {
+                return $value;
             }
 
-            $relativePath = substr($profile->photo_path, strlen($publicUrlPrefix));
-
-            if (! Storage::disk('public')->exists($relativePath)) {
-                $this->command?->warn("Clearing stale photo_path for dentist_profiles#{$profile->id} — the uploaded file no longer exists on disk.");
-                $profile->update(['photo_path' => null]);
+            // An absolute URL from some other host's /storage/... — keep
+            // only the path portion. Anything else (an external URL, e.g.
+            // the pediatric dentist's old seeded Unsplash photo) is left
+            // untouched; it was never ours to rewrite or delete.
+            if (preg_match('#^https?://[^/]+(/storage/.+)$#', $value, $m)) {
+                return $m[1];
             }
-        });
+
+            return $value;
+        };
+
+        $repair = function ($row, string $column) use ($normalize) {
+            $current = $row->{$column};
+            $next = $normalize($current);
+
+            if ($next && str_starts_with($next, '/storage/')
+                && ! Storage::disk('public')->exists(substr($next, strlen('/storage/')))) {
+                $this->command?->warn(class_basename($row)."#{$row->id}.{$column} cleared — the uploaded file no longer exists on disk.");
+                $next = null;
+            }
+
+            if ($next !== $current) {
+                $row->update([$column => $next]);
+            }
+        };
+
+        DentistProfile::whereNotNull('photo_path')->get()->each(fn (DentistProfile $p) => $repair($p, 'photo_path'));
+        User::whereNotNull('avatar_path')->get()->each(fn (User $u) => $repair($u, 'avatar_path'));
+        HmoProvider::whereNotNull('logo_path')->get()->each(fn (HmoProvider $h) => $repair($h, 'logo_path'));
     }
 }

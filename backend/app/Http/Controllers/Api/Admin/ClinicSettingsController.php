@@ -171,7 +171,9 @@ class ClinicSettingsController extends Controller
 
         $path = $request->file('logo')->store('hmo-logos', 'public');
 
-        return Storage::disk('public')->url($path);
+        // Site-relative — see ProfileController::uploadAvatar()'s comment
+        // for why this isn't Storage::disk('public')->url($path).
+        return '/storage/'.$path;
     }
 
     // Same local-only-delete guard as ProfileController::deleteIfLocal() —
@@ -184,8 +186,7 @@ class ClinicSettingsController extends Controller
             return;
         }
 
-        $prefix = Storage::disk('public')->url('hmo-logos/');
-        if (str_starts_with($url, $prefix)) {
+        if (str_contains($url, '/storage/hmo-logos/')) {
             Storage::disk('public')->delete('hmo-logos/'.basename($url));
         }
     }
