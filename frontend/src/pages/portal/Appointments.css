@@ -875,6 +875,16 @@
   .filter-field--grow {
     max-width: none;
     width: 100%;
+    /* .filter-field--grow's flex: 1 1 280px exists for the desktop/row
+       .appt-toolbar, where flex-basis controls WIDTH. Once the toolbar
+       switches to flex-direction: column just above, flex-basis instead
+       sizes the main axis, which is now vertical — so that same 280px
+       silently became a forced HEIGHT instead of a width, blowing each
+       field up into a tall box with its control centered inside a lot of
+       empty space. Resetting flex here makes every field just take its
+       own natural content height again, stacked tightly like the rest of
+       this column layout expects. */
+    flex: none;
   }
 }
 
