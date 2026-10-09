@@ -11,6 +11,7 @@ import Skeleton from './components/Skeleton';
 import StatusBadge from './components/StatusBadge';
 import Modal from './components/Modal';
 import PageHeader from './components/PageHeader';
+import FilterDropdown from './components/FilterDropdown';
 import { SearchIcon, UsersIcon, CheckCircleIcon, ArchiveIcon, AlertIcon, CopyIcon } from './icons';
 import { showSuccessToast, showErrorToast, confirmAction } from '../../utils/toast';
 import { getAvatarUrl } from './avatarUtils';
@@ -23,6 +24,27 @@ const SEARCH_DEBOUNCE_MS = 400;
 const ROLE_LABELS = { patient: 'Patient', dentist: 'Dentist', dental_assistant: 'Dental Assistant', admin: 'Administrator' };
 const ROLE_TONE = { patient: 'blue', dentist: 'green', dental_assistant: 'indigo', admin: 'amber' };
 const STAFF_ROLES = ['dentist', 'dental_assistant', 'admin'];
+
+// Dot colors match ROLE_TONE's own palette (ROLE_TONE itself drives
+// StatusBadge elsewhere in this file, not this dropdown — kept as a
+// parallel literal list since FilterDropdown's dot wants a real color,
+// not a tone name) and ActivityLog's own ROLE_OPTIONS, so a role reads
+// the same color wherever it's filtered across the app.
+const ROLE_FILTER_OPTIONS = [
+  { value: '', label: 'All Roles', dot: '#94a3b8' },
+  { value: 'patient', label: 'Patient', dot: '#2952e3' },
+  { value: 'dentist', label: 'Dentist', dot: '#15803d' },
+  { value: 'dental_assistant', label: 'Dental Assistant', dot: '#4338ca' },
+  { value: 'admin', label: 'Administrator', dot: '#b45309' },
+];
+
+const STATUS_FILTER_OPTIONS = [
+  { value: '', label: 'All Statuses', dot: '#94a3b8' },
+  { value: 'active', label: 'Active', dot: '#15803d' },
+  { value: 'inactive', label: 'Inactive', dot: '#64748b' },
+  { value: 'restricted', label: 'Restricted', dot: '#b42318' },
+  { value: 'archived', label: 'Archived', dot: '#334155' },
+];
 
 const EMPTY_CREATE_FORM = { name: '', email: '', mobile_number: '', role: 'dentist' };
 const EMPTY_EDIT_FORM = { name: '', email: '', mobile_number: '', role: '' };
@@ -633,27 +655,13 @@ function UserManagement() {
               />
             </div>
           </div>
-          <div className="filter-field">
-            <select className="form-select" value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}>
-              <option value="">All Roles</option>
-              {Object.entries(ROLE_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>{label}</option>
-              ))}
-            </select>
-          </div>
-          <div className="filter-field">
-            <select
-              className="form-select"
-              value={statusFilter}
-              onChange={(e) => { setStatusFilter(e.target.value); setDormantOnly(false); }}
-            >
-              <option value="">All Statuses</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-              <option value="restricted">Restricted</option>
-              <option value="archived">Archived</option>
-            </select>
-          </div>
+          <FilterDropdown icon={<UsersIcon />} options={ROLE_FILTER_OPTIONS} value={roleFilter} onChange={setRoleFilter} />
+          <FilterDropdown
+            icon={<CheckCircleIcon />}
+            options={STATUS_FILTER_OPTIONS}
+            value={statusFilter}
+            onChange={(next) => { setStatusFilter(next); setDormantOnly(false); }}
+          />
         </div>
 
         {dormantOnly && (

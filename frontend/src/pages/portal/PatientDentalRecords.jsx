@@ -4,6 +4,7 @@ import StatusBadge from './components/StatusBadge';
 import Modal from './components/Modal';
 import Skeleton from './components/Skeleton';
 import PageHeader from './components/PageHeader';
+import FilterDropdown from './components/FilterDropdown';
 import { FileIcon, ClockIcon, UserIcon, CheckCircleIcon, CalendarIcon, ToothIcon } from './icons';
 import {
   PLAN_STATUS_TONE,
@@ -18,6 +19,18 @@ import './DentalRecords.css';
 
 const HISTORY_PAGE_SIZE = 5;
 const NOTES_PREVIEW_COUNT = 3;
+
+// Dot colors mirror HISTORY_CATEGORY_RULES' own tone mapping in
+// dentalRecordShared.js (treatment=indigo, diagnostic=blue, procedure=
+// green, consultation=amber), kept here rather than exported from there
+// since this is a hex literal for FilterDropdown, not a reusable tone name.
+const HISTORY_CATEGORY_DOT = {
+  all: '#94a3b8',
+  treatment: '#4338ca',
+  diagnostic: '#2952e3',
+  procedure: '#15803d',
+  consultation: '#b45309',
+};
 
 function PatientDentalRecords() {
   const [record, setRecord] = useState(null);
@@ -143,15 +156,12 @@ function PatientDentalRecords() {
                 <h3 className="section-card-title">Treatment History</h3>
                 <p className="section-card-subtitle">A chronological list of your treatments and procedures.</p>
               </div>
-              <select
-                className="form-select record-history-filter"
+              <FilterDropdown
+                icon={<FileIcon />}
+                options={HISTORY_CATEGORY_OPTIONS.map((opt) => ({ value: opt.key, label: opt.label, dot: HISTORY_CATEGORY_DOT[opt.key] }))}
                 value={categoryFilter}
-                onChange={(e) => handleCategoryChange(e.target.value)}
-              >
-                {HISTORY_CATEGORY_OPTIONS.map((opt) => (
-                  <option key={opt.key} value={opt.key}>{opt.label}</option>
-                ))}
-              </select>
+                onChange={handleCategoryChange}
+              />
             </div>
 
             {history.length === 0 ? (

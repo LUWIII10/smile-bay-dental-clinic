@@ -18,21 +18,31 @@ import ActionMenu from './components/ActionMenu';
 import Pagination from './components/Pagination';
 import RejectionModal from './components/RejectionModal';
 import PageHeader from './components/PageHeader';
+import FilterDropdown from './components/FilterDropdown';
 import {
-  CalendarIcon, CheckCircleIcon, ClockIcon, XCircleIcon, SearchIcon, EyeIcon, CashIcon, ShieldIcon,
+  CalendarIcon, CheckCircleIcon, ClockIcon, XCircleIcon, SearchIcon, EyeIcon, CashIcon, ShieldIcon, UserIcon,
 } from './icons';
 import { formatDateShort, formatTime12h, toLocalDate } from './dateTimeUtils';
 import { showSuccessToast, showErrorToast, confirmAction } from '../../utils/toast';
 import './dashboards.css';
 import './Appointments.css';
 
+// Dot colors mirror StatusBadge's own tone mapping (confirmed/completed
+// green, pending amber, cancelled/rejected red) so a status reads the
+// same color in this filter as it does on the row badge it's filtering.
 const STATUS_OPTIONS = [
-  { value: '', label: 'All Statuses' },
-  { value: 'confirmed', label: 'Confirmed' },
-  { value: 'pending_verification', label: 'Pending' },
-  { value: 'cancelled', label: 'Cancelled' },
-  { value: 'rejected', label: 'Rejected' },
-  { value: 'completed', label: 'Completed' },
+  { value: '', label: 'All Statuses', dot: '#94a3b8' },
+  { value: 'confirmed', label: 'Confirmed', dot: '#15803d' },
+  { value: 'pending_verification', label: 'Pending', dot: '#b45309' },
+  { value: 'cancelled', label: 'Cancelled', dot: '#b42318' },
+  { value: 'rejected', label: 'Rejected', dot: '#b42318' },
+  { value: 'completed', label: 'Completed', dot: '#15803d' },
+];
+
+const PAYMENT_TYPE_OPTIONS = [
+  { value: '', label: 'All Payments', dot: '#94a3b8' },
+  { value: 'cash', label: 'Cash', dot: '#15803d' },
+  { value: 'hmo', label: 'HMO', dot: '#2952e3' },
 ];
 
 const SEARCH_DEBOUNCE_MS = 400;
@@ -563,28 +573,14 @@ function AllAppointments() {
               document.body
             )}
           </div>
-          <div className="filter-field">
-            <select className="form-select" value={dentistId} onChange={(e) => setDentistId(e.target.value)}>
-              <option value="">All Dentists</option>
-              {dentists.map((d) => (
-                <option key={d.id} value={d.id}>{d.name}</option>
-              ))}
-            </select>
-          </div>
-          <div className="filter-field">
-            <select className="form-select" value={status} onChange={(e) => setStatus(e.target.value)}>
-              {STATUS_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
-          </div>
-          <div className="filter-field">
-            <select className="form-select" value={paymentType} onChange={(e) => setPaymentType(e.target.value)}>
-              <option value="">All Payments</option>
-              <option value="cash">Cash</option>
-              <option value="hmo">HMO</option>
-            </select>
-          </div>
+          <FilterDropdown
+            icon={<UserIcon />}
+            options={[{ value: '', label: 'All Dentists' }, ...dentists.map((d) => ({ value: String(d.id), label: d.name }))]}
+            value={dentistId}
+            onChange={setDentistId}
+          />
+          <FilterDropdown icon={<CheckCircleIcon />} options={STATUS_OPTIONS} value={status} onChange={setStatus} />
+          <FilterDropdown icon={<CashIcon />} options={PAYMENT_TYPE_OPTIONS} value={paymentType} onChange={setPaymentType} />
           <div className="filter-field">
             <button
               type="button"
