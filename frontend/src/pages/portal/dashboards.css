@@ -57,12 +57,16 @@
 }
 
 /* ============ Page hero header (PageHeader.jsx) ============
-   The shared top-of-page header — icon box + title/subtitle on a soft blue
-   card, faint tooth/sparkle watermark behind the actions slot. Replaces the
-   old plain "section-card-header appt-page-header" title block used across
-   most portal pages (that class stays defined below/in Appointments.css —
+   The shared top-of-page header — icon box + title/subtitle on the same
+   navy-to-blue gradient and wave motif as the dashboard greeting banner
+   (.dash-greeting above — the wave SVGs reuse its .dash-greeting-wave
+   classes verbatim instead of a second copy). Replaces the old plain
+   "section-card-header appt-page-header" title block used across most
+   portal pages (that class stays defined below/in Appointments.css —
    still used verbatim by nested sub-section headers within a page, e.g.
-   DentistSchedule.jsx's "Completed today" row). */
+   DentistSchedule.jsx's "Completed today" row), and replaces this
+   component's own earlier light-tint/tooth-watermark look. Approved
+   mockup: https://claude.ai/artifact/9b4rJvL6917sbn52cmWY1V */
 
 .page-hero {
   position: relative;
@@ -72,43 +76,11 @@
   justify-content: space-between;
   gap: 12px 16px;
   overflow: hidden;
-  background: linear-gradient(135deg, var(--portal-blue-tint), var(--portal-card) 65%);
+  background: linear-gradient(135deg, var(--portal-blue) 0%, var(--portal-navy) 100%);
   border-radius: var(--portal-radius-lg);
-  box-shadow: var(--portal-shadow);
+  box-shadow: 0 10px 28px rgba(15, 37, 87, 0.28);
   padding: 22px 26px;
   margin-bottom: 22px;
-}
-
-.page-hero-decoration {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  color: var(--portal-blue);
-  opacity: 0.07;
-}
-
-.page-hero-decoration svg:nth-child(1) {
-  position: absolute;
-  top: -22px;
-  right: 70px;
-  width: 150px;
-  height: 150px;
-}
-
-.page-hero-decoration svg:nth-child(2) {
-  position: absolute;
-  top: 20px;
-  right: 230px;
-  width: 22px;
-  height: 22px;
-}
-
-.page-hero-decoration svg:nth-child(3) {
-  position: absolute;
-  bottom: 16px;
-  right: 34px;
-  width: 16px;
-  height: 16px;
 }
 
 .page-hero-main {
@@ -120,21 +92,31 @@
   min-width: 0;
 }
 
+/* Gradient + two-layer shadow (outer lift + inset top highlight) instead
+   of a flat tint, so the badge reads as a considered object sitting on
+   the gradient rather than a plain translucent square. */
 .page-hero-icon {
+  position: relative;
   flex-shrink: 0;
   width: 52px;
   height: 52px;
   border-radius: 14px;
-  background: var(--portal-blue-bg);
-  color: var(--portal-blue);
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.24) 0%, rgba(255, 255, 255, 0.08) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow:
+    0 6px 16px rgba(5, 15, 40, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    inset 0 -8px 14px -10px rgba(5, 15, 40, 0.4);
 }
 
 .page-hero-icon svg {
   width: 24px;
   height: 24px;
+  filter: drop-shadow(0 1px 1px rgba(5, 15, 40, 0.25));
 }
 
 .page-hero-text {
@@ -146,7 +128,7 @@
   font-size: 26px;
   font-weight: 600;
   line-height: 1.25;
-  color: var(--portal-navy);
+  color: #ffffff;
   margin: 0 0 3px;
   letter-spacing: -0.01em;
 }
@@ -154,7 +136,7 @@
 .page-hero-subtitle {
   font-size: 14.5px;
   line-height: 1.5;
-  color: var(--portal-muted);
+  color: rgba(255, 255, 255, 0.72);
   margin: 0;
 }
 
@@ -176,6 +158,51 @@
   min-width: 0;
 }
 
+/* Controls placed inside the actions slot sit on the dark gradient above,
+   not .section-card's white — .dash-btn's usual solid portal-blue would
+   nearly disappear into it, and .dash-btn--outline's slate text is
+   unreadable on navy. Scoped overrides here (not a second button
+   component) so every existing PageHeader caller — UserManagement's
+   "+ Add Staff Account", Reports' Print/Download PDF and its
+   DateRangePicker trigger (itself a .dash-btn--outline), PatientAppointments'
+   "Book Appointment" — gets the fix automatically. Order matters: the
+   --outline override must come after the plain one since a button like
+   .drp-trigger always carries both classes. */
+.page-hero-actions .dash-btn {
+  background: #ffffff;
+  color: var(--portal-navy);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+}
+
+.page-hero-actions .dash-btn:hover {
+  background: #f1f5f9;
+}
+
+.page-hero-actions .dash-btn--outline {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.35);
+  box-shadow: none;
+}
+
+.page-hero-actions .dash-btn--outline:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+/* PatientAppointments' follow-up count badge is normally a white dot on
+   .dash-btn's solid blue — now that the button underneath is white too,
+   invert it so the count still stands out instead of vanishing. */
+.page-hero-actions .appt-followup-badge {
+  background: var(--portal-blue);
+  color: #ffffff;
+}
+
+/* Reports' PDF-download failure message — var(--portal-red-text) is a
+   dark red tuned for a white card, unreadable at this contrast on navy. */
+.page-hero-actions .reports-download-error {
+  color: #fecaca;
+}
+
 @media (max-width: 560px) {
   .page-hero {
     flex-direction: column;
@@ -188,10 +215,6 @@
 
   .page-hero-actions .dash-btn {
     flex: 1;
-  }
-
-  .page-hero-decoration {
-    display: none;
   }
 }
 
