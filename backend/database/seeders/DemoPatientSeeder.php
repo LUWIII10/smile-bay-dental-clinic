@@ -168,7 +168,15 @@ class DemoPatientSeeder extends Seeder
             'ernesto.ledesma','rosario.bermudez','ricardo.balao','leonora.sison','danilo.aguinaldo',
             'gloria.cordero','nestor.paloma','cecilia.mallari','arturo.soliman','virginia.estrella'];
 
-        return array_map(fn ($name) => $name.'@example.com', $names);
+        // A mix of real consumer providers reads as genuine at a glance for a
+        // defense demo — 50 people all on the same domain (even a realistic-
+        // looking one) would itself look seeded. Safe to use real providers
+        // here specifically because these users are created via
+        // User::withoutEvents() above, which skips the mail/notification
+        // observers that would otherwise actually send to these addresses.
+        $providers = ['gmail.com', 'yahoo.com', 'outlook.com'];
+
+        return array_map(fn ($name, $i) => $name.'@'.$providers[$i % count($providers)], $names, array_keys($names));
     }
 
     private function appointment(Patient $patient, Service $service, $dentists, User $staff, Carbon $target, int $direction, string $status, int $index, Carbon $today): Appointment
