@@ -189,6 +189,13 @@
   background: rgba(255, 255, 255, 0.18);
 }
 
+/* DateRangePicker's trigger hardcodes its calendar icon to
+   var(--portal-blue) (DateRangePicker.css) for its usual white/light
+   background — on this dark gradient that reads as blue-on-blue. */
+.page-hero-actions .drp-trigger svg:first-child {
+  color: #ffffff;
+}
+
 /* PatientAppointments' follow-up count badge is normally a white dot on
    .dash-btn's solid blue — now that the button underneath is white too,
    invert it so the count still stands out instead of vanishing. */
