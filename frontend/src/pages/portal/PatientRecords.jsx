@@ -34,6 +34,7 @@ import {
 } from './dentalRecordShared';
 import { SearchIcon, FileIcon, ClockIcon, UserIcon, ShieldIcon, PrinterIcon, DownloadIcon, AlertIcon, SyringeIcon, ToothIcon, MailIcon, CalendarIcon, UsersIcon } from './icons';
 import { formatDateLong, formatTime12h } from './dateTimeUtils';
+import { formatRangeLabel } from './components/dateRangeUtils';
 import { showSuccessToast, showErrorToast } from '../../utils/toast';
 import PrintFooter from './components/PrintFooter';
 import './dashboards.css';
@@ -168,7 +169,7 @@ function PatientRecords() {
   // that date instead of the patient directory (see filteredByDate below),
   // and clearing it goes back to normal without losing whatever search/page
   // was active before.
-  const [dateFilter, setDateFilter] = useState('');
+  const [dateFilter, setDateFilter] = useState({ from: '', to: '' });
   const [dateAppointments, setDateAppointments] = useState([]);
   const [dateLoading, setDateLoading] = useState(false);
   const [dateError, setDateError] = useState('');
@@ -303,7 +304,7 @@ function PatientRecords() {
   }, [loadList, selectedPatientId]);
 
   useEffect(() => {
-    if (!dateFilter) {
+    if (!dateFilter.from || !dateFilter.to) {
       setDateAppointments([]);
       setDateError('');
       return;
@@ -313,10 +314,10 @@ function PatientRecords() {
     setDateError('');
     getAppointmentsByDate(dateFilter)
       .then((data) => { if (!cancelled) setDateAppointments(data); })
-      .catch(() => { if (!cancelled) setDateError('Could not load appointments for this date.'); })
+      .catch(() => { if (!cancelled) setDateError('Could not load appointments for this date range.'); })
       .finally(() => { if (!cancelled) setDateLoading(false); });
     return () => { cancelled = true; };
-  }, [dateFilter]);
+  }, [dateFilter.from, dateFilter.to]);
 
   const loadDetail = useCallback(async (patientId) => {
     setDetailLoading(true);
@@ -688,6 +689,12 @@ function PatientRecords() {
           </span>
         );
       },
+    },
+    {
+      key: 'date',
+      label: 'Date',
+      minWidth: '16%',
+      render: (row) => formatDateLong(row.appointment_date),
     },
     {
       key: 'time',
@@ -1694,13 +1701,13 @@ function PatientRecords() {
           </div>
 
           <div className="filter-field">
-            <DateRangePicker mode="single" value={dateFilter} onChange={setDateFilter} placeholder="Pick a date" />
+            <DateRangePicker mode="range" value={dateFilter} onChange={setDateFilter} placeholder="Pick dates" />
           </div>
 
           <button
             type="button"
             className="dash-btn dash-btn--outline"
-            disabled={!dateFilter || dateLoading || dateAppointments.length === 0}
+            disabled={!dateFilter.from || !dateFilter.to || dateLoading || dateAppointments.length === 0}
             onClick={() => window.print()}
           >
             <PrinterIcon /> Print
@@ -1709,37 +1716,37 @@ function PatientRecords() {
           <button
             type="button"
             className="dash-btn"
-            disabled={!dateFilter || dateLoading || dateAppointments.length === 0 || downloadingByDatePdf}
+            disabled={!dateFilter.from || !dateFilter.to || dateLoading || dateAppointments.length === 0 || downloadingByDatePdf}
             onClick={handleDownloadByDatePdf}
           >
             <DownloadIcon /> {downloadingByDatePdf ? 'Generating…' : 'Download PDF'}
           </button>
         </div>
 
-        {dateFilter ? (
+        {dateFilter.from && dateFilter.to ? (
           <p className="patient-records-date-note">
             <AlertIcon />
-            Showing only patients with an appointment on <strong>{formatDateLong(dateFilter)}</strong>
+            Showing only patients with an appointment on <strong>{formatRangeLabel(dateFilter.from, dateFilter.to)}</strong>
             {!dateLoading && ` — ${dateAppointments.length} found`}. Clear the date to see everyone again.
-            <button type="button" className="completed-today-link" onClick={() => setDateFilter('')}>
+            <button type="button" className="completed-today-link" onClick={() => setDateFilter({ from: '', to: '' })}>
               Clear
             </button>
           </p>
         ) : (
           <p className="patient-records-date-note">
             <AlertIcon />
-            Pick a date above to enable Print and Download PDF for that day&rsquo;s appointments.
+            Pick a date (or a range) above to enable Print and Download PDF for those appointments.
           </p>
         )}
 
-        {dateFilter ? (
+        {dateFilter.from && dateFilter.to ? (
           dateLoading ? (
             <Skeleton variant="row" count={4} />
           ) : dateError ? (
             <div className="dash-empty"><span className="dash-empty-title">{dateError}</span></div>
           ) : (
             <div className="appt-master-table">
-              <DataTable columns={dateColumns} rows={dateAppointments} emptyMessage="No appointments on this date." />
+              <DataTable columns={dateColumns} rows={dateAppointments} emptyMessage="No appointments in this date range." />
             </div>
           )
         ) : listLoading ? (
@@ -1760,12 +1767,16 @@ function PatientRecords() {
           the Print button above stays disabled otherwise. Same
           PrintLetterhead/PrintFooter pair Reports.jsx and this page's own
           record print use, applied here too per the approved format. */}
-      {dateFilter && dateAppointments.length > 0 && (
+      {dateFilter.from && dateFilter.to && dateAppointments.length > 0 && (
         <div className="patient-records-print">
           <PrintLetterhead
             title="Patient Appointments Report"
             metaRows={[
-              { icon: CalendarIcon, label: 'Date', value: formatDateLong(dateFilter) },
+              {
+                icon: CalendarIcon,
+                label: dateFilter.from === dateFilter.to ? 'Date' : 'Date Range',
+                value: formatRangeLabel(dateFilter.from, dateFilter.to),
+              },
               {
                 icon: ClockIcon,
                 label: 'Generated',
@@ -1781,6 +1792,7 @@ function PatientRecords() {
               <tr>
                 <th>Patient</th>
                 <th>Patient No.</th>
+                {dateFilter.from !== dateFilter.to && <th>Date</th>}
                 <th>Time</th>
                 <th>Service</th>
                 <th>Dentist</th>
@@ -1791,6 +1803,7 @@ function PatientRecords() {
                 <tr key={row.id}>
                   <td>{`${row.patient?.first_name || ''} ${row.patient?.last_name || ''}`.trim()}</td>
                   <td>{row.patient?.patient_number}</td>
+                  {dateFilter.from !== dateFilter.to && <td>{formatDateLong(row.appointment_date)}</td>}
                   <td>{formatTime12h(row.appointment_time)}</td>
                   <td>{row.service?.name}</td>
                   <td>{row.dentist?.name || 'Unassigned'}</td>

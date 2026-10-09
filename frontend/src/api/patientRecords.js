@@ -16,16 +16,18 @@ export async function getPatientRecord(patientId) {
   return response.data.data;
 }
 
-// Every non-cancelled appointment on one specific date, across all
-// patients — powers the "print who's scheduled this day" report. Read-only,
-// no CSRF cookie needed (matches searchPatientRecords/getPatientRecord above).
-export async function getAppointmentsByDate(date) {
-  const response = await api.get('/api/patient-records/by-date', { params: { date } });
+// Every non-cancelled appointment within a date range (a single day is
+// just from === to), across all patients — powers the "print who's
+// scheduled this day/range" report. Read-only, no CSRF cookie needed
+// (matches searchPatientRecords/getPatientRecord above).
+export async function getAppointmentsByDate({ from, to }) {
+  const response = await api.get('/api/patient-records/by-date', { params: { date_from: from, date_to: to } });
   return response.data.data;
 }
 
-export async function downloadAppointmentsByDatePdf(date) {
-  await downloadFile('/api/patient-records/by-date/pdf', { date }, `patient-appointments-${date}.pdf`);
+export async function downloadAppointmentsByDatePdf({ from, to }) {
+  const filename = from === to ? `patient-appointments-${from}.pdf` : `patient-appointments-${from}_to_${to}.pdf`;
+  await downloadFile('/api/patient-records/by-date/pdf', { date_from: from, date_to: to }, filename);
 }
 
 export async function downloadPatientRecordPdf(patientId, { date_from, date_to } = {}) {

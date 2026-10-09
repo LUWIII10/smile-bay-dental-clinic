@@ -7,23 +7,35 @@
 </head>
 <body>
 
+@php
+  $isSingleDay = $dateFrom === $dateTo;
+@endphp
+
 @include('pdf.partials.letterhead', [
   'title' => 'Patient Appointments Report',
   'metaRows' => [
-    ['label' => 'Date', 'value' => \Carbon\Carbon::parse($date)->format('l, F j, Y')],
+    [
+      'label' => $isSingleDay ? 'Date' : 'Date Range',
+      'value' => $isSingleDay
+        ? \Carbon\Carbon::parse($dateFrom)->format('l, F j, Y')
+        : \Carbon\Carbon::parse($dateFrom)->format('M j').' – '.\Carbon\Carbon::parse($dateTo)->format('M j, Y'),
+    ],
     ['label' => 'Generated', 'value' => $generatedAt->format('M j, Y g:i A')],
     ['label' => 'Total Patients', 'value' => (string) count($appointments)],
   ],
 ])
 
 @if (count($appointments) === 0)
-  <p class="pdf-empty">No appointments on this date.</p>
+  <p class="pdf-empty">No appointments in this date range.</p>
 @else
   <table class="pdf-table">
     <thead>
       <tr>
         <th>Patient</th>
         <th>Patient No.</th>
+        @unless ($isSingleDay)
+          <th>Date</th>
+        @endunless
         <th>Time</th>
         <th>Service</th>
         <th>Dentist</th>
@@ -34,6 +46,9 @@
         <tr>
           <td>{{ trim(($row->patient->first_name ?? '').' '.($row->patient->last_name ?? '')) }}</td>
           <td>{{ $row->patient->patient_number ?? '' }}</td>
+          @unless ($isSingleDay)
+            <td>{{ $row->appointment_date->format('M j, Y') }}</td>
+          @endunless
           <td>{{ \Carbon\Carbon::parse($row->appointment_time)->format('g:i A') }}</td>
           <td>{{ $row->service->name ?? '' }}</td>
           <td>{{ $row->dentist->name ?? 'Unassigned' }}</td>

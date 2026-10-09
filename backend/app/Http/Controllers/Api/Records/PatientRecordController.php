@@ -69,16 +69,18 @@ class PatientRecordController extends Controller
     public function appointmentsByDate(Request $request)
     {
         $validated = $request->validate([
-            'date' => ['required', 'date'],
+            'date_from' => ['required', 'date'],
+            'date_to' => ['required', 'date', 'after_or_equal:date_from'],
         ]);
 
-        $appointments = Appointment::whereDate('appointment_date', $validated['date'])
+        $appointments = Appointment::whereBetween('appointment_date', [$validated['date_from'], $validated['date_to']])
             ->whereIn('status', ['confirmed', 'pending_verification', 'completed'])
             ->with([
                 'patient:id,patient_number,first_name,last_name',
                 'service:id,name',
                 'dentist:id,name',
             ])
+            ->orderBy('appointment_date')
             ->orderBy('appointment_time')
             ->get();
 
@@ -93,26 +95,33 @@ class PatientRecordController extends Controller
     public function appointmentsByDatePdf(Request $request)
     {
         $validated = $request->validate([
-            'date' => ['required', 'date'],
+            'date_from' => ['required', 'date'],
+            'date_to' => ['required', 'date', 'after_or_equal:date_from'],
         ]);
 
-        $appointments = Appointment::whereDate('appointment_date', $validated['date'])
+        $appointments = Appointment::whereBetween('appointment_date', [$validated['date_from'], $validated['date_to']])
             ->whereIn('status', ['confirmed', 'pending_verification', 'completed'])
             ->with([
                 'patient:id,patient_number,first_name,last_name',
                 'service:id,name',
                 'dentist:id,name',
             ])
+            ->orderBy('appointment_date')
             ->orderBy('appointment_time')
             ->get();
 
         $pdf = Pdf::loadView('pdf.patient-appointments-report', [
-            'date' => $validated['date'],
+            'dateFrom' => $validated['date_from'],
+            'dateTo' => $validated['date_to'],
             'appointments' => $appointments,
             'generatedAt' => now(),
         ]);
 
-        return $pdf->download("patient-appointments-{$validated['date']}.pdf");
+        $filename = $validated['date_from'] === $validated['date_to']
+            ? "patient-appointments-{$validated['date_from']}.pdf"
+            : "patient-appointments-{$validated['date_from']}_to_{$validated['date_to']}.pdf";
+
+        return $pdf->download($filename);
     }
 
     /**
