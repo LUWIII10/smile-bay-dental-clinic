@@ -72,6 +72,7 @@ class Patient extends Model
             'booking_restricted_at' => 'datetime',
             'hmo_coverage_verified_at' => 'datetime',
             'archived_at' => 'datetime',
+            'cancellation_count_reset_at' => 'datetime',
         ];
     }
 
