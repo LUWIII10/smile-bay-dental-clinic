@@ -130,7 +130,9 @@ function AvailableSlotPicker({ dentistId, serviceId, date, onDateChange, time, o
             // Same-day is never bookable for a pediatric reschedule/counter —
             // forced unavailable here regardless of the fetched status, which
             // only reflects slot capacity, not this rule.
-            const status = d.getTime() <= today.getTime() ? 'unavailable' : (dayAvailability[key] || 'unavailable');
+            const status = d.getTime() <= today.getTime()
+              ? 'unavailable'
+              : (dayAvailability[key]?.status || 'unavailable');
             const isSelected = key === date;
 
             return (

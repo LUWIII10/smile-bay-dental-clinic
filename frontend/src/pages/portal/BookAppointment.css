@@ -47,19 +47,31 @@
 .wizard-step--active .wizard-step-circle {
   background: var(--portal-blue);
   color: #ffffff;
+  box-shadow: 0 0 0 4px var(--portal-blue-bg);
 }
 
 .wizard-step--active .wizard-step-label {
   color: var(--portal-navy);
 }
 
+/* Solid fill + a real checkmark icon (not the flat tinted dot + unicode ✓
+   this used to be) — reads as "done," not just "not the current one." */
 .wizard-step--complete .wizard-step-circle {
-  background: var(--portal-green-bg);
-  color: var(--portal-green-text);
+  background: #16a34a;
+  color: #ffffff;
+}
+
+.wizard-step--complete .wizard-step-circle svg {
+  width: 15px;
+  height: 15px;
 }
 
 .wizard-step--complete .wizard-step-label {
   color: var(--portal-slate);
+}
+
+.wizard-step-line--done {
+  background: #16a34a;
 }
 
 .wizard-step-line {
@@ -647,6 +659,40 @@
   background: var(--portal-card);
   border: 1px solid var(--portal-border-light);
   border-radius: var(--portal-radius-lg);
+  box-shadow: var(--portal-shadow);
+}
+
+/* Icon-chip label above the calendar ("Select a Date") and above the
+   chosen date in the slots panel — same icon-coded pattern already shipped
+   on Patient Records/HMO Queue/My Profile. */
+.panel-label {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 16px;
+}
+
+.panel-label-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  flex-shrink: 0;
+  background: var(--portal-blue-bg);
+  color: var(--portal-blue-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.panel-label-icon svg {
+  width: 15px;
+  height: 15px;
+}
+
+.panel-label-text {
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--portal-navy);
 }
 
 .calendar-header {
@@ -691,34 +737,39 @@
 .calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 4px;
+  gap: 5px;
+  overflow: visible;
 }
 
 .calendar-weekday {
   text-align: center;
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   font-weight: 700;
   color: var(--portal-muted);
   padding-bottom: 6px;
 }
 
+/* Round cells (a real "calendar app" feel) — position:relative so the
+   hover tooltip below can anchor to each cell individually. */
 .calendar-cell {
+  position: relative;
   aspect-ratio: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--portal-radius-sm);
+  border-radius: 50%;
   border: 2px solid transparent;
   background: transparent;
-  font-size: 0.85rem;
+  font-size: 0.84rem;
   font-weight: 600;
   color: var(--portal-slate);
   cursor: pointer;
-  transition: border-color 0.15s ease, background-color 0.15s ease;
+  transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .calendar-cell--blank {
   cursor: default;
+  visibility: hidden;
 }
 
 .calendar-cell--available {
@@ -739,7 +790,7 @@
 
 .calendar-cell--unavailable {
   background: transparent;
-  color: var(--portal-muted);
+  color: #cbd5e1;
   font-weight: 500;
   cursor: not-allowed;
 }
@@ -749,16 +800,67 @@
   border-color: var(--portal-blue);
 }
 
+/* Solid fill for the selected date instead of just an outline ring —
+   easier to spot at a glance which date is actually picked. */
 .calendar-cell--selected {
-  border-color: var(--portal-blue);
-  box-shadow: 0 0 0 2px var(--portal-blue-tint);
+  background: var(--portal-blue);
+  color: #ffffff;
+  border-color: transparent;
+  box-shadow: 0 4px 10px rgba(41, 82, 227, 0.3);
 }
+
+/* ===== Hover tooltip — the real open-slot count for that date, shown on
+   hover without having to click. Pure CSS, positioned above the cell. ===== */
+.calendar-cell-tip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  background: var(--portal-navy);
+  color: #ffffff;
+  font-size: 0.7rem;
+  font-weight: 600;
+  white-space: nowrap;
+  padding: 6px 10px;
+  border-radius: 7px;
+  box-shadow: 0 6px 16px rgba(15, 37, 87, 0.25);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.12s ease, transform 0.12s ease;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.calendar-cell-tip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: var(--portal-navy);
+}
+
+.calendar-cell:hover .calendar-cell-tip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* Tints the tooltip to match the day's own status color, so it reads as
+   "more detail on the same color" rather than a disconnected popup. */
+.calendar-cell-tip--available { background: var(--portal-green-text); }
+.calendar-cell-tip--available::after { border-top-color: var(--portal-green-text); }
+.calendar-cell-tip--limited { background: var(--portal-amber-text); }
+.calendar-cell-tip--limited::after { border-top-color: var(--portal-amber-text); }
+.calendar-cell-tip--full { background: var(--portal-red-text); }
+.calendar-cell-tip--full::after { border-top-color: var(--portal-red-text); }
 
 .calendar-legend {
   display: flex;
   flex-wrap: wrap;
-  gap: 14px;
-  margin-top: 14px;
+  gap: 8px;
+  margin-top: 16px;
   padding-top: 14px;
   border-top: 1px solid var(--portal-border-light);
 }
@@ -767,41 +869,64 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.74rem;
-  color: var(--portal-muted);
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
 }
 
-.calendar-legend-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
+.calendar-legend-item--available { background: var(--portal-green-bg); color: var(--portal-green-text); }
+.calendar-legend-item--limited { background: var(--portal-amber-bg); color: var(--portal-amber-text); }
+.calendar-legend-item--full { background: var(--portal-red-bg); color: var(--portal-red-text); }
+.calendar-legend-item--unavailable { background: var(--portal-gray-bg); color: var(--portal-muted); }
+
+.calendar-legend-hint {
+  font-size: 0.74rem;
+  color: var(--portal-muted);
+  margin: 10px 0 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.calendar-legend-hint svg {
+  width: 13px;
+  height: 13px;
   flex-shrink: 0;
 }
 
-.calendar-legend-dot--available {
-  background: var(--portal-green-text);
+.slots-date-row {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin-bottom: 4px;
 }
 
-.calendar-legend-dot--limited {
-  background: var(--portal-amber-text);
+.slots-date-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  flex-shrink: 0;
+  background: var(--portal-blue-bg);
+  color: var(--portal-blue-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.calendar-legend-dot--full {
-  background: var(--portal-red-text);
-}
-
-.calendar-legend-dot--unavailable {
-  background: var(--portal-border);
+.slots-date-icon svg {
+  width: 18px;
+  height: 18px;
 }
 
 .slots-panel-label {
   margin: 0;
-  font-size: 0.78rem;
+  font-size: 0.74rem;
   color: var(--portal-muted);
 }
 
 .slots-panel-date {
-  margin: 2px 0 14px;
+  margin: 1px 0 0;
   font-size: 1.05rem;
   font-weight: 700;
   color: var(--portal-navy);
@@ -812,12 +937,40 @@
 }
 
 .slots-group-label {
-  margin: 0 0 8px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 10px;
+}
+
+.slots-group-icon {
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.slots-group-icon svg {
+  width: 12px;
+  height: 12px;
+}
+
+.slots-group-icon--morning { background: var(--portal-amber-bg); color: var(--portal-amber-text); }
+.slots-group-icon--afternoon { background: var(--portal-indigo-bg); color: var(--portal-indigo-text); }
+
+.slots-group-text {
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--portal-muted);
+}
+
+.slots-group-text--reduced {
+  color: var(--portal-red-text);
 }
 
 /* A group whose selected dentist has zero real slots in it (but is still
@@ -840,26 +993,29 @@
 }
 
 .slot-card {
-  padding: 9px 6px;
+  padding: 10px 6px;
   text-align: center;
-  background: var(--portal-card);
-  border: 2px solid var(--portal-border-light);
-  border-radius: var(--portal-radius-sm);
+  background: var(--portal-canvas);
+  border: 1.5px solid var(--portal-border-light);
+  border-radius: 10px;
   font-size: 0.8rem;
   font-weight: 600;
   color: var(--portal-slate);
   cursor: pointer;
-  transition: border-color 0.15s ease, background-color 0.15s ease;
+  transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .slot-card:hover {
   border-color: var(--portal-blue);
 }
 
+/* Solid filled button for the chosen slot instead of a light tint — reads
+   as "chosen," not just "hovered." */
 .slot-card--selected {
+  background: var(--portal-blue);
   border-color: var(--portal-blue);
-  background: var(--portal-blue-tint);
-  color: var(--portal-blue);
+  color: #ffffff;
+  box-shadow: 0 4px 10px rgba(41, 82, 227, 0.28);
 }
 
 /* Outside the selected dentist's hours for this date (a ghost slot only

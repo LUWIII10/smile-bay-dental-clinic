@@ -82,12 +82,13 @@ class ScheduleController extends Controller
     }
 
     /**
-     * Day-level availability (available/limited/full/unavailable) for every
-     * date in the given month — what the booking calendar colors each cell
-     * by, so the patient can see at a glance which days are worth opening
-     * before picking one and hitting availableSlots() above for the detail.
-     * dentist_id optional the same way as availableSlots() above — omitted
-     * means the "Any Available Doctor" union.
+     * Day-level availability (status + real open-slot count) for every date
+     * in the given month — what the booking calendar colors each cell by and
+     * shows on hover, so the patient can see at a glance which days are worth
+     * opening, and roughly how much room is left, before picking one and
+     * hitting availableSlots() above for the detail. dentist_id optional the
+     * same way as availableSlots() above — omitted means the "Any Available
+     * Doctor" union.
      */
     public function dayAvailability(Request $request)
     {

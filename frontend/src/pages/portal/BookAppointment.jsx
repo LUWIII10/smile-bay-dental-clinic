@@ -13,7 +13,7 @@ import {
 import Modal from './components/Modal';
 import ServiceSelector from './components/ServiceSelector';
 import StatusBadge from './components/StatusBadge';
-import { CheckCircleIcon, AlertIcon, ShieldIcon, UserIcon, UsersIcon, CashIcon, SwapIcon } from './icons';
+import { CheckCircleIcon, AlertIcon, ShieldIcon, UserIcon, UsersIcon, CashIcon, SwapIcon, CalendarIcon, SunIcon, SunsetIcon } from './icons';
 import { formatDateLong, formatTime12h } from './dateTimeUtils';
 import { KNOWN_DENTIST_PHOTOS, KNOWN_DENTIST_CREDENTIALS } from './dentistPhotos';
 import './dashboards.css';
@@ -34,6 +34,19 @@ const DAY_STATUS_LABELS = {
   full: 'Fully Booked',
   unavailable: 'Unavailable',
 };
+
+// Hover-tooltip text for a calendar day — the real open-slot count the
+// backend already computes (AppointmentSlotService::getDayAvailabilitySummary()),
+// so a patient can see roughly how much room is left without clicking in.
+// 'unavailable' doesn't carry a reason from the server (closed day vs.
+// already-past are both just 'unavailable'), so isPast is figured out
+// client-side from the date itself to word it honestly either way.
+function slotTooltipText(status, count, isPast) {
+  if (status === 'full') return 'Fully booked';
+  if (status === 'limited') return `${count} slot${count === 1 ? '' : 's'} left`;
+  if (status === 'available') return `${count} slots open`;
+  return isPast ? 'Already passed' : 'Clinic closed';
+}
 
 // A freshly-booked appointment can be pending_verification for three
 // distinct reasons (see AppointmentController::store()) — the modal used to
@@ -466,10 +479,14 @@ function BookAppointment() {
             return (
               <div key={label} style={{ display: 'contents' }}>
                 <div className={`wizard-step${state ? ` wizard-step--${state}` : ''}`}>
-                  <span className="wizard-step-circle">{num < step ? '✓' : num}</span>
+                  <span className="wizard-step-circle">
+                    {num < step ? (
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                    ) : num}
+                  </span>
                   <span className="wizard-step-label">{label}</span>
                 </div>
-                {num < STEPS.length && <div className="wizard-step-line" />}
+                {num < STEPS.length && <div className={`wizard-step-line${num < step ? ' wizard-step-line--done' : ''}`} />}
               </div>
             );
           })}
@@ -705,6 +722,11 @@ function BookAppointment() {
 
             <div className="datetime-layout">
               <div className="calendar-panel">
+                <div className="panel-label">
+                  <span className="panel-label-icon"><CalendarIcon /></span>
+                  <span className="panel-label-text">Select a Date</span>
+                </div>
+
                 {loadingDayAvailability ? (
                   <p className="booking-empty-note">Loading…</p>
                 ) : (
@@ -740,8 +762,11 @@ function BookAppointment() {
                         if (!date) return <span key={`blank-${i}`} className="calendar-cell calendar-cell--blank" />;
 
                         const key = toDateKey(date);
-                        const status = dayAvailability[key] || 'unavailable';
+                        const info = dayAvailability[key] || { status: 'unavailable', count: 0 };
+                        const { status, count } = info;
                         const isSelected = key === selectedDate;
+                        const isPast = date < today;
+                        const tipTone = status === 'unavailable' ? '' : ` calendar-cell-tip--${status}`;
 
                         return (
                           <button
@@ -750,9 +775,9 @@ function BookAppointment() {
                             className={`calendar-cell calendar-cell--${status}${isSelected ? ' calendar-cell--selected' : ''}`}
                             disabled={status === 'unavailable'}
                             onClick={() => setSelectedDate(key)}
-                            title={DAY_STATUS_LABELS[status]}
                           >
                             {date.getDate()}
+                            <span className={`calendar-cell-tip${tipTone}`}>{slotTooltipText(status, count, isPast)}</span>
                           </button>
                         );
                       })}
@@ -760,12 +785,14 @@ function BookAppointment() {
 
                     <div className="calendar-legend">
                       {Object.entries(DAY_STATUS_LABELS).map(([status, label]) => (
-                        <span key={status} className="calendar-legend-item">
-                          <span className={`calendar-legend-dot calendar-legend-dot--${status}`} aria-hidden="true" />
+                        <span key={status} className={`calendar-legend-item calendar-legend-item--${status}`}>
                           {label}
                         </span>
                       ))}
                     </div>
+                    <p className="calendar-legend-hint">
+                      <AlertIcon /> Hover any date above to see its exact slot count.
+                    </p>
                   </>
                 )}
               </div>
@@ -775,8 +802,13 @@ function BookAppointment() {
                   <p className="booking-empty-note">Select a date to see available times.</p>
                 ) : (
                   <>
-                    <p className="slots-panel-label">Available times for</p>
-                    <h4 className="slots-panel-date">{formatDateLong(selectedDate)}</h4>
+                    <div className="slots-date-row">
+                      <span className="slots-date-icon"><CalendarIcon /></span>
+                      <div>
+                        <p className="slots-panel-label">Available times for</p>
+                        <h4 className="slots-panel-date">{formatDateLong(selectedDate)}</h4>
+                      </div>
+                    </div>
 
                     {!loadingSlots && !slotsError && slots.length > 0 && !selectedTime && (
                       <p className="wizard-step-subtitle">
@@ -819,17 +851,23 @@ function BookAppointment() {
 
                         {groupedSlots.morning.length > 0 && (
                           <div className="slots-group">
-                            <p className={`slots-group-label${isGroupReduced(groupedSlots.morning) ? ' slots-group-label--reduced' : ''}`}>
-                              Morning
-                            </p>
+                            <div className="slots-group-label">
+                              <span className="slots-group-icon slots-group-icon--morning"><SunIcon /></span>
+                              <span className={`slots-group-text${isGroupReduced(groupedSlots.morning) ? ' slots-group-text--reduced' : ''}`}>
+                                Morning
+                              </span>
+                            </div>
                             <div className="slots-grid">{groupedSlots.morning.map(renderSlotCard)}</div>
                           </div>
                         )}
                         {groupedSlots.afternoon.length > 0 && (
                           <div className="slots-group">
-                            <p className={`slots-group-label${isGroupReduced(groupedSlots.afternoon) ? ' slots-group-label--reduced' : ''}`}>
-                              Afternoon
-                            </p>
+                            <div className="slots-group-label">
+                              <span className="slots-group-icon slots-group-icon--afternoon"><SunsetIcon /></span>
+                              <span className={`slots-group-text${isGroupReduced(groupedSlots.afternoon) ? ' slots-group-text--reduced' : ''}`}>
+                                Afternoon
+                              </span>
+                            </div>
                             <div className="slots-grid">{groupedSlots.afternoon.map(renderSlotCard)}</div>
                           </div>
                         )}

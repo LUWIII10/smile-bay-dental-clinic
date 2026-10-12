@@ -9,7 +9,7 @@ import {
   getPatientDashboardSummary,
 } from '../../api/appointments';
 import Modal from './components/Modal';
-import { CheckCircleIcon, AlertIcon, ShieldIcon, CashIcon, CalendarPlusIcon, ClockIcon } from './icons';
+import { CheckCircleIcon, AlertIcon, ShieldIcon, CashIcon, CalendarPlusIcon, ClockIcon, CalendarIcon, SunIcon, SunsetIcon } from './icons';
 import { formatDateLong, formatTime12h } from './dateTimeUtils';
 import { KNOWN_DENTIST_PHOTOS } from './dentistPhotos';
 import './dashboards.css';
@@ -33,6 +33,15 @@ const DAY_STATUS_LABELS = {
   full: 'Fully Booked',
   unavailable: 'Unavailable',
 };
+
+// Same hover-tooltip wording as BookAppointment.jsx — see its own comment
+// for why isPast is figured out client-side instead of from the server.
+function slotTooltipText(status, count, isPast) {
+  if (status === 'full') return 'Fully booked';
+  if (status === 'limited') return `${count} slot${count === 1 ? '' : 's'} left`;
+  if (status === 'available') return `${count} slots open`;
+  return isPast ? 'Already passed' : 'Clinic closed';
+}
 
 const PENDING_MESSAGES = {
   pediatric_cash:
@@ -349,10 +358,14 @@ function BookFollowUp() {
             return (
               <div key={label} style={{ display: 'contents' }}>
                 <div className={`wizard-step${state ? ` wizard-step--${state}` : ''}`}>
-                  <span className="wizard-step-circle">{num < step ? '✓' : num}</span>
+                  <span className="wizard-step-circle">
+                    {num < step ? (
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                    ) : num}
+                  </span>
                   <span className="wizard-step-label">{label}</span>
                 </div>
-                {num < STEPS.length && <div className="wizard-step-line" />}
+                {num < STEPS.length && <div className={`wizard-step-line${num < step ? ' wizard-step-line--done' : ''}`} />}
               </div>
             );
           })}
@@ -495,6 +508,11 @@ function BookFollowUp() {
 
             <div className="datetime-layout">
               <div className="calendar-panel">
+                <div className="panel-label">
+                  <span className="panel-label-icon"><CalendarIcon /></span>
+                  <span className="panel-label-text">Select a Date</span>
+                </div>
+
                 {loadingDayAvailability ? (
                   <p className="booking-empty-note">Loading…</p>
                 ) : (
@@ -530,8 +548,11 @@ function BookFollowUp() {
                         if (!date) return <span key={`blank-${i}`} className="calendar-cell calendar-cell--blank" />;
 
                         const key = toDateKey(date);
-                        const status = dayAvailability[key] || 'unavailable';
+                        const info = dayAvailability[key] || { status: 'unavailable', count: 0 };
+                        const { status, count } = info;
                         const isSelected = key === selectedDate;
+                        const isPast = date < today;
+                        const tipTone = status === 'unavailable' ? '' : ` calendar-cell-tip--${status}`;
 
                         return (
                           <button
@@ -540,9 +561,9 @@ function BookFollowUp() {
                             className={`calendar-cell calendar-cell--${status}${isSelected ? ' calendar-cell--selected' : ''}`}
                             disabled={status === 'unavailable'}
                             onClick={() => setSelectedDate(key)}
-                            title={DAY_STATUS_LABELS[status]}
                           >
                             {date.getDate()}
+                            <span className={`calendar-cell-tip${tipTone}`}>{slotTooltipText(status, count, isPast)}</span>
                           </button>
                         );
                       })}
@@ -550,12 +571,14 @@ function BookFollowUp() {
 
                     <div className="calendar-legend">
                       {Object.entries(DAY_STATUS_LABELS).map(([status, label]) => (
-                        <span key={status} className="calendar-legend-item">
-                          <span className={`calendar-legend-dot calendar-legend-dot--${status}`} aria-hidden="true" />
+                        <span key={status} className={`calendar-legend-item calendar-legend-item--${status}`}>
                           {label}
                         </span>
                       ))}
                     </div>
+                    <p className="calendar-legend-hint">
+                      <AlertIcon /> Hover any date above to see its exact slot count.
+                    </p>
                   </>
                 )}
               </div>
@@ -565,8 +588,13 @@ function BookFollowUp() {
                   <p className="booking-empty-note">Select a date to see available times.</p>
                 ) : (
                   <>
-                    <p className="slots-panel-label">Available times for</p>
-                    <h4 className="slots-panel-date">{formatDateLong(selectedDate)}</h4>
+                    <div className="slots-date-row">
+                      <span className="slots-date-icon"><CalendarIcon /></span>
+                      <div>
+                        <p className="slots-panel-label">Available times for</p>
+                        <h4 className="slots-panel-date">{formatDateLong(selectedDate)}</h4>
+                      </div>
+                    </div>
 
                     {!loadingSlots && !slotsError && slots.length > 0 && !selectedTime && (
                       <p className="wizard-step-subtitle">Please select a time slot to continue</p>
@@ -582,13 +610,19 @@ function BookFollowUp() {
                       <>
                         {groupedSlots.morning.length > 0 && (
                           <div className="slots-group">
-                            <p className="slots-group-label">Morning</p>
+                            <div className="slots-group-label">
+                              <span className="slots-group-icon slots-group-icon--morning"><SunIcon /></span>
+                              <span className="slots-group-text">Morning</span>
+                            </div>
                             <div className="slots-grid">{groupedSlots.morning.map(renderSlotCard)}</div>
                           </div>
                         )}
                         {groupedSlots.afternoon.length > 0 && (
                           <div className="slots-group">
-                            <p className="slots-group-label">Afternoon</p>
+                            <div className="slots-group-label">
+                              <span className="slots-group-icon slots-group-icon--afternoon"><SunsetIcon /></span>
+                              <span className="slots-group-text">Afternoon</span>
+                            </div>
                             <div className="slots-grid">{groupedSlots.afternoon.map(renderSlotCard)}</div>
                           </div>
                         )}

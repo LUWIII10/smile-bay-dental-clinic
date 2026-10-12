@@ -123,14 +123,15 @@ class AppointmentSlotService
             $dateKey = $cursor->toDateString();
 
             if ($cursor->lt($today)) {
-                $summary[$dateKey] = 'unavailable';
+                $summary[$dateKey] = ['status' => 'unavailable', 'count' => 0];
             } else {
                 $count = count($this->getAvailableSlotsAnyDentist($serviceId, $dateKey, $durationMinutes));
-                $summary[$dateKey] = match (true) {
+                $status = match (true) {
                     $count === 0 => 'full',
                     $count <= self::LIMITED_THRESHOLD => 'limited',
                     default => 'available',
                 };
+                $summary[$dateKey] = ['status' => $status, 'count' => $count];
             }
 
             $cursor->addDay();
@@ -189,7 +190,9 @@ class AppointmentSlotService
      * getAvailableSlots() the time-slot grid uses, so a date's color and its
      * actual slot list can never disagree.
      *
-     * Returns ['YYYY-MM-DD' => 'unavailable'|'full'|'limited'|'available'].
+     * Returns ['YYYY-MM-DD' => ['status' => 'unavailable'|'full'|'limited'|'available', 'count' => int]].
+     * count is the real number of open slots that date — 0 for an
+     * unavailable/closed/past day, since there's nothing bookable then.
      */
     public function getDayAvailabilitySummary(
         int $dentistId,
@@ -208,14 +211,15 @@ class AppointmentSlotService
             // Closed day (including every Sunday) or a calendar date that's
             // already fully in the past — nothing to compute, not bookable.
             if ($cursor->lt($today) || ! $this->operatingHoursFor($dentistId, $dateKey)) {
-                $summary[$dateKey] = 'unavailable';
+                $summary[$dateKey] = ['status' => 'unavailable', 'count' => 0];
             } else {
                 $count = count($this->getAvailableSlots($dentistId, $dateKey, $durationMinutes));
-                $summary[$dateKey] = match (true) {
+                $status = match (true) {
                     $count === 0 => 'full',
                     $count <= self::LIMITED_THRESHOLD => 'limited',
                     default => 'available',
                 };
+                $summary[$dateKey] = ['status' => $status, 'count' => $count];
             }
 
             $cursor->addDay();
