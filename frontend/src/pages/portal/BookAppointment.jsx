@@ -41,15 +41,24 @@ const DAY_STATUS_LABELS = {
 // isPast is figured out client-side from the date itself (the server's
 // 'unavailable' doesn't distinguish past vs. not-working-this-day); reason
 // comes straight from the server for a future unavailable day — 'day_off'
-// for this specific dentist (one-off or a recurring non-working weekday,
-// e.g. every Tuesday/Thursday) vs 'closed' for the clinic itself (e.g.
-// every Sunday, or nobody credentialed is open for "Any Available Doctor").
-function slotTooltipText(status, count, isPast, reason) {
+// vs 'closed' (the clinic itself, e.g. every Sunday). A day_off names WHO's
+// off rather than a blanket "clinic closed," which would be misleading on,
+// say, a Tuesday where the one dentist who does this service is off but the
+// clinic itself is open: offDentistNames is the "Any Available Doctor"
+// union's own list of who's off (one entry when a single dentist is
+// selected would instead come through dentistName); dentistName is the
+// already-selected single dentist's name, used when offDentistNames isn't
+// available (a specific dentist, not "any," was already chosen).
+function slotTooltipText(status, count, isPast, reason, offDentistNames, dentistName) {
   if (status === 'full') return 'Fully booked';
   if (status === 'limited') return `${count} slot${count === 1 ? '' : 's'} left`;
   if (status === 'available') return `${count} slots open`;
   if (isPast) return 'Already passed';
-  return reason === 'day_off' ? "Doctor's day off" : 'Clinic closed';
+  if (reason !== 'day_off') return 'Clinic closed';
+  if (offDentistNames?.length) {
+    return `${offDentistNames.join(', ')} ${offDentistNames.length === 1 ? 'is' : 'are'} off`;
+  }
+  return dentistName ? `${dentistName} is off` : "Doctor's day off";
 }
 
 // A freshly-booked appointment can be pending_verification for three
@@ -766,8 +775,8 @@ function BookAppointment() {
                         if (!date) return <span key={`blank-${i}`} className="calendar-cell calendar-cell--blank" />;
 
                         const key = toDateKey(date);
-                        const info = dayAvailability[key] || { status: 'unavailable', count: 0, reason: null };
-                        const { status, count, reason } = info;
+                        const info = dayAvailability[key] || { status: 'unavailable', count: 0, reason: null, dentists: null };
+                        const { status, count, reason, dentists: offDentistNames } = info;
                         const isSelected = key === selectedDate;
                         const isPast = date < today;
                         const tipTone = status === 'unavailable' ? '' : ` calendar-cell-tip--${status}`;
@@ -781,7 +790,9 @@ function BookAppointment() {
                             onClick={() => setSelectedDate(key)}
                           >
                             {date.getDate()}
-                            <span className={`calendar-cell-tip${tipTone}`}>{slotTooltipText(status, count, isPast, reason)}</span>
+                            <span className={`calendar-cell-tip${tipTone}`}>
+                              {slotTooltipText(status, count, isPast, reason, offDentistNames, selectedDentist?.name)}
+                            </span>
                           </button>
                         );
                       })}

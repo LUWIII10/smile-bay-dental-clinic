@@ -37,14 +37,15 @@ const DAY_STATUS_LABELS = {
 // Same hover-tooltip wording as BookAppointment.jsx — see its own comment
 // for why isPast is figured out client-side, and what reason ('day_off' vs
 // 'closed') means. The dentist here is always a single fixed one (whoever
-// recommended the follow-up), so reason is always meaningful, never the
-// "any available doctor" union case.
-function slotTooltipText(status, count, isPast, reason) {
+// recommended the follow-up), so dentistName names them directly on a
+// day_off — there's no "any available doctor" union to list instead.
+function slotTooltipText(status, count, isPast, reason, dentistName) {
   if (status === 'full') return 'Fully booked';
   if (status === 'limited') return `${count} slot${count === 1 ? '' : 's'} left`;
   if (status === 'available') return `${count} slots open`;
   if (isPast) return 'Already passed';
-  return reason === 'day_off' ? "Doctor's day off" : 'Clinic closed';
+  if (reason !== 'day_off') return 'Clinic closed';
+  return dentistName ? `${dentistName} is off` : "Doctor's day off";
 }
 
 const PENDING_MESSAGES = {
@@ -567,7 +568,9 @@ function BookFollowUp() {
                             onClick={() => setSelectedDate(key)}
                           >
                             {date.getDate()}
-                            <span className={`calendar-cell-tip${tipTone}`}>{slotTooltipText(status, count, isPast, reason)}</span>
+                            <span className={`calendar-cell-tip${tipTone}`}>
+                              {slotTooltipText(status, count, isPast, reason, selectedDentist?.name)}
+                            </span>
                           </button>
                         );
                       })}

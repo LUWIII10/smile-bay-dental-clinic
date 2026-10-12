@@ -36,13 +36,15 @@ export async function getAvailableSlots(dentistId, serviceId, date) {
   return response.data.data;
 }
 
-// month: 'YYYY-MM'. Returns { 'YYYY-MM-DD': { status, count, reason }, ... } for
-// every day in that month — what the calendar colors each cell by and shows
-// on hover. count is the real number of open slots that date (0 when
+// month: 'YYYY-MM'. Returns { 'YYYY-MM-DD': { status, count, reason, dentists }, ... }
+// for every day in that month — what the calendar colors each cell by and
+// shows on hover. count is the real number of open slots that date (0 when
 // unavailable). reason is only set when status is 'unavailable' and the date
-// isn't simply in the past: 'day_off' (this specific dentist) vs 'closed'
-// (the whole clinic, e.g. every Sunday, or the "any dentist" union with
-// nobody open). dentistId optional the same way as getAvailableSlots() above.
+// isn't simply in the past: 'day_off' (this specific dentist, or — for the
+// dentistId:'any' union — whichever credentialed dentist(s) are off that
+// day, named in dentists) vs 'closed' (the whole clinic, e.g. every Sunday,
+// or nobody credentialed is open for any reason). dentistId optional the
+// same way as getAvailableSlots() above.
 export async function getDayAvailability(dentistId, serviceId, month) {
   const response = await api.get('/api/schedules/day-availability', {
     params: { dentist_id: dentistId === 'any' ? undefined : dentistId, service_id: serviceId, month },

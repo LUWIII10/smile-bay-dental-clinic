@@ -106,7 +106,11 @@ class AppointmentSlotService
     /**
      * Same as getDayAvailabilitySummary() below, but day-level union across
      * every dentist credentialed for the service — backs the calendar when
-     * "Any Available Doctor" is selected.
+     * "Any Available Doctor" is selected. When unavailable, also carries a
+     * 'dentists' key (array of names) whenever the reason is 'day_off' — who
+     * specifically is off that day, since a blanket "clinic closed" would be
+     * misleading on, say, a Tuesday where this service's only credentialed
+     * dentist just happens to be off, versus an actual Sunday shutdown.
      */
     public function getDayAvailabilitySummaryAnyDentist(
         int $serviceId,
@@ -118,7 +122,8 @@ class AppointmentSlotService
         $cursor = Carbon::parse($startDate)->startOfDay();
         $end = Carbon::parse($endDate)->startOfDay();
         $today = Carbon::today();
-        $dentistIds = $this->credentialedDentistIds($serviceId);
+        $dentists = $this->credentialedDentists($serviceId);
+        $dentistIds = $dentists->pluck('id')->all();
 
         while ($cursor->lte($end)) {
             $dateKey = $cursor->toDateString();
@@ -134,10 +139,27 @@ class AppointmentSlotService
 
             if ($cursor->lt($today) || ! $anyOpen) {
                 // No single dentist's "day off" applies to a union across
-                // all of them — if nobody credentialed for this service is
-                // open, that's a clinic-wide closure for this service, same
-                // meaning as getDayAvailabilitySummary()'s 'closed'.
-                $summary[$dateKey] = ['status' => 'unavailable', 'count' => 0, 'reason' => $cursor->lt($today) ? null : 'closed'];
+                // all of them automatically — but when the reason every one
+                // of them is unavailable traces back to their OWN personal
+                // schedule (a day off, not the shared clinic_schedules
+                // closure), name them instead of a blanket "clinic closed":
+                // a Tuesday/Thursday where this service's only credentialed
+                // dentist is off reads very differently from an actual
+                // Sunday shutdown.
+                $offNames = [];
+                if (! $cursor->lt($today)) {
+                    foreach ($dentists as $dentist) {
+                        if ($this->unavailabilityReason($dentist->id, $dateKey) === 'day_off') {
+                            $offNames[] = $dentist->name;
+                        }
+                    }
+                }
+                $summary[$dateKey] = [
+                    'status' => 'unavailable',
+                    'count' => 0,
+                    'reason' => $cursor->lt($today) ? null : (empty($offNames) ? 'closed' : 'day_off'),
+                    'dentists' => empty($offNames) ? null : $offNames,
+                ];
             } else {
                 $count = count($this->getAvailableSlotsAnyDentist($serviceId, $dateKey, $durationMinutes));
                 $status = match (true) {
@@ -188,13 +210,17 @@ class AppointmentSlotService
         return User::find($freeIds[0]);
     }
 
-    private function credentialedDentistIds(int $serviceId): array
+    private function credentialedDentists(int $serviceId)
     {
         return User::where('role', 'dentist')
             ->where('status', 'active')
             ->whereHas('services', fn ($q) => $q->where('services.id', $serviceId))
-            ->pluck('id')
-            ->all();
+            ->get(['id', 'name']);
+    }
+
+    private function credentialedDentistIds(int $serviceId): array
+    {
+        return $this->credentialedDentists($serviceId)->pluck('id')->all();
     }
 
     /**
