@@ -508,56 +508,11 @@
   color: var(--portal-slate);
 }
 
-/* ============ Treatment history ============ */
-
-.history-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.history-item {
-  display: flex;
-  gap: 10px;
-  align-items: flex-start;
-}
-
-.history-dot {
-  flex-shrink: 0;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--portal-blue);
-  margin-top: 6px;
-}
-
-.history-item-text {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.history-item-title {
-  font-weight: 600;
-  font-size: 0.88rem;
-  color: var(--portal-slate);
-}
-
-.history-item-meta {
-  font-size: 0.76rem;
-  color: var(--portal-muted);
-}
-
-.history-item-notes {
-  font-size: 0.82rem;
-  color: var(--portal-slate);
-  margin-top: 2px;
-}
-
-/* ============ Treatment history timeline (assistant's read-only view) ============ */
+/* ============ Treatment history timeline ============
+   Was split: assistants got this timeline, dentist/admin got a plainer
+   .history-list — no functional difference between the two (same data,
+   no extra actions on either side), so now everyone who can view this
+   section gets the same modernized treatment. */
 
 .history-header-actions {
   display: flex;

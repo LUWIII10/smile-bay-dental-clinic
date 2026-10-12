@@ -1403,14 +1403,10 @@ function PatientRecords() {
 
             <div className="section-card">
               <div className="section-card-header">
-                {isAssistantView ? (
-                  <div className="section-card-heading">
-                    <span className="section-card-icon section-card-icon--amber"><ClockIcon /></span>
-                    <h3 className="section-card-title">Dental Treatment History</h3>
-                  </div>
-                ) : (
-                  <h3 className="section-card-title">Treatment History</h3>
-                )}
+                <div className="section-card-heading">
+                  <span className="section-card-icon section-card-icon--amber"><ClockIcon /></span>
+                  <h3 className="section-card-title">Dental Treatment History</h3>
+                </div>
                 <div className="history-header-actions">
                   {isDentist && (
                     <button type="button" className="dash-btn dash-btn--outline" onClick={() => setHistoryModalOpen(true)}>
@@ -1424,7 +1420,7 @@ function PatientRecords() {
                   <ClockIcon />
                   <span className="dash-empty-title">No completed procedures yet</span>
                 </div>
-              ) : isAssistantView ? (
+              ) : (
                 <div className="history-timeline">
                   {record.treatment_history.map((h, i) => {
                     const dateParts = formatRecordDateParts(h.performed_at);
@@ -1455,24 +1451,6 @@ function PatientRecords() {
                     );
                   })}
                 </div>
-              ) : (
-                <ul className="history-list">
-                  {record.treatment_history.map((h) => (
-                    <li key={h.id} className="history-item">
-                      <span className="history-dot" />
-                      <div className="history-item-text">
-                        <span className="history-item-title">
-                          {h.procedure_name}
-                          {h.tooth_number ? ` — Tooth #${h.tooth_number}` : ''}
-                        </span>
-                        <span className="history-item-meta">
-                          {formatDate(h.performed_at)}{h.performed_by ? ` · ${h.performed_by.name}` : ''}
-                        </span>
-                        {h.notes && <span className="history-item-notes">{h.notes}</span>}
-                      </div>
-                    </li>
-                  ))}
-                </ul>
               )}
             </div>
 
