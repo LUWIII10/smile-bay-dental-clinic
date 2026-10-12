@@ -14,7 +14,10 @@ import StatusBadge from './components/StatusBadge';
 import Modal from './components/Modal';
 import DataTable from './components/DataTable';
 import AvailableSlotPicker from './components/AvailableSlotPicker';
-import { PlusIcon, CalendarPlusIcon, CheckCircleIcon, CalendarIcon, UserIcon, ToothIcon, FileIcon, AlertIcon } from './icons';
+import {
+  PlusIcon, CalendarPlusIcon, CheckCircleIcon, CalendarIcon, UserIcon, ToothIcon, FileIcon, AlertIcon,
+  XCircleIcon, ShieldIcon,
+} from './icons';
 import { classifyHistoryCategory } from './dentalRecordShared';
 import { formatDateLong, formatDateShort, formatTime12h, toLocalDate } from './dateTimeUtils';
 import PageHeader from './components/PageHeader';
@@ -109,6 +112,23 @@ function isOverdueUnresolved(appointment) {
 // straight to 'confirmed', not another review step).
 function isStaffProposal(appointment) {
   return !!appointment.dentist_proposed_new_date_at && !!appointment.verified_at;
+}
+
+function getInitials(name) {
+  if (!name) return '?';
+  const parts = name.trim().split(/\s+/);
+  const first = parts[0]?.[0] || '';
+  const last = parts.length > 1 ? parts[parts.length - 1][0] : '';
+  return (first + last).toUpperCase();
+}
+
+function ReplyIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="9 10 4 15 9 20" />
+      <path d="M20 4v7a4 4 0 0 1-4 4H4" />
+    </svg>
+  );
 }
 
 function PatientAppointments() {
@@ -323,7 +343,19 @@ function PatientAppointments() {
       minWidth: showDetails ? '24%' : '34%',
       minWidthPx: '170px',
       clampLines: 2,
-      render: (row) => <span className="cell-service" title={row.service?.name}>{row.service?.name}</span>,
+      render: (row) => (
+        <span>
+          <span className="cell-service" title={row.service?.name}>{row.service?.name}</span>
+          {/* Only for a genuinely completed row with a real clinical note on
+              file — same condition the Actions column's View Treatment
+              button already checks, so this is never an invented summary. */}
+          {row.status === 'completed' && row.treatment_history_entry?.notes && (
+            <span className="cell-service-note" title={row.treatment_history_entry.notes}>
+              {row.treatment_history_entry.notes}
+            </span>
+          )}
+        </span>
+      ),
     },
     {
       key: 'dentist',
@@ -332,7 +364,14 @@ function PatientAppointments() {
       minWidthPx: '170px',
       render: (row) => {
         const name = row.dentist?.name || 'Unassigned';
-        return <span className="cell-dentist-name" title={name}>{name}</span>;
+        return (
+          <span className="cell-person">
+            <span className="cell-avatar">{getInitials(row.dentist?.name)}</span>
+            <span className="cell-person-text">
+              <span className="cell-person-name" title={name}>{name}</span>
+            </span>
+          </span>
+        );
       },
     },
     {
@@ -343,9 +382,13 @@ function PatientAppointments() {
       align: 'center',
       render: (row) =>
         isStaffProposal(row) ? (
-          <StatusBadge status="hmo_awaiting_date_confirmation" />
+          <StatusBadge status="hmo_awaiting_date_confirmation" icon={ShieldIcon} />
         ) : isOverdueUnresolved(row) ? (
-          <StatusBadge status="Awaiting Update" tone="amber" />
+          <StatusBadge status="Awaiting Update" tone="amber" icon={AlertIcon} />
+        ) : row.status === 'completed' ? (
+          <StatusBadge status={row.status} icon={CheckCircleIcon} />
+        ) : row.status === 'no_show' ? (
+          <StatusBadge status={row.status} icon={XCircleIcon} />
         ) : (
           <StatusBadge status={row.status} />
         ),
@@ -422,7 +465,7 @@ function PatientAppointments() {
               className={`dash-btn row-btn ${isStaffProposal(row) ? 'dash-btn--success' : 'dash-btn--amber'}`}
               onClick={() => openProposal(row)}
             >
-              Respond
+              <ReplyIcon /> Respond
             </button>
           );
         }
@@ -437,7 +480,7 @@ function PatientAppointments() {
           return (
             <button
               type="button"
-              className="dash-btn dash-btn--outline row-btn"
+              className="dash-btn dash-btn--tint-green row-btn"
               onClick={() => setTreatmentDetail(
                 row.treatment_history_entry || {
                   missingRecord: true,
@@ -447,7 +490,7 @@ function PatientAppointments() {
                 }
               )}
             >
-              View Treatment
+              <FileIcon /> View Treatment
             </button>
           );
         }

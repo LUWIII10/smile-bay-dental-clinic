@@ -486,6 +486,20 @@
   color: var(--portal-slate);
 }
 
+/* One-line treatment-record preview under a completed visit's service name
+   (PatientAppointments.jsx) — the real clinical note, not a summary of any
+   kind that's invented client-side. */
+.cell-service-note {
+  display: block;
+  margin-top: 3px;
+  font-size: 0.74rem;
+  color: var(--portal-muted);
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .th-sort-btn {
   display: inline-flex;
   align-items: center;

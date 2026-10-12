@@ -1570,6 +1570,19 @@
   background: #e0e7ff;
 }
 
+/* My Appointments' "View Treatment" — tinted to match the green Completed
+   badge it belongs to, instead of the generic gray --outline every other
+   secondary action uses. */
+.dash-btn--tint-green {
+  background: var(--portal-green-bg);
+  color: var(--portal-green-text);
+  border: 1px solid var(--portal-green-border);
+}
+
+.dash-btn--tint-green:hover {
+  background: #bbf7d0;
+}
+
 /* Same shape again, blue instead — a neutral-but-branded secondary choice
    (Request a Different Date) that needs to read as "a real, fine option",
    not as muted/discouraged as --outline's plain gray would make it look
