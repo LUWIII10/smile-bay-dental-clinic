@@ -133,7 +133,11 @@ class AppointmentSlotService
             $anyOpen = collect($dentistIds)->contains(fn (int $id) => $this->operatingHoursFor($id, $dateKey) !== null);
 
             if ($cursor->lt($today) || ! $anyOpen) {
-                $summary[$dateKey] = ['status' => 'unavailable', 'count' => 0];
+                // No single dentist's "day off" applies to a union across
+                // all of them — if nobody credentialed for this service is
+                // open, that's a clinic-wide closure for this service, same
+                // meaning as getDayAvailabilitySummary()'s 'closed'.
+                $summary[$dateKey] = ['status' => 'unavailable', 'count' => 0, 'reason' => $cursor->lt($today) ? null : 'closed'];
             } else {
                 $count = count($this->getAvailableSlotsAnyDentist($serviceId, $dateKey, $durationMinutes));
                 $status = match (true) {
@@ -200,9 +204,13 @@ class AppointmentSlotService
      * getAvailableSlots() the time-slot grid uses, so a date's color and its
      * actual slot list can never disagree.
      *
-     * Returns ['YYYY-MM-DD' => ['status' => 'unavailable'|'full'|'limited'|'available', 'count' => int]].
+     * Returns ['YYYY-MM-DD' => ['status' => 'unavailable'|'full'|'limited'|'available', 'count' => int, 'reason' => ?string]].
      * count is the real number of open slots that date — 0 for an
      * unavailable/closed/past day, since there's nothing bookable then.
+     * reason is only set when status is 'unavailable' and the date isn't
+     * simply in the past: 'day_off' (this specific dentist, one-off or a
+     * recurring non-working weekday) vs 'closed' (the clinic itself, e.g.
+     * every Sunday) — see unavailabilityReason() below.
      */
     public function getDayAvailabilitySummary(
         int $dentistId,
@@ -220,8 +228,13 @@ class AppointmentSlotService
 
             // Closed day (including every Sunday) or a calendar date that's
             // already fully in the past — nothing to compute, not bookable.
+            // reason stays null for a past date (the frontend already works
+            // that case out for itself from the date alone) and is only
+            // filled in — 'day_off' vs 'closed' — for a future unavailable
+            // one, via unavailabilityReason() above.
             if ($cursor->lt($today) || ! $this->operatingHoursFor($dentistId, $dateKey)) {
-                $summary[$dateKey] = ['status' => 'unavailable', 'count' => 0];
+                $reason = $cursor->lt($today) ? null : $this->unavailabilityReason($dentistId, $dateKey);
+                $summary[$dateKey] = ['status' => 'unavailable', 'count' => 0, 'reason' => $reason];
             } else {
                 $count = count($this->getAvailableSlots($dentistId, $dateKey, $durationMinutes));
                 $status = match (true) {
@@ -407,6 +420,37 @@ class AppointmentSlotService
             'open' => Carbon::parse("{$date} {$openTime}"),
             'close' => Carbon::parse("{$date} {$closeTime}"),
         ];
+    }
+
+    /**
+     * Why a date is unavailable for this specific dentist — only meaningful
+     * once operatingHoursFor() has already returned null for it. Two real
+     * reasons, both ultimately "this dentist isn't working," but worth
+     * telling apart for the calendar's hover tooltip:
+     * - 'day_off': specific to THIS dentist — either a one-off
+     *   dentist_day_off row for the exact date, or (for a dentist with a
+     *   custom dentist_weekly_hours schedule) a recurring non-working day
+     *   of the week, e.g. every Tuesday/Thursday. Another dentist could
+     *   still be working that same day.
+     * - 'closed': the clinic itself is closed that day of the week
+     *   (clinic_schedules) — applies to every dentist without their own
+     *   custom weekly hours, e.g. every Sunday.
+     */
+    private function unavailabilityReason(int $dentistId, string $date): string
+    {
+        $dayOff = DB::table('dentist_day_off')
+            ->where('dentist_id', $dentistId)
+            ->where('date', $date)
+            ->exists();
+
+        if ($dayOff) {
+            return 'day_off';
+        }
+
+        $isOnCall = (bool) DB::table('dentist_profiles')->where('user_id', $dentistId)->value('is_on_call');
+        $hasCustomHours = ! $isOnCall && DB::table('dentist_weekly_hours')->where('dentist_id', $dentistId)->exists();
+
+        return $hasCustomHours ? 'day_off' : 'closed';
     }
 
     /**

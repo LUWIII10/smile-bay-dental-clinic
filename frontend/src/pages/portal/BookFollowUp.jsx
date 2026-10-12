@@ -35,12 +35,16 @@ const DAY_STATUS_LABELS = {
 };
 
 // Same hover-tooltip wording as BookAppointment.jsx — see its own comment
-// for why isPast is figured out client-side instead of from the server.
-function slotTooltipText(status, count, isPast) {
+// for why isPast is figured out client-side, and what reason ('day_off' vs
+// 'closed') means. The dentist here is always a single fixed one (whoever
+// recommended the follow-up), so reason is always meaningful, never the
+// "any available doctor" union case.
+function slotTooltipText(status, count, isPast, reason) {
   if (status === 'full') return 'Fully booked';
   if (status === 'limited') return `${count} slot${count === 1 ? '' : 's'} left`;
   if (status === 'available') return `${count} slots open`;
-  return isPast ? 'Already passed' : 'Clinic closed';
+  if (isPast) return 'Already passed';
+  return reason === 'day_off' ? "Doctor's day off" : 'Clinic closed';
 }
 
 const PENDING_MESSAGES = {
@@ -548,8 +552,8 @@ function BookFollowUp() {
                         if (!date) return <span key={`blank-${i}`} className="calendar-cell calendar-cell--blank" />;
 
                         const key = toDateKey(date);
-                        const info = dayAvailability[key] || { status: 'unavailable', count: 0 };
-                        const { status, count } = info;
+                        const info = dayAvailability[key] || { status: 'unavailable', count: 0, reason: null };
+                        const { status, count, reason } = info;
                         const isSelected = key === selectedDate;
                         const isPast = date < today;
                         const tipTone = status === 'unavailable' ? '' : ` calendar-cell-tip--${status}`;
@@ -563,7 +567,7 @@ function BookFollowUp() {
                             onClick={() => setSelectedDate(key)}
                           >
                             {date.getDate()}
-                            <span className={`calendar-cell-tip${tipTone}`}>{slotTooltipText(status, count, isPast)}</span>
+                            <span className={`calendar-cell-tip${tipTone}`}>{slotTooltipText(status, count, isPast, reason)}</span>
                           </button>
                         );
                       })}
