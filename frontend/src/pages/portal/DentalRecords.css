@@ -61,6 +61,91 @@
   overflow-wrap: break-word;
 }
 
+/* ============ Patient Information identity strip + icon-coded fields
+   (PatientRecords.jsx's staff-facing record detail) ============
+   Wraps .record-info-item rather than changing it — the Treatment
+   Details modal's own record-info-item grid and PatientDentalRecords.jsx's
+   summary bar both reuse that class as-is and are untouched by this. */
+
+.record-identity-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding-bottom: 18px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid var(--portal-border-light);
+}
+
+.record-identity-left {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  min-width: 0;
+}
+
+.record-identity-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--portal-blue-bg);
+  color: var(--portal-blue-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.record-identity-name {
+  font-size: 1.08rem;
+  font-weight: 700;
+  color: var(--portal-navy);
+  line-height: 1.3;
+}
+
+.record-identity-sub {
+  font-size: 0.78rem;
+  color: var(--portal-muted);
+  margin-top: 1px;
+}
+
+.record-field {
+  display: flex;
+  gap: 11px;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.record-field--full {
+  grid-column: 1 / -1;
+}
+
+.record-field-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.record-field-icon svg {
+  width: 15px;
+  height: 15px;
+}
+
+.record-field-icon--blue { background: var(--portal-blue-bg); color: var(--portal-blue-text); }
+.record-field-icon--navy { background: #e4e9f5; color: var(--portal-navy); }
+.record-field-icon--amber { background: var(--portal-amber-bg); color: var(--portal-amber-text); }
+.record-field-icon--teal { background: #ccfbf1; color: #0f766e; }
+.record-field-icon--indigo { background: var(--portal-indigo-bg); color: var(--portal-indigo-text); }
+.record-field-icon--slate { background: var(--portal-gray-bg); color: var(--portal-gray-text); }
+.record-field-icon--red { background: var(--portal-red-bg); color: var(--portal-red-text); }
+
 /* ============ Tooth chart ============ */
 
 .tooth-chart-note {
@@ -482,53 +567,103 @@
 
 .history-timeline {
   position: relative;
-  padding-left: 26px;
+  padding-left: 28px;
 }
 
 .history-timeline::before {
   content: '';
   position: absolute;
-  left: 8px;
-  top: 6px;
-  bottom: 6px;
-  width: 1.5px;
+  left: 11px;
+  top: 4px;
+  bottom: 4px;
+  width: 2px;
   background: var(--portal-border-light);
 }
 
 .timeline-entry {
   position: relative;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
 }
 
 .timeline-entry:last-child {
   margin-bottom: 0;
 }
 
+/* An icon-filled dot (ToothIcon) rather than a plain circle — same
+   identifiable-at-a-glance treatment as the Patient Info field icons
+   above. --active (the most recent entry) gets the stronger solid fill;
+   every other entry stays the lighter tint. */
 .timeline-dot {
   position: absolute;
-  left: -26px;
-  top: 3px;
-  width: 14px;
-  height: 14px;
+  left: -28px;
+  top: 10px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
-  background: var(--portal-card);
-  border: 2px solid var(--portal-blue);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 3px solid var(--portal-canvas);
+  background: var(--portal-blue-bg);
+  color: var(--portal-blue-text);
+}
+
+.timeline-dot svg {
+  width: 11px;
+  height: 11px;
 }
 
 .timeline-dot--active {
   background: var(--portal-blue);
-  border-width: 3px;
-  border-color: var(--portal-card);
+  color: #fff;
   box-shadow: 0 0 0 1.5px var(--portal-blue);
 }
 
 .timeline-card {
   border: 1px solid var(--portal-border-light);
   border-radius: var(--portal-radius-sm);
-  padding: 13px 15px;
+  padding: 14px 16px;
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.timeline-date {
+  flex-shrink: 0;
+  width: 52px;
+  text-align: center;
+  padding: 6px 0;
+  border-radius: 10px;
+  background: var(--portal-canvas);
+  border: 1px solid var(--portal-border-light);
+}
+
+.timeline-date-month {
+  display: block;
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--portal-red-text);
+  letter-spacing: 0.03em;
+}
+
+.timeline-date-day {
+  display: block;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--portal-navy);
+  line-height: 1.2;
+}
+
+.timeline-date-year {
+  display: block;
+  font-size: 0.62rem;
+  color: var(--portal-muted);
+}
+
+.timeline-body {
+  min-width: 0;
+  flex-grow: 1;
 }
 
 .timeline-card-title {
@@ -538,8 +673,17 @@
 }
 
 .timeline-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 3px;
   font-size: 0.76rem;
   color: var(--portal-muted);
+}
+
+.timeline-card-meta svg {
+  width: 13px;
+  height: 13px;
 }
 
 .timeline-card-notes {

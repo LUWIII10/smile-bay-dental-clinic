@@ -311,6 +311,20 @@
   stroke-width: 1.75;
 }
 
+/* Tone variants — default is the blue gradient above; these cover a
+   section whose subject isn't "primary blue" (e.g. Patient Records'
+   Medical History, a caution-adjacent subject, or Dental Treatment
+   History, a chronological one). */
+.section-card-icon--red {
+  background: linear-gradient(150deg, #ef4444, var(--portal-red-text));
+  box-shadow: 0 4px 10px rgba(180, 35, 24, 0.28);
+}
+
+.section-card-icon--amber {
+  background: linear-gradient(150deg, #f59e0b, var(--portal-amber-text));
+  box-shadow: 0 4px 10px rgba(180, 83, 9, 0.28);
+}
+
 /* Self-contained icon+text composition for a .section-card-title that
    wants a leading icon — an inline-flex wrapper *inside* the title rather
    than changing .section-card-title's own display, so every other page's

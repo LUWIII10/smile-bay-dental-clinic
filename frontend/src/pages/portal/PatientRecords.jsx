@@ -31,8 +31,9 @@ import {
   TOOTH_TYPE,
   TOOTH_SHAPE_PATHS,
   formatRecordDate as formatDate,
+  formatRecordDateParts,
 } from './dentalRecordShared';
-import { SearchIcon, FileIcon, ClockIcon, UserIcon, ShieldIcon, PrinterIcon, DownloadIcon, AlertIcon, SyringeIcon, ToothIcon, MailIcon, CalendarIcon, UsersIcon } from './icons';
+import { SearchIcon, FileIcon, ClockIcon, UserIcon, ShieldIcon, PrinterIcon, DownloadIcon, AlertIcon, SyringeIcon, ToothIcon, MailIcon, CalendarIcon, UsersIcon, PhoneIcon, MapPinIcon } from './icons';
 import { formatDateLong, formatTime12h } from './dateTimeUtils';
 import { formatRangeLabel } from './components/dateRangeUtils';
 import { showSuccessToast, showErrorToast } from '../../utils/toast';
@@ -1107,74 +1108,97 @@ function PatientRecords() {
           <div className="record-detail-print">
             <div className="section-card">
               <div className="section-card-header">
-                <h3 className="section-card-title">
-                  <span className="section-card-title-with-icon">
-                    <span className="section-card-title-icon"><UserIcon /></span> Patient Information
-                  </span>
-                </h3>
+                <div className="section-card-heading">
+                  <span className="section-card-icon"><UserIcon /></span>
+                  <h3 className="section-card-title">Patient Information</h3>
+                </div>
               </div>
+              <div className="record-identity-strip">
+                <div className="record-identity-left">
+                  <span className="record-identity-avatar">{getInitials(patientFullName)}</span>
+                  <div>
+                    <div className="record-identity-name">{patient.first_name} {patient.middle_name} {patient.last_name}</div>
+                    <div className="record-identity-sub">{patient.patient_number}</div>
+                  </div>
+                </div>
+                <StatusBadge
+                  status={patient.patient_type === 'cash' ? 'Cash' : 'HMO'}
+                  tone={patient.patient_type === 'cash' ? 'green' : 'amber'}
+                  icon={patient.patient_type === 'cash' ? undefined : ShieldIcon}
+                />
+              </div>
+
               <div className="record-info-card">
-                <div className="record-info-item">
-                  <span className="record-info-label">Full Name</span>
-                  <span className="record-info-value">{patient.first_name} {patient.middle_name} {patient.last_name}</span>
-                </div>
-                <div className="record-info-item">
-                  <span className="record-info-label">Patient No.</span>
-                  <span className="record-info-value">{patient.patient_number}</span>
-                </div>
-                <div className="record-info-item">
-                  <span className="record-info-label">Date of Birth</span>
-                  <span className="record-info-value">{patient.date_of_birth ? formatDate(patient.date_of_birth) : '—'}</span>
-                </div>
-                <div className="record-info-item">
-                  <span className="record-info-label">Sex</span>
-                  <span className="record-info-value">{SEX_LABELS[patient.sex] || patient.sex || '—'}</span>
-                </div>
-                <div className="record-info-item">
-                  <span className="record-info-label">Email</span>
-                  <span className="record-info-value">{patient.user?.email}</span>
-                </div>
-                <div className="record-info-item">
-                  <span className="record-info-label">Mobile</span>
-                  <span className="record-info-value">{patient.user?.mobile_number || '—'}</span>
-                </div>
-                <div className="record-info-item record-info-item--full">
-                  <span className="record-info-label">Complete Address</span>
-                  <span className="record-info-value">{patient.address_line || '—'}</span>
-                </div>
-                <div className="record-info-item">
-                  <span className="record-info-label">Emergency Contact</span>
-                  <span className="record-info-value">
-                    {patient.emergency_contact_name || '—'}
-                    {patient.emergency_contact_relationship ? ` (${patient.emergency_contact_relationship})` : ''}
-                  </span>
-                </div>
-                <div className="record-info-item">
-                  <span className="record-info-label">Emergency Contact No.</span>
-                  <span className="record-info-value">{patient.emergency_contact_number || '—'}</span>
-                </div>
-                <div className="record-info-item">
-                  <span className="record-info-label">Patient Category</span>
-                  <span className="record-info-value">
-                    <StatusBadge
-                      status={patient.patient_type === 'cash' ? 'Cash' : 'HMO'}
-                      tone={patient.patient_type === 'cash' ? 'green' : 'amber'}
-                      icon={patient.patient_type === 'cash' ? undefined : ShieldIcon}
-                    />
-                  </span>
-                </div>
-                {patient.patient_type === 'hmo' && (
+                <div className="record-field">
+                  <span className="record-field-icon record-field-icon--amber"><CalendarIcon /></span>
                   <div className="record-info-item">
-                    <span className="record-info-label">HMO Coverage</span>
+                    <span className="record-info-label">Date of Birth</span>
+                    <span className="record-info-value">{patient.date_of_birth ? formatDate(patient.date_of_birth) : '—'}</span>
+                  </div>
+                </div>
+                <div className="record-field">
+                  <span className="record-field-icon record-field-icon--navy"><UserIcon /></span>
+                  <div className="record-info-item">
+                    <span className="record-info-label">Sex</span>
+                    <span className="record-info-value">{SEX_LABELS[patient.sex] || patient.sex || '—'}</span>
+                  </div>
+                </div>
+                <div className="record-field">
+                  <span className="record-field-icon record-field-icon--blue"><MailIcon /></span>
+                  <div className="record-info-item">
+                    <span className="record-info-label">Email</span>
+                    <span className="record-info-value">{patient.user?.email}</span>
+                  </div>
+                </div>
+                <div className="record-field">
+                  <span className="record-field-icon record-field-icon--teal"><PhoneIcon /></span>
+                  <div className="record-info-item">
+                    <span className="record-info-label">Mobile</span>
+                    <span className="record-info-value">{patient.user?.mobile_number || '—'}</span>
+                  </div>
+                </div>
+                <div className="record-field record-field--full">
+                  <span className="record-field-icon record-field-icon--slate"><MapPinIcon /></span>
+                  <div className="record-info-item">
+                    <span className="record-info-label">Complete Address</span>
+                    <span className="record-info-value">{patient.address_line || '—'}</span>
+                  </div>
+                </div>
+                <div className="record-field">
+                  <span className="record-field-icon record-field-icon--indigo"><UsersIcon /></span>
+                  <div className="record-info-item">
+                    <span className="record-info-label">Emergency Contact</span>
                     <span className="record-info-value">
-                      {patient.hmo_provider?.name || patient.hmo_company_name || 'Not on file'}
-                      {patient.hmo_number ? ` (#${patient.hmo_number})` : ''}
+                      {patient.emergency_contact_name || '—'}
+                      {patient.emergency_contact_relationship ? ` (${patient.emergency_contact_relationship})` : ''}
                     </span>
                   </div>
+                </div>
+                <div className="record-field">
+                  <span className="record-field-icon record-field-icon--indigo"><PhoneIcon /></span>
+                  <div className="record-info-item">
+                    <span className="record-info-label">Emergency Contact No.</span>
+                    <span className="record-info-value">{patient.emergency_contact_number || '—'}</span>
+                  </div>
+                </div>
+                {patient.patient_type === 'hmo' && (
+                  <div className="record-field">
+                    <span className="record-field-icon record-field-icon--teal"><ShieldIcon /></span>
+                    <div className="record-info-item">
+                      <span className="record-info-label">HMO Coverage</span>
+                      <span className="record-info-value">
+                        {patient.hmo_provider?.name || patient.hmo_company_name || 'Not on file'}
+                        {patient.hmo_number ? ` (#${patient.hmo_number})` : ''}
+                      </span>
+                    </div>
+                  </div>
                 )}
-                <div className="record-info-item">
-                  <span className="record-info-label">Primary Dentist</span>
-                  <span className="record-info-value">{record.primary_dentist?.name || 'Not yet assigned'}</span>
+                <div className="record-field">
+                  <span className="record-field-icon record-field-icon--navy"><UserIcon /></span>
+                  <div className="record-info-item">
+                    <span className="record-info-label">Primary Dentist</span>
+                    <span className="record-info-value">{record.primary_dentist?.name || 'Not yet assigned'}</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1182,31 +1206,46 @@ function PatientRecords() {
             {(patient.allergies || patient.current_medications || patient.medical_conditions_other || patient.previous_surgeries) && (
               <div className="section-card">
                 <div className="section-card-header">
-                  <h3 className="section-card-title">Medical History <span className="section-card-title-note">(from registration)</span></h3>
+                  <div className="section-card-heading">
+                    <span className="section-card-icon section-card-icon--red"><AlertIcon /></span>
+                    <h3 className="section-card-title">Medical History <span className="section-card-title-note">(from registration)</span></h3>
+                  </div>
                 </div>
                 <div className="record-info-card">
                   {patient.allergies && (
-                    <div className="record-info-item record-info-item--full">
-                      <span className="record-info-label">Allergies</span>
-                      <span className="record-info-value">{patient.allergies}</span>
+                    <div className="record-field record-field--full">
+                      <span className="record-field-icon record-field-icon--red"><AlertIcon /></span>
+                      <div className="record-info-item">
+                        <span className="record-info-label">Allergies</span>
+                        <span className="record-info-value">{patient.allergies}</span>
+                      </div>
                     </div>
                   )}
                   {patient.current_medications && (
-                    <div className="record-info-item record-info-item--full">
-                      <span className="record-info-label">Current Medications</span>
-                      <span className="record-info-value">{patient.current_medications}</span>
+                    <div className="record-field record-field--full">
+                      <span className="record-field-icon record-field-icon--indigo"><SyringeIcon /></span>
+                      <div className="record-info-item">
+                        <span className="record-info-label">Current Medications</span>
+                        <span className="record-info-value">{patient.current_medications}</span>
+                      </div>
                     </div>
                   )}
                   {patient.medical_conditions_other && (
-                    <div className="record-info-item record-info-item--full">
-                      <span className="record-info-label">Medical Conditions</span>
-                      <span className="record-info-value">{patient.medical_conditions_other}</span>
+                    <div className="record-field record-field--full">
+                      <span className="record-field-icon record-field-icon--amber"><FileIcon /></span>
+                      <div className="record-info-item">
+                        <span className="record-info-label">Medical Conditions</span>
+                        <span className="record-info-value">{patient.medical_conditions_other}</span>
+                      </div>
                     </div>
                   )}
                   {patient.previous_surgeries && (
-                    <div className="record-info-item record-info-item--full">
-                      <span className="record-info-label">Previous Surgeries</span>
-                      <span className="record-info-value">{patient.previous_surgeries}</span>
+                    <div className="record-field record-field--full">
+                      <span className="record-field-icon record-field-icon--slate"><FileIcon /></span>
+                      <div className="record-info-item">
+                        <span className="record-info-label">Previous Surgeries</span>
+                        <span className="record-info-value">{patient.previous_surgeries}</span>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -1364,7 +1403,14 @@ function PatientRecords() {
 
             <div className="section-card">
               <div className="section-card-header">
-                <h3 className="section-card-title">{isAssistantView ? 'Dental Treatment History' : 'Treatment History'}</h3>
+                {isAssistantView ? (
+                  <div className="section-card-heading">
+                    <span className="section-card-icon section-card-icon--amber"><ClockIcon /></span>
+                    <h3 className="section-card-title">Dental Treatment History</h3>
+                  </div>
+                ) : (
+                  <h3 className="section-card-title">Treatment History</h3>
+                )}
                 <div className="history-header-actions">
                   {isDentist && (
                     <button type="button" className="dash-btn dash-btn--outline" onClick={() => setHistoryModalOpen(true)}>
@@ -1380,21 +1426,34 @@ function PatientRecords() {
                 </div>
               ) : isAssistantView ? (
                 <div className="history-timeline">
-                  {record.treatment_history.map((h, i) => (
-                    <div key={h.id} className="timeline-entry">
-                      <span className={`timeline-dot${i === 0 ? ' timeline-dot--active' : ''}`} />
-                      <div className="timeline-card">
-                        <span className="timeline-card-title">
-                          {h.procedure_name}
-                          {h.tooth_number ? ` — Tooth #${h.tooth_number}` : ''}
+                  {record.treatment_history.map((h, i) => {
+                    const dateParts = formatRecordDateParts(h.performed_at);
+                    return (
+                      <div key={h.id} className="timeline-entry">
+                        <span className={`timeline-dot${i === 0 ? ' timeline-dot--active' : ''}`}>
+                          <ToothIcon />
                         </span>
-                        <span className="timeline-card-meta">
-                          {h.performed_by?.name || 'Dentist'} &middot; {formatDate(h.performed_at)}
-                        </span>
-                        {h.notes && <p className="timeline-card-notes">{h.notes}</p>}
+                        <div className="timeline-card">
+                          <div className="timeline-date">
+                            <span className="timeline-date-month">{dateParts.month}</span>
+                            <span className="timeline-date-day">{dateParts.day}</span>
+                            <span className="timeline-date-year">{dateParts.year}</span>
+                          </div>
+                          <div className="timeline-body">
+                            <span className="timeline-card-title">
+                              {h.procedure_name}
+                              {h.tooth_number ? ` — Tooth #${h.tooth_number}` : ''}
+                            </span>
+                            <span className="timeline-card-meta">
+                              <UserIcon />
+                              {h.performed_by?.name || 'Dentist'}
+                            </span>
+                            {h.notes && <p className="timeline-card-notes">{h.notes}</p>}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <ul className="history-list">
