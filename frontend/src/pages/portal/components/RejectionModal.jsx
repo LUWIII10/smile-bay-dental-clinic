@@ -1,4 +1,5 @@
 import Modal from './Modal';
+import { XCircleIcon } from '../icons';
 
 // Shared reject-with-reason dialog — originally built inline for the
 // Pediatric Queue, extracted here so the Staff HMO Queue (and any future
@@ -20,7 +21,7 @@ function RejectionModal({
   cancelLabel = 'Cancel',
 }) {
   return (
-    <Modal open={open} onClose={onClose} title={title}>
+    <Modal open={open} onClose={onClose} title={title} icon={XCircleIcon} tone="danger">
       <p style={{ margin: '0 0 12px', fontSize: '0.85rem', color: 'var(--portal-muted)' }}>{message}</p>
       <textarea
         className="form-textarea"

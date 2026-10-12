@@ -10,7 +10,8 @@ import Modal from './components/Modal';
 import Skeleton from './components/Skeleton';
 import PageHeader from './components/PageHeader';
 import AvailableSlotPicker from './components/AvailableSlotPicker';
-import { ShieldIcon, CheckCircleIcon, MailIcon, CalendarIcon, AlertIcon, UserIcon, ToothIcon, FileIcon } from './icons';
+import FilterDropdown from './components/FilterDropdown';
+import { ShieldIcon, CheckCircleIcon, MailIcon, CalendarIcon, AlertIcon, UserIcon, ToothIcon, FileIcon, EditIcon } from './icons';
 import { formatDateLong, formatTime12h, toLocalDate } from './dateTimeUtils';
 import { showSuccessToast } from '../../utils/toast';
 import './dashboards.css';
@@ -510,7 +511,13 @@ function HmoVerificationQueue() {
         confirmLabel="Reject Booking"
       />
 
-      <Modal open={!!statusUpdateTarget} onClose={() => setStatusUpdateTarget(null)} title="Send Status Update">
+      <Modal
+        open={!!statusUpdateTarget}
+        onClose={() => setStatusUpdateTarget(null)}
+        title="Send Status Update"
+        icon={MailIcon}
+        tone="indigo"
+      >
         <p style={{ margin: '0 0 12px', fontSize: '0.85rem', color: 'var(--portal-muted)' }}>
           {statusUpdateTarget && (
             <>
@@ -521,11 +528,12 @@ function HmoVerificationQueue() {
         </p>
 
         <label className="modal-field-label">Status</label>
-        <select className="form-select" value={statusLabel} onChange={(e) => setStatusLabel(e.target.value)}>
-          {HMO_STATUS_LABELS.map((label) => (
-            <option key={label} value={label}>{label}</option>
-          ))}
-        </select>
+        <FilterDropdown
+          className="filter-dd-wrap--block"
+          options={HMO_STATUS_LABELS.map((label) => ({ value: label, label }))}
+          value={statusLabel}
+          onChange={setStatusLabel}
+        />
 
         <label className="modal-field-label">Notes (optional)</label>
         <textarea
@@ -545,7 +553,7 @@ function HmoVerificationQueue() {
           </button>
           <button
             type="button"
-            className="dash-btn"
+            className="dash-btn dash-btn--indigo"
             disabled={sendingId === statusUpdateTarget?.id}
             onClick={handleSendUpdate}
           >
@@ -554,7 +562,7 @@ function HmoVerificationQueue() {
         </div>
       </Modal>
 
-      <Modal open={!!editTarget} onClose={() => setEditTarget(null)} title="Edit Booking Info">
+      <Modal open={!!editTarget} onClose={() => setEditTarget(null)} title="Edit Booking Info" icon={EditIcon} tone="neutral">
         <p style={{ margin: '0 0 12px', fontSize: '0.85rem', color: 'var(--portal-muted)' }}>
           {editTarget && (
             <>
@@ -566,31 +574,27 @@ function HmoVerificationQueue() {
         </p>
 
         <label className="modal-field-label">Service</label>
-        <select
-          className="form-select"
+        <FilterDropdown
+          className="filter-dd-wrap--block"
+          options={[
+            { value: '', label: 'Select a service…' },
+            ...services.map((service) => ({ value: String(service.id), label: service.name })),
+          ]}
           value={editForm.serviceId}
-          onChange={(e) => handleEditServiceChange(e.target.value)}
-        >
-          <option value="">Select a service…</option>
-          {services.map((service) => (
-            <option key={service.id} value={service.id}>{service.name}</option>
-          ))}
-        </select>
+          onChange={handleEditServiceChange}
+        />
 
         <label className="modal-field-label">Assigned Dentist</label>
-        <select
-          className="form-select"
-          value={editForm.dentistId}
+        <FilterDropdown
+          className="filter-dd-wrap--block"
           disabled={!editForm.serviceId || loadingEditDentists}
-          onChange={(e) => handleEditDentistChange(e.target.value)}
-        >
-          <option value="">
-            {loadingEditDentists ? 'Loading dentists…' : 'Select a dentist…'}
-          </option>
-          {editDentists.map((dentist) => (
-            <option key={dentist.id} value={dentist.id}>{dentist.name}</option>
-          ))}
-        </select>
+          options={[
+            { value: '', label: loadingEditDentists ? 'Loading dentists…' : 'Select a dentist…' },
+            ...editDentists.map((dentist) => ({ value: String(dentist.id), label: dentist.name })),
+          ]}
+          value={editForm.dentistId}
+          onChange={handleEditDentistChange}
+        />
 
         <label className="modal-field-label">Date</label>
         <input
@@ -624,16 +628,15 @@ function HmoVerificationQueue() {
         )}
 
         <label className="modal-field-label" style={{ marginTop: 14, display: 'block' }}>HMO Provider</label>
-        <select
-          className="form-select"
+        <FilterDropdown
+          className="filter-dd-wrap--block"
+          options={[
+            { value: '', label: 'Select a provider…' },
+            ...hmoProviders.map((provider) => ({ value: String(provider.id), label: provider.name })),
+          ]}
           value={editForm.hmoProviderId}
-          onChange={(e) => setEditForm((p) => ({ ...p, hmoProviderId: e.target.value }))}
-        >
-          <option value="">Select a provider…</option>
-          {hmoProviders.map((provider) => (
-            <option key={provider.id} value={provider.id}>{provider.name}</option>
-          ))}
-        </select>
+          onChange={(value) => setEditForm((p) => ({ ...p, hmoProviderId: value }))}
+        />
 
         <label className="modal-field-label">Card Number</label>
         <input

@@ -26,17 +26,24 @@ function CheckIcon() {
   );
 }
 
-function FilterDropdown({ icon, options, value, onChange }) {
+// className is optional and purely additive (e.g. "filter-dd-wrap--block" to
+// fill a modal form field's width) — every existing toolbar caller omits it
+// and keeps today's inline, content-sized trigger unchanged.
+// disabled is likewise optional — mirrors a native <select disabled>, for a
+// field that depends on another one being picked first (e.g. HMO Queue's
+// Assigned Dentist, which needs a Service first).
+function FilterDropdown({ icon, options, value, onChange, className, disabled }) {
   const { open, setOpen, position, triggerRef, dropdownRef, toggle } = useDropdownPosition();
   const selected = options.find((o) => o.value === value) || options[0];
 
   return (
-    <div className="filter-dd-wrap">
+    <div className={`filter-dd-wrap${className ? ` ${className}` : ''}`}>
       <button
         ref={triggerRef}
         type="button"
         className={`filter-dd-trigger${open ? ' filter-dd-trigger--open' : ''}`}
         onClick={toggle}
+        disabled={disabled}
         aria-expanded={open}
       >
         {icon && <span className="filter-dd-icon">{icon}</span>}

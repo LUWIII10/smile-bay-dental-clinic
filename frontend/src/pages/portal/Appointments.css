@@ -113,6 +113,17 @@
   position: relative;
 }
 
+/* Opt-in variant for a modal form field (e.g. HMO Queue's Status/Service/
+   Assigned Dentist/HMO Provider pickers) — fills the field's width instead
+   of staying content-sized like a toolbar filter. */
+.filter-dd-wrap--block {
+  width: 100%;
+}
+
+.filter-dd-wrap--block .filter-dd-trigger {
+  width: 100%;
+}
+
 .filter-dd-trigger {
   box-sizing: border-box;
   height: 40px;
@@ -140,6 +151,11 @@
   color: var(--portal-blue-text);
   background: var(--portal-blue-bg);
   box-shadow: 0 0 0 3px var(--portal-blue-tint);
+}
+
+.filter-dd-trigger:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .filter-dd-icon {

@@ -9,7 +9,11 @@ import { CloseIcon } from '../icons';
 // size is optional ('lg' widens the card for content-heavy dialogs like the
 // appointment detail view) — every existing caller omits it and keeps
 // today's 440px width unchanged.
-function Modal({ open, onClose, title, children, closeOnBackdrop = true, size }) {
+// icon/tone are likewise optional — a colored icon chip next to the title
+// (tone picks red/gray/indigo), meant to visually continue whichever
+// colored button opened this dialog instead of resetting to a plain title.
+// Every existing caller omits both and renders exactly as before.
+function Modal({ open, onClose, title, icon: Icon, tone, children, closeOnBackdrop = true, size }) {
   // Esc closes, and body scroll is locked while any modal is open.
   useEffect(() => {
     if (!open) return undefined;
@@ -38,7 +42,10 @@ function Modal({ open, onClose, title, children, closeOnBackdrop = true, size })
       >
         {(title || onClose) && (
           <div className="modal-header">
-            {title && <h3 className="modal-title">{title}</h3>}
+            <div className="modal-header-main">
+              {Icon && <span className={`modal-icon modal-icon--${tone || 'neutral'}`}><Icon /></span>}
+              {title && <h3 className="modal-title">{title}</h3>}
+            </div>
             {onClose && (
               <button type="button" className="modal-close" onClick={onClose} aria-label="Close">
                 <CloseIcon />

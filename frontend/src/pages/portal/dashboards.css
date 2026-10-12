@@ -1175,12 +1175,42 @@
   border-bottom: 1px solid var(--portal-border-light);
 }
 
+.modal-header-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
 .modal-title {
   margin: 0;
   font-size: 1rem;
   font-weight: 600;
   color: var(--portal-navy);
 }
+
+/* Optional colored icon chip (Modal's icon/tone props) — continues whatever
+   colored button opened the dialog (red Reject, gray Edit Info, indigo Send
+   Status Update) instead of resetting to a plain title. Unused unless a
+   caller opts in. */
+.modal-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.modal-icon--danger { background: var(--portal-red-bg); color: var(--portal-red-text); }
+.modal-icon--neutral { background: var(--portal-gray-bg); color: var(--portal-gray-text); }
+.modal-icon--indigo { background: var(--portal-indigo-bg); color: var(--portal-indigo-text); }
 
 .modal-close {
   flex-shrink: 0;
@@ -1447,6 +1477,17 @@
   background: #8f1c12;
 }
 
+/* HMO Queue's Send Status Update confirm button — matches that dialog's
+   indigo header icon chip (see .modal-icon--indigo) instead of the generic
+   primary blue every other confirm button already uses. */
+.dash-btn--indigo {
+  background: var(--portal-indigo-text);
+}
+
+.dash-btn--indigo:hover {
+  background: #362f9e;
+}
+
 .dash-btn--outline {
   background: none;
   color: var(--portal-slate);
@@ -1582,6 +1623,9 @@
 .form-textarea:focus {
   outline: none;
   border-color: var(--portal-blue);
+  /* Matches .form-input/.form-select:focus's halo (Appointments.css) —
+     textarea was the one field missing it. */
+  box-shadow: 0 0 0 3px var(--portal-blue-tint);
 }
 
 /* ============ Tab bar with count badges ============
