@@ -118,11 +118,21 @@ class AppointmentSlotService
         $cursor = Carbon::parse($startDate)->startOfDay();
         $end = Carbon::parse($endDate)->startOfDay();
         $today = Carbon::today();
+        $dentistIds = $this->credentialedDentistIds($serviceId);
 
         while ($cursor->lte($end)) {
             $dateKey = $cursor->toDateString();
 
-            if ($cursor->lt($today)) {
+            // Closed day for every credentialed dentist (a clinic-wide
+            // closure like Sunday counts here too, since none of them have
+            // hours that day either) — nothing to compute, not bookable.
+            // Previously this only checked "is it in the past," so a
+            // same-day union with zero slots because the clinic itself was
+            // closed matched the $count === 0 branch below and showed as
+            // "Fully Booked" instead of "Unavailable."
+            $anyOpen = collect($dentistIds)->contains(fn (int $id) => $this->operatingHoursFor($id, $dateKey) !== null);
+
+            if ($cursor->lt($today) || ! $anyOpen) {
                 $summary[$dateKey] = ['status' => 'unavailable', 'count' => 0];
             } else {
                 $count = count($this->getAvailableSlotsAnyDentist($serviceId, $dateKey, $durationMinutes));
