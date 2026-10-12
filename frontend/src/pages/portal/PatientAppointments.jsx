@@ -340,7 +340,7 @@ function PatientAppointments() {
     {
       key: 'service',
       label: 'Service',
-      minWidth: showDetails ? '24%' : '34%',
+      minWidth: showDetails ? '22%' : '32%',
       minWidthPx: '170px',
       clampLines: 2,
       render: (row) => (
@@ -360,7 +360,7 @@ function PatientAppointments() {
     {
       key: 'dentist',
       label: 'Doctor',
-      minWidth: showDetails ? '20%' : '28%',
+      minWidth: showDetails ? '18%' : '26%',
       minWidthPx: '170px',
       render: (row) => {
         const name = row.dentist?.name || 'Unassigned';
@@ -377,8 +377,12 @@ function PatientAppointments() {
     {
       key: 'status',
       label: 'Status',
-      minWidth: '10%',
-      minWidthPx: '100px',
+      // Widened from 10%/100px — the status-badge icons added alongside
+      // this redesign made "Awaiting Update"/"Coverage Verified — Awaiting
+      // Your Date" wider than the old floor, so the pill was overflowing
+      // into the Details column instead of actually centering in its own.
+      minWidth: '14%',
+      minWidthPx: '150px',
       align: 'center',
       render: (row) =>
         isStaffProposal(row) ? (
@@ -453,7 +457,7 @@ function PatientAppointments() {
     }] : []),
     {
       key: 'actions',
-      label: '',
+      label: 'Action',
       minWidth: '14%',
       minWidthPx: '140px',
       align: 'right',
