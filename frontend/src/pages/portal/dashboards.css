@@ -1471,6 +1471,40 @@
   background: var(--portal-red-bg);
 }
 
+/* Filled-tint variants — a secondary action that still needs to read as
+   clearly clickable at a glance, not --outline's near-invisible transparent
+   fill. HMO Verification Queue's Reject/Edit Info buttons were getting lost
+   next to the solid-blue Approve button until these were added. */
+.dash-btn--tint-danger {
+  background: var(--portal-red-bg);
+  color: var(--portal-red-text);
+  border: 1px solid var(--portal-red-border);
+}
+
+.dash-btn--tint-danger:hover {
+  background: #fecaca;
+}
+
+.dash-btn--tint-neutral {
+  background: var(--portal-gray-bg);
+  color: var(--portal-gray-text);
+  border: 1px solid var(--portal-gray-border);
+}
+
+.dash-btn--tint-neutral:hover {
+  background: #e2e8f0;
+}
+
+.dash-btn--tint-indigo {
+  background: var(--portal-indigo-bg);
+  color: var(--portal-indigo-text);
+  border: 1px solid var(--portal-indigo-border);
+}
+
+.dash-btn--tint-indigo:hover {
+  background: #e0e7ff;
+}
+
 /* Same shape again, blue instead — a neutral-but-branded secondary choice
    (Request a Different Date) that needs to read as "a real, fine option",
    not as muted/discouraged as --outline's plain gray would make it look
@@ -1858,6 +1892,75 @@
   flex-wrap: wrap;
   gap: 10px;
 }
+
+/* ============ HMO Queue-only additions (approved redesign) ============
+   New classes, not edits to .queue-card/.queue-card-header/.queue-card-grid
+   above — Pediatric Queue renders that same shared shell too, and wasn't
+   part of this redesign, so it stays exactly as-is. .queue-card--hmo just
+   drops the permanent amber left-border (status already lives in the
+   pending pill + the overdue note; the stripe was on every card
+   regardless of real urgency). */
+.queue-card--hmo {
+  border-left: 1.5px solid var(--portal-border-light);
+}
+
+.hq-identity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.hq-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--portal-blue-bg);
+  color: var(--portal-blue-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.hq-identity-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* Replaces .queue-card-grid's plain label/value pairs for this card only —
+   each field gets its own tinted icon so it's identifiable by color alone,
+   before reading the label. */
+.hq-field {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.hq-field-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hq-field-icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.hq-field-icon--service { background: var(--portal-blue-bg); color: var(--portal-blue-text); }
+.hq-field-icon--dentist { background: #e4e9f5; color: var(--portal-navy); }
+.hq-field-icon--date { background: var(--portal-amber-bg); color: var(--portal-amber-text); }
+.hq-field-icon--hmo { background: #ccfbf1; color: #0f766e; }
+.hq-field-icon--card { background: var(--portal-gray-bg); color: var(--portal-gray-text); }
 
 /* ============ Overdue pediatric card (PediatricQueue's "Needs New Date"
    tab) — same .queue-card shell, no Approve/Reject actions (there's

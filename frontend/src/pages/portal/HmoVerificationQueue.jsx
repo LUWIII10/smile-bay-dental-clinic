@@ -10,7 +10,7 @@ import Modal from './components/Modal';
 import Skeleton from './components/Skeleton';
 import PageHeader from './components/PageHeader';
 import AvailableSlotPicker from './components/AvailableSlotPicker';
-import { ShieldIcon, CheckCircleIcon, MailIcon, CalendarIcon, AlertIcon } from './icons';
+import { ShieldIcon, CheckCircleIcon, MailIcon, CalendarIcon, AlertIcon, UserIcon, ToothIcon, FileIcon } from './icons';
 import { formatDateLong, formatTime12h, toLocalDate } from './dateTimeUtils';
 import { showSuccessToast } from '../../utils/toast';
 import './dashboards.css';
@@ -59,6 +59,10 @@ function isOverdue(appointment) {
   return toLocalDate(appointment.appointment_date) < today;
 }
 
+function initials(firstName, lastName) {
+  return `${(firstName || '')[0] || ''}${(lastName || '')[0] || ''}`.toUpperCase();
+}
+
 function QueueCard({ appointment, actingId, sendingId, onApprove, onReject, onSendUpdate, onEditHmoInfo, onProposeNewDate }) {
   const isPediatricApproved = appointment.service?.name?.includes('Pediatric') && appointment.pediatric_confirmed_at;
   const hmoProviderName = appointment.patient?.hmo_provider?.name || appointment.patient?.hmo_company_name || 'HMO';
@@ -69,15 +73,20 @@ function QueueCard({ appointment, actingId, sendingId, onApprove, onReject, onSe
   const overdue = isOverdue(appointment);
 
   return (
-    <div className="queue-card">
+    <div className="queue-card queue-card--hmo">
       <div className="queue-card-header">
-        <span className="queue-card-patient">
-          {appointment.patient?.first_name} {appointment.patient?.last_name}
-        </span>
+        <div className="hq-identity">
+          <span className="hq-avatar">{initials(appointment.patient?.first_name, appointment.patient?.last_name)}</span>
+          <div className="hq-identity-text">
+            <span className="queue-card-patient">
+              {appointment.patient?.first_name} {appointment.patient?.last_name}
+            </span>
+            <span className="queue-card-submitted">Submitted {formatSubmitted(appointment.created_at)}</span>
+          </div>
+        </div>
         <div className="queue-card-badges">
           {isPediatricApproved && <StatusBadge status="pediatric_confirmed_pending_hmo" />}
           <StatusBadge status="pending_verification" />
-          <span className="queue-card-submitted">Submitted {formatSubmitted(appointment.created_at)}</span>
         </div>
       </div>
 
@@ -88,27 +97,42 @@ function QueueCard({ appointment, actingId, sendingId, onApprove, onReject, onSe
       )}
 
       <div className="queue-card-grid">
-        <div>
-          <span className="queue-card-field-label">Service</span>
-          <span className="queue-card-field-value">{appointment.service?.name}</span>
+        <div className="hq-field">
+          <span className="hq-field-icon hq-field-icon--service"><ToothIcon /></span>
+          <div>
+            <span className="queue-card-field-label">Service</span>
+            <span className="queue-card-field-value">{appointment.service?.name}</span>
+          </div>
         </div>
-        <div>
-          <span className="queue-card-field-label">Assigned Dentist</span>
-          <span className="queue-card-field-value">{appointment.dentist?.name || 'Unassigned'}</span>
+        <div className="hq-field">
+          <span className="hq-field-icon hq-field-icon--dentist"><UserIcon /></span>
+          <div>
+            <span className="queue-card-field-label">Assigned Dentist</span>
+            <span className="queue-card-field-value">{appointment.dentist?.name || 'Unassigned'}</span>
+          </div>
         </div>
-        <div>
-          <span className="queue-card-field-label">Requested</span>
-          <span className={`queue-card-field-value${overdue ? ' queue-card-field-value--overdue' : ''}`}>
-            {formatDateLong(appointment.appointment_date)} &middot; {formatTime12h(appointment.appointment_time)}
-          </span>
+        <div className="hq-field">
+          <span className="hq-field-icon hq-field-icon--date"><CalendarIcon /></span>
+          <div>
+            <span className="queue-card-field-label">Requested</span>
+            <span className={`queue-card-field-value${overdue ? ' queue-card-field-value--overdue' : ''}`}>
+              {formatDateLong(appointment.appointment_date)} &middot; {formatTime12h(appointment.appointment_time)}
+            </span>
+          </div>
         </div>
-        <div>
-          <span className="queue-card-field-label">HMO Provider</span>
-          <span className="queue-card-field-value">{hmoProviderName}</span>
+        <div className="hq-field">
+          <span className="hq-field-icon hq-field-icon--hmo"><ShieldIcon /></span>
+          <div>
+            <span className="queue-card-field-label">HMO Provider</span>
+            <span className="queue-card-field-value">{hmoProviderName}</span>
+          </div>
         </div>
-        <div>
-          <span className="queue-card-field-label">Card Number</span>
-          <span className="queue-card-field-value">{appointment.patient?.hmo_number || 'Not on file'}</span>
+        <div className="hq-field">
+          <span className="hq-field-icon hq-field-icon--card"><FileIcon /></span>
+          <div>
+            <span className="queue-card-field-label">Card Number</span>
+            <span className="queue-card-field-value">{appointment.patient?.hmo_number || 'Not on file'}</span>
+          </div>
         </div>
       </div>
 
@@ -122,15 +146,15 @@ function QueueCard({ appointment, actingId, sendingId, onApprove, onReject, onSe
             <CheckCircleIcon /> {isActing ? 'Saving…' : 'Approve'}
           </button>
         )}
-        <button type="button" className="dash-btn dash-btn--outline" disabled={isActing} onClick={() => onReject(appointment)}>
+        <button type="button" className="dash-btn dash-btn--tint-danger" disabled={isActing} onClick={() => onReject(appointment)}>
           Reject
         </button>
-        <button type="button" className="dash-btn dash-btn--outline" disabled={isActing} onClick={() => onEditHmoInfo(appointment)}>
+        <button type="button" className="dash-btn dash-btn--tint-neutral" disabled={isActing} onClick={() => onEditHmoInfo(appointment)}>
           Edit Info
         </button>
         <button
           type="button"
-          className="dash-btn dash-btn--outline"
+          className="dash-btn dash-btn--tint-indigo"
           disabled={isSending || hasNoEmailOnFile}
           title={hasNoEmailOnFile ? 'No email on file for this patient' : 'Email the patient that their HMO verification is still in progress'}
           onClick={() => onSendUpdate(appointment)}
