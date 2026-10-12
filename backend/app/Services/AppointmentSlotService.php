@@ -453,14 +453,24 @@ class AppointmentSlotService
      * once operatingHoursFor() has already returned null for it. Two real
      * reasons, both ultimately "this dentist isn't working," but worth
      * telling apart for the calendar's hover tooltip:
-     * - 'day_off': specific to THIS dentist — either a one-off
-     *   dentist_day_off row for the exact date, or (for a dentist with a
-     *   custom dentist_weekly_hours schedule) a recurring non-working day
-     *   of the week, e.g. every Tuesday/Thursday. Another dentist could
-     *   still be working that same day.
-     * - 'closed': the clinic itself is closed that day of the week
-     *   (clinic_schedules) — applies to every dentist without their own
-     *   custom weekly hours, e.g. every Sunday.
+     * - 'day_off': specific to THIS dentist — a one-off dentist_day_off row
+     *   for the exact date, or any other day this dentist has no hours
+     *   while the clinic itself is open that day of the week (e.g. a
+     *   recurring Tuesday/Thursday their own schedule doesn't cover).
+     *   Another dentist could still be working that same day.
+     * - 'closed': the clinic itself is closed that day of the week, per
+     *   clinic_schedules.is_open — currently just Sunday, but whatever
+     *   Settings' Operating Hours actually says, so this never needs a
+     *   literal day-of-week check hardcoded here. Applies to every dentist
+     *   alike, regardless of whether they have their own weekly-hours rows.
+     *
+     * Deliberately NOT keyed off whether this dentist has a custom
+     * dentist_weekly_hours schedule — that was the earlier version of this
+     * method, and it mislabeled a dentist's own non-working day as "clinic
+     * closed" whenever their weekly hours happened to be unseeded, all
+     * inactive, or they were flagged is_on_call, even though the clinic
+     * itself was open that day for other dentists. The clinic's own
+     * schedule is the only thing that should ever say "closed."
      */
     private function unavailabilityReason(int $dentistId, string $date): string
     {
@@ -473,10 +483,11 @@ class AppointmentSlotService
             return 'day_off';
         }
 
-        $isOnCall = (bool) DB::table('dentist_profiles')->where('user_id', $dentistId)->value('is_on_call');
-        $hasCustomHours = ! $isOnCall && DB::table('dentist_weekly_hours')->where('dentist_id', $dentistId)->exists();
+        $dayOfWeek = Carbon::parse($date)->dayOfWeek;
+        $clinicRow = DB::table('clinic_schedules')->where('day_of_week', $dayOfWeek)->first();
+        $clinicOpen = (bool) ($clinicRow->is_open ?? false);
 
-        return $hasCustomHours ? 'day_off' : 'closed';
+        return $clinicOpen ? 'day_off' : 'closed';
     }
 
     /**
