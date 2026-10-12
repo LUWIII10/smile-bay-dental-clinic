@@ -3,67 +3,166 @@
    now that Settings.jsx also uses them; this file only keeps what's
    genuinely specific to this page. */
 
-.profile-password-checklist {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 16px;
-  margin: 0;
-  padding: 0;
-}
+/* ============ Profile hero — replaces the old separate "Profile Photo"
+   card; merges photo + name + role + email into one identity header
+   instead of the photo sitting above a plain name field further down
+   the page. ============ */
 
-.profile-password-checklist li {
-  list-style: none;
-  font-size: 0.76rem;
-  color: var(--portal-muted);
-}
-
-.profile-password-checklist li.met {
-  color: var(--portal-green-text);
-}
-
-/* ============ Profile photo ============ */
-
-.avatar-upload-row {
+.profile-hero {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 20px;
+  flex-wrap: wrap;
 }
 
-.avatar-upload-preview {
+.profile-hero-left {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  min-width: 0;
+}
+
+.profile-hero-avatar {
   flex-shrink: 0;
-  width: 72px;
-  height: 72px;
+  width: 84px;
+  height: 84px;
   border-radius: 50%;
   overflow: hidden;
-  background: var(--portal-blue-tint);
-  color: var(--portal-blue);
+  background: var(--portal-blue-bg);
+  color: var(--portal-blue-text);
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--portal-border-light);
+  font-size: 1.5rem;
+  font-weight: 700;
+  border: 3px solid var(--portal-card);
+  box-shadow: 0 0 0 1px var(--portal-border-light);
 }
 
-.avatar-upload-preview img {
+.profile-hero-avatar img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.avatar-upload-initials {
-  font-size: 1.4rem;
-  font-weight: 600;
+.profile-hero-name {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--portal-navy);
+  line-height: 1.25;
 }
 
-.avatar-upload-actions {
+.profile-hero-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 5px;
+  flex-wrap: wrap;
+}
+
+.profile-hero-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 11px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.profile-hero-pill--blue { background: var(--portal-blue-bg); color: var(--portal-blue-text); }
+.profile-hero-pill--indigo { background: var(--portal-indigo-bg); color: var(--portal-indigo-text); }
+.profile-hero-pill--teal { background: #ccfbf1; color: #0f766e; }
+
+.profile-hero-email {
+  font-size: 0.82rem;
+  color: var(--portal-muted);
+  margin-top: 6px;
+}
+
+.profile-hero-actions {
   display: flex;
   flex-direction: column;
+  align-items: flex-end;
   gap: 8px;
 }
 
-.avatar-upload-hint {
+.profile-hero-hint {
   margin: 0;
   font-size: 0.76rem;
   color: var(--portal-muted);
+}
+
+/* ============ Icon-coded fields — wraps .profile-field/.profile-field-label
+   rather than changing them, so Settings.jsx's own (separate) Field
+   component and plain .profile-field usage elsewhere are unaffected. */
+
+.profile-field-icon-row {
+  display: flex;
+  gap: 11px;
+  align-items: flex-start;
+}
+
+.profile-field-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  flex-shrink: 0;
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.profile-field-icon svg {
+  width: 15px;
+  height: 15px;
+}
+
+.profile-field-icon--blue { background: var(--portal-blue-bg); color: var(--portal-blue-text); }
+.profile-field-icon--navy { background: #e4e9f5; color: var(--portal-navy); }
+.profile-field-icon--teal { background: #ccfbf1; color: #0f766e; }
+.profile-field-icon--indigo { background: var(--portal-indigo-bg); color: var(--portal-indigo-text); }
+.profile-field-icon--slate { background: var(--portal-gray-bg); color: var(--portal-gray-text); }
+.profile-field-icon--red { background: var(--portal-red-bg); color: var(--portal-red-text); }
+.profile-field-icon--amber { background: var(--portal-amber-bg); color: var(--portal-amber-text); }
+
+.profile-field-icon-body {
+  flex-grow: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* ============ Password checklist — chips that fill in green as each
+   rule is met, replacing the old plain bulleted list. ============ */
+
+.profile-pw-checklist {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.profile-pw-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  background: var(--portal-gray-bg);
+  color: var(--portal-gray-text);
+  border: 1px solid var(--portal-border-light);
+}
+
+.profile-pw-chip--met {
+  background: var(--portal-green-bg);
+  color: var(--portal-green-text);
+  border-color: transparent;
 }
 
 /* ============ HMO coverage (staff-entered, read-only) ============

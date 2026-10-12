@@ -325,6 +325,16 @@
   box-shadow: 0 4px 10px rgba(180, 83, 9, 0.28);
 }
 
+.section-card-icon--indigo {
+  background: linear-gradient(150deg, #6366f1, var(--portal-indigo-text));
+  box-shadow: 0 4px 10px rgba(67, 56, 202, 0.28);
+}
+
+.section-card-icon--teal {
+  background: linear-gradient(150deg, #2dd4bf, #0f766e);
+  box-shadow: 0 4px 10px rgba(15, 118, 110, 0.28);
+}
+
 /* Self-contained icon+text composition for a .section-card-title that
    wants a leading icon — an inline-flex wrapper *inside* the title rather
    than changing .section-card-title's own display, so every other page's

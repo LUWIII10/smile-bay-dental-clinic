@@ -6,7 +6,10 @@ import { passwordChecklist } from '../auth/registerSteps/validation';
 import { getAvatarUrl } from './avatarUtils';
 import Skeleton from './components/Skeleton';
 import PageHeader from './components/PageHeader';
-import { UserIcon, ShieldIcon } from './icons';
+import {
+  UserIcon, ShieldIcon, MailIcon, PhoneIcon, CameraIcon, LockIcon, MapPinIcon, UsersIcon,
+  AlertIcon, SyringeIcon, FileIcon, BuildingIcon, ToothIcon, ClockIcon,
+} from './icons';
 import './dashboards.css';
 import './MyProfile.css';
 
@@ -25,11 +28,36 @@ const CHECKLIST_ITEMS = [
   { key: 'special', label: 'One special character' },
 ];
 
-function Field({ label, children, full }) {
+const ROLE_LABELS = { patient: 'Patient', dentist: 'Dentist', dental_assistant: 'Dental Assistant' };
+const ROLE_TONE = { patient: 'blue', dentist: 'indigo', dental_assistant: 'teal' };
+
+function CheckIcon() {
   return (
-    <div className={`profile-field${full ? ' profile-field-full' : ''}`}>
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
+  );
+}
+
+// icon/tone are optional — every field on this page now passes them
+// (color-coded, same pattern already shipped on Patient Records/HMO
+// Queue), kept optional only so the component doesn't force every future
+// caller to supply one.
+function Field({ label, children, full, icon: Icon, tone }) {
+  const body = (
+    <>
       <label className="profile-field-label">{label}</label>
       {children}
+    </>
+  );
+  return (
+    <div className={`profile-field${full ? ' profile-field-full' : ''}`}>
+      {Icon ? (
+        <div className="profile-field-icon-row">
+          <span className={`profile-field-icon profile-field-icon--${tone || 'blue'}`}><Icon /></span>
+          <div className="profile-field-icon-body">{body}</div>
+        </div>
+      ) : body}
     </div>
   );
 }
@@ -252,21 +280,28 @@ function MyProfile() {
       <PageHeader icon={UserIcon} title="My Profile" subtitle="View and update your Smile Bay account details." />
 
       <div className="section-card">
-        <div className="section-card-header">
-          <h3 className="section-card-title">Profile Photo</h3>
-        </div>
-
         {avatarError && <div className="profile-alert profile-alert--error">{avatarError}</div>}
 
-        <div className="avatar-upload-row">
-          <span className="avatar-upload-preview">
-            {getAvatarUrl(profile) ? (
-              <img src={getAvatarUrl(profile)} alt="" />
-            ) : (
-              <span className="avatar-upload-initials">{getInitials(profile.name)}</span>
-            )}
-          </span>
-          <div className="avatar-upload-actions">
+        <div className="profile-hero">
+          <div className="profile-hero-left">
+            <span className="profile-hero-avatar">
+              {getAvatarUrl(profile) ? (
+                <img src={getAvatarUrl(profile)} alt="" />
+              ) : (
+                <span>{getInitials(profile.name)}</span>
+              )}
+            </span>
+            <div>
+              <div className="profile-hero-name">{profile.name}</div>
+              <div className="profile-hero-meta">
+                <span className={`profile-hero-pill profile-hero-pill--${ROLE_TONE[role] || 'blue'}`}>
+                  {ROLE_LABELS[role] || role}
+                </span>
+              </div>
+              <div className="profile-hero-email">{profile.email}</div>
+            </div>
+          </div>
+          <div className="profile-hero-actions">
             <div className="dash-btn-row">
               <button
                 type="button"
@@ -274,7 +309,7 @@ function MyProfile() {
                 disabled={avatarSaving}
                 onClick={() => avatarInputRef.current?.click()}
               >
-                {avatarSaving ? 'Saving…' : 'Change Photo'}
+                <CameraIcon /> {avatarSaving ? 'Saving…' : 'Change Photo'}
               </button>
               {getAvatarUrl(profile) && (
                 <button
@@ -287,7 +322,7 @@ function MyProfile() {
                 </button>
               )}
             </div>
-            <p className="avatar-upload-hint">JPG, PNG, or WEBP. Max 4MB.</p>
+            <p className="profile-hero-hint">JPG, PNG, or WEBP. Max 4MB.</p>
             <input
               ref={avatarInputRef}
               type="file"
@@ -302,17 +337,20 @@ function MyProfile() {
       <form onSubmit={handleSave}>
         <div className="section-card">
           <div className="section-card-header">
-            <h3 className="section-card-title">Account Information</h3>
+            <div className="section-card-heading">
+              <span className="section-card-icon"><UserIcon /></span>
+              <h3 className="section-card-title">Account Information</h3>
+            </div>
           </div>
 
           {saveError && <div className="profile-alert profile-alert--error">{saveError}</div>}
           {saveSuccess && <div className="profile-alert profile-alert--success">{saveSuccess}</div>}
 
           <div className="profile-grid">
-            <Field label="Email Address">
+            <Field label="Email Address" icon={MailIcon} tone="blue">
               <input className="form-input" value={profile.email} disabled />
             </Field>
-            <Field label="Mobile Number">
+            <Field label="Mobile Number" icon={PhoneIcon} tone="teal">
               <input
                 className="form-input"
                 value={form.mobile_number}
@@ -323,21 +361,21 @@ function MyProfile() {
 
             {isPatient ? (
               <>
-                <Field label="First Name">
+                <Field label="First Name" icon={UserIcon} tone="navy">
                   <input className="form-input" value={form.first_name} onChange={(e) => set('first_name', e.target.value)} />
                 </Field>
-                <Field label="Middle Name">
+                <Field label="Middle Name" icon={UserIcon} tone="navy">
                   <input className="form-input" value={form.middle_name} onChange={(e) => set('middle_name', e.target.value)} />
                 </Field>
-                <Field label="Last Name">
+                <Field label="Last Name" icon={UserIcon} tone="navy">
                   <input className="form-input" value={form.last_name} onChange={(e) => set('last_name', e.target.value)} />
                 </Field>
-                <Field label="Patient No.">
+                <Field label="Patient No." icon={FileIcon} tone="slate">
                   <input className="form-input" value={profile.patient?.patient_number || ''} disabled />
                 </Field>
               </>
             ) : (
-              <Field label="Full Name">
+              <Field label="Full Name" icon={UserIcon} tone="navy">
                 <input className="form-input" value={form.name} onChange={(e) => set('name', e.target.value)} />
               </Field>
             )}
@@ -348,31 +386,34 @@ function MyProfile() {
           <>
             <div className="section-card">
               <div className="section-card-header">
-                <h3 className="section-card-title">Address &amp; Emergency Contact</h3>
+                <div className="section-card-heading">
+                  <span className="section-card-icon section-card-icon--teal"><MapPinIcon /></span>
+                  <h3 className="section-card-title">Address &amp; Emergency Contact</h3>
+                </div>
               </div>
               <div className="profile-grid">
-                <Field label="Complete Address" full>
+                <Field label="Complete Address" full icon={MapPinIcon} tone="slate">
                   <input
                     className="form-input"
                     value={form.complete_address}
                     onChange={(e) => set('complete_address', e.target.value)}
                   />
                 </Field>
-                <Field label="Emergency Contact Name">
+                <Field label="Emergency Contact Name" icon={UsersIcon} tone="indigo">
                   <input
                     className="form-input"
                     value={form.emergency_contact_name}
                     onChange={(e) => set('emergency_contact_name', e.target.value)}
                   />
                 </Field>
-                <Field label="Relationship">
+                <Field label="Relationship" icon={UsersIcon} tone="indigo">
                   <input
                     className="form-input"
                     value={form.emergency_contact_relationship}
                     onChange={(e) => set('emergency_contact_relationship', e.target.value)}
                   />
                 </Field>
-                <Field label="Emergency Contact Number">
+                <Field label="Emergency Contact Number" icon={PhoneIcon} tone="teal">
                   <input
                     className="form-input"
                     value={form.emergency_contact_number}
@@ -384,16 +425,19 @@ function MyProfile() {
 
             <div className="section-card">
               <div className="section-card-header">
-                <h3 className="section-card-title">Medical Information</h3>
+                <div className="section-card-heading">
+                  <span className="section-card-icon section-card-icon--red"><SyringeIcon /></span>
+                  <h3 className="section-card-title">Medical Information</h3>
+                </div>
               </div>
               <div className="profile-grid">
-                <Field label="Allergies" full>
+                <Field label="Allergies" full icon={AlertIcon} tone="red">
                   <textarea className="form-textarea" value={form.allergies} onChange={(e) => set('allergies', e.target.value)} placeholder="Leave blank if none" />
                 </Field>
-                <Field label="Current Medications" full>
+                <Field label="Current Medications" full icon={SyringeIcon} tone="indigo">
                   <textarea className="form-textarea" value={form.current_medications} onChange={(e) => set('current_medications', e.target.value)} placeholder="Leave blank if none" />
                 </Field>
-                <Field label="Relevant Medical Conditions" full>
+                <Field label="Relevant Medical Conditions" full icon={FileIcon} tone="slate">
                   <textarea className="form-textarea" value={form.medical_conditions_notes} onChange={(e) => set('medical_conditions_notes', e.target.value)} placeholder="Leave blank if none" />
                 </Field>
               </div>
@@ -401,14 +445,17 @@ function MyProfile() {
 
             <div className="section-card">
               <div className="section-card-header">
-                <h3 className="section-card-title">Patient Type / Coverage</h3>
+                <div className="section-card-heading">
+                  <span className="section-card-icon"><ShieldIcon /></span>
+                  <h3 className="section-card-title">Patient Type / Coverage</h3>
+                </div>
               </div>
               <p className="section-card-subtitle" style={{ margin: '-8px 0 14px' }}>
                 Switch between Cash and HMO any time — e.g. you just got HMO coverage, or your coverage ended. This only
                 affects appointments you book from now on; past visits keep the payment method they were booked under.
               </p>
               <div className="profile-grid">
-                <Field label="Patient Type">
+                <Field label="Patient Type" icon={ShieldIcon} tone="blue">
                   <select className="form-select" value={form.patient_type} onChange={(e) => set('patient_type', e.target.value)}>
                     <option value="cash">Cash Patient</option>
                     <option value="hmo">HMO Covered Patient</option>
@@ -417,7 +464,7 @@ function MyProfile() {
 
                 {form.patient_type === 'hmo' && (
                   <>
-                    <Field label="HMO Provider">
+                    <Field label="HMO Provider" icon={ShieldIcon} tone="teal">
                       <select
                         className="form-select"
                         value={form.hmo_provider_id}
@@ -434,7 +481,7 @@ function MyProfile() {
                         </span>
                       )}
                     </Field>
-                    <Field label="HMO Card / Member ID Number">
+                    <Field label="HMO Card / Member ID Number" icon={FileIcon} tone="slate">
                       <input
                         className="form-input"
                         value={form.hmo_number}
@@ -442,7 +489,7 @@ function MyProfile() {
                         placeholder="Enter your HMO card / member ID number"
                       />
                     </Field>
-                    <Field label="Company Name / Employer">
+                    <Field label="Company Name / Employer" icon={BuildingIcon} tone="navy">
                       <input
                         className="form-input"
                         value={form.hmo_company_name}
@@ -481,13 +528,16 @@ function MyProfile() {
         {isDentist && (
           <div className="section-card">
             <div className="section-card-header">
-              <h3 className="section-card-title">Professional Information</h3>
+              <div className="section-card-heading">
+                <span className="section-card-icon"><ToothIcon /></span>
+                <h3 className="section-card-title">Professional Information</h3>
+              </div>
             </div>
             <div className="profile-grid">
-              <Field label="Specialization">
+              <Field label="Specialization" icon={ToothIcon} tone="blue">
                 <input className="form-input" value={form.specialization} onChange={(e) => set('specialization', e.target.value)} placeholder="e.g. Pediatric Dentistry" />
               </Field>
-              <Field label="Years of Experience">
+              <Field label="Years of Experience" icon={ClockIcon} tone="amber">
                 <input
                   className="form-input"
                   type="number"
@@ -497,7 +547,7 @@ function MyProfile() {
                   onChange={(e) => set('years_experience', e.target.value)}
                 />
               </Field>
-              <Field label="Bio" full>
+              <Field label="Bio" full icon={FileIcon} tone="slate">
                 <textarea className="form-textarea" value={form.bio} onChange={(e) => set('bio', e.target.value)} placeholder="Shown on the clinic's dentist listing" />
               </Field>
             </div>
@@ -514,14 +564,17 @@ function MyProfile() {
       <form onSubmit={handleChangePassword}>
         <div className="section-card">
           <div className="section-card-header">
-            <h3 className="section-card-title">Change Password</h3>
+            <div className="section-card-heading">
+              <span className="section-card-icon section-card-icon--indigo"><LockIcon /></span>
+              <h3 className="section-card-title">Change Password</h3>
+            </div>
           </div>
 
           {pwError && <div className="profile-alert profile-alert--error">{pwError}</div>}
           {pwSuccess && <div className="profile-alert profile-alert--success">{pwSuccess}</div>}
 
           <div className="profile-grid">
-            <Field label="Current Password" full>
+            <Field label="Current Password" full icon={LockIcon} tone="indigo">
               <input
                 className="form-input"
                 type="password"
@@ -530,7 +583,7 @@ function MyProfile() {
                 autoComplete="current-password"
               />
             </Field>
-            <Field label="New Password">
+            <Field label="New Password" icon={LockIcon} tone="indigo">
               <input
                 className="form-input"
                 type="password"
@@ -539,7 +592,7 @@ function MyProfile() {
                 autoComplete="new-password"
               />
             </Field>
-            <Field label="Confirm New Password">
+            <Field label="Confirm New Password" icon={LockIcon} tone="indigo">
               <input
                 className="form-input"
                 type="password"
@@ -549,13 +602,13 @@ function MyProfile() {
               />
             </Field>
 
-            <ul className="profile-password-checklist profile-field-full">
+            <div className="profile-pw-checklist profile-field-full">
               {CHECKLIST_ITEMS.map((item) => (
-                <li key={item.key} className={pw[item.key] ? 'met' : ''}>
-                  {pw[item.key] ? '✓' : '•'} {item.label}
-                </li>
+                <span key={item.key} className={`profile-pw-chip${pw[item.key] ? ' profile-pw-chip--met' : ''}`}>
+                  {pw[item.key] && <CheckIcon />} {item.label}
+                </span>
               ))}
-            </ul>
+            </div>
           </div>
 
           <div className="profile-save-row">

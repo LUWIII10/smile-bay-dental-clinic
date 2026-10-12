@@ -392,6 +392,20 @@ export const PhoneIcon = () => (
   </svg>
 );
 
+export const LockIcon = () => (
+  <svg {...base}>
+    <rect x="3" y="11" width="18" height="11" rx="2" />
+    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+  </svg>
+);
+
+export const CameraIcon = () => (
+  <svg {...base}>
+    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2Z" />
+    <circle cx="12" cy="13" r="4" />
+  </svg>
+);
+
 export const ICONS = {
   dashboard: DashboardIcon,
   calendar: CalendarIcon,
