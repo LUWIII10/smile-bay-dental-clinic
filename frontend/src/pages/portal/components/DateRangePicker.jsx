@@ -52,7 +52,13 @@ function ChevronRightIcon() {
 // immediately on a day click (one date is a complete, unambiguous pick;
 // there's nothing for a second click to disambiguate the way a range's
 // start/end does, so no Apply step).
-function DateRangePicker({ mode = 'range', value, onChange, placeholder = 'Pick a date' }) {
+// minDate (optional, single mode) — an ISO date before which every day is
+// disabled, same idea as a native <input type="date" min="...">. First
+// consumer: HMO Queue's Edit Booking Info, which can't be rescheduled into
+// the past.
+// className is optional and purely additive (e.g. "drp-wrap--block" to fill
+// a modal form field's width) — every existing caller omits it.
+function DateRangePicker({ mode = 'range', value, onChange, placeholder = 'Pick a date', minDate, className }) {
   const { open, setOpen, position, triggerRef, dropdownRef, toggle } = useDropdownPosition();
 
   const initialAnchor = mode === 'range' ? (value?.to || todayISO()) : (value || todayISO());
@@ -166,7 +172,7 @@ function DateRangePicker({ mode = 'range', value, onChange, placeholder = 'Pick 
     : (formatSingleLabel(value) || placeholder);
 
   return (
-    <div className="drp-wrap">
+    <div className={`drp-wrap${className ? ` ${className}` : ''}`}>
       <button
         ref={triggerRef}
         type="button"
@@ -179,7 +185,11 @@ function DateRangePicker({ mode = 'range', value, onChange, placeholder = 'Pick 
       </button>
 
       {open && position && createPortal(
-        <div ref={dropdownRef} className="drp-panel" style={{ top: position.top, left: position.left, right: position.right }}>
+        <div
+          ref={dropdownRef}
+          className={`drp-panel${mode === 'single' ? ' drp-panel--single' : ''}`}
+          style={{ top: position.top, left: position.left, right: position.right }}
+        >
           <div className="drp-panel-body">
             {mode === 'range' && (
               <div className="drp-presets">
@@ -218,6 +228,7 @@ function DateRangePicker({ mode = 'range', value, onChange, placeholder = 'Pick 
                 {cells.map((cell, i) => {
                   if (!cell) return <div key={`empty-${i}`} className="drp-day-cell" />; // eslint-disable-line react/no-array-index-key
                   const { day, iso } = cell;
+                  const isDisabled = minDate != null && iso < minDate;
                   const inRange = selFrom != null && selTo != null && iso >= selFrom && iso <= selTo;
                   const isStart = iso === selFrom;
                   const isEnd = selTo != null && iso === selTo;
@@ -229,10 +240,11 @@ function DateRangePicker({ mode = 'range', value, onChange, placeholder = 'Pick 
                     'drp-day-bubble',
                     (isStart || isEnd) ? 'drp-day-bubble--edge' : (inRange ? 'drp-day-bubble--inrange' : ''),
                     isToday && !isStart && !isEnd ? 'drp-day-bubble--today' : '',
+                    isDisabled ? 'drp-day-bubble--disabled' : '',
                   ].filter(Boolean).join(' ');
                   return (
                     <div key={iso} className={wrapClass}>
-                      <button type="button" className={bubbleClass} onClick={() => pickDay(iso)}>
+                      <button type="button" className={bubbleClass} disabled={isDisabled} onClick={() => pickDay(iso)}>
                         {day}
                       </button>
                     </div>

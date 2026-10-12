@@ -11,6 +11,7 @@ import Skeleton from './components/Skeleton';
 import PageHeader from './components/PageHeader';
 import AvailableSlotPicker from './components/AvailableSlotPicker';
 import FilterDropdown from './components/FilterDropdown';
+import DateRangePicker from './components/DateRangePicker';
 import { ShieldIcon, CheckCircleIcon, MailIcon, CalendarIcon, AlertIcon, UserIcon, ToothIcon, FileIcon, EditIcon } from './icons';
 import { formatDateLong, formatTime12h, toLocalDate } from './dateTimeUtils';
 import { showSuccessToast } from '../../utils/toast';
@@ -597,12 +598,13 @@ function HmoVerificationQueue() {
         />
 
         <label className="modal-field-label">Date</label>
-        <input
-          type="date"
-          className="form-input"
+        <DateRangePicker
+          className="drp-wrap--block"
+          mode="single"
           value={editForm.appointmentDate}
-          min={todayDateKey()}
-          onChange={(e) => handleEditDateChange(e.target.value)}
+          onChange={handleEditDateChange}
+          minDate={todayDateKey()}
+          placeholder="Pick a date"
         />
 
         <label className="modal-field-label" style={{ marginTop: 14, display: 'block' }}>Time</label>

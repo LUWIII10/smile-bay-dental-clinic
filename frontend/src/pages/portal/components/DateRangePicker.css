@@ -10,6 +10,22 @@
   display: inline-flex;
 }
 
+/* Opt-in variant for a modal form field (e.g. HMO Queue's Edit Booking Info
+   Date field) — fills the field's width instead of staying content-sized. */
+.drp-wrap--block {
+  display: flex;
+  width: 100%;
+}
+
+.drp-wrap--block .drp-trigger {
+  width: 100%;
+  justify-content: flex-start;
+}
+
+.drp-wrap--block .drp-trigger svg:last-child {
+  margin-left: auto;
+}
+
 .drp-trigger {
   gap: 9px;
 }
@@ -33,6 +49,13 @@
   border: 1px solid var(--portal-border-light);
   z-index: 1000;
   overflow: hidden;
+}
+
+/* Single mode has no presets rail, so the panel only needs to fit the
+   calendar itself — the full 620px range-mode width would just be empty
+   space next to a small month grid. */
+.drp-panel--single {
+  width: 300px;
 }
 
 .drp-panel-body {
@@ -187,6 +210,15 @@
 
 .drp-day-bubble--today {
   box-shadow: inset 0 0 0 1.5px var(--portal-blue);
+}
+
+.drp-day-bubble--disabled {
+  color: #cbd5e1;
+  cursor: not-allowed;
+}
+
+.drp-day-bubble--disabled:hover {
+  background: none;
 }
 
 /* ---- Footer ---- */
