@@ -7,9 +7,18 @@
    new line while a short one leaves a wide gap, and neither row lines up
    with the next. A shared column grid keeps every field aligned regardless
    of how long its value is. */
+/* minmax's 230px floor is wide enough that a field value (an email, a
+   phone number) never has to wrap. max-width caps the grid at a
+   comfortable ~3 columns regardless of how wide the card itself gets —
+   .portal-content has no width cap of its own, so on a laptop/desktop
+   screen this card can genuinely stretch past 1600px; without this cap,
+   auto-fit kept adding narrow columns the wider it got (most rows only
+   have 2-4 real fields, so those sat squeezed into slivers with empty
+   track space going unused beside them). */
 .record-info-card {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  max-width: 900px;
   gap: 18px 24px;
 }
 
