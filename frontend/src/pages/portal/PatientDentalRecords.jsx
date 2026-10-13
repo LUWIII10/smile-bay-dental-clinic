@@ -18,7 +18,6 @@ import './Appointments.css';
 import './DentalRecords.css';
 
 const HISTORY_PAGE_SIZE = 5;
-const NOTES_PREVIEW_COUNT = 3;
 
 // Dot colors mirror HISTORY_CATEGORY_RULES' own tone mapping in
 // dentalRecordShared.js (treatment=indigo, diagnostic=blue, procedure=
@@ -38,7 +37,6 @@ function PatientDentalRecords() {
   const [error, setError] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [visibleHistoryCount, setVisibleHistoryCount] = useState(HISTORY_PAGE_SIZE);
-  const [showAllNotes, setShowAllNotes] = useState(false);
   const [detailItem, setDetailItem] = useState(null);
 
   const load = useCallback(async () => {
@@ -64,9 +62,6 @@ function PatientDentalRecords() {
 
   const visibleHistory = filteredHistory.slice(0, visibleHistoryCount);
   const hasMoreHistory = visibleHistoryCount < filteredHistory.length;
-
-  const notes = record?.clinical_notes || [];
-  const visibleNotes = showAllNotes ? notes : notes.slice(0, NOTES_PREVIEW_COUNT);
 
   const handleCategoryChange = (key) => {
     setCategoryFilter(key);
@@ -194,7 +189,6 @@ function PatientDentalRecords() {
                             {h.procedure_name}
                             {h.tooth_number ? ` — Tooth #${h.tooth_number}` : ''}
                           </span>
-                          {h.notes && <p className="record-history-desc">{h.notes}</p>}
                         </div>
                         <div className="record-history-meta">
                           <span className="record-history-dentist">
@@ -229,41 +223,6 @@ function PatientDentalRecords() {
               </>
             )}
           </div>
-
-          <div className="section-card">
-            <div className="section-card-header">
-              <div>
-                <h3 className="section-card-title">Clinical Notes</h3>
-                <p className="section-card-subtitle">Important notes and observations from your dental visits.</p>
-              </div>
-              {notes.length > NOTES_PREVIEW_COUNT && (
-                <button type="button" className="dash-btn dash-btn--outline row-btn" onClick={() => setShowAllNotes((v) => !v)}>
-                  {showAllNotes ? 'Show Less' : 'View All Notes'}
-                </button>
-              )}
-            </div>
-            {notes.length === 0 ? (
-              <div className="dash-empty">
-                <FileIcon />
-                <span className="dash-empty-title">No clinical notes yet</span>
-              </div>
-            ) : (
-              <ul className="record-note-list">
-                {visibleNotes.map((note) => (
-                  <li key={note.id} className="record-note-card">
-                    <span className="record-note-icon"><FileIcon /></span>
-                    <div className="record-note-body">
-                      <span className="record-note-title">General Note</span>
-                      <span className="record-note-meta">
-                        {formatDate(note.created_at)} · {note.dentist?.name || 'Dentist'}
-                      </span>
-                      <p className="record-note-text">{note.note}</p>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
         </>
       )}
 
@@ -293,12 +252,6 @@ function PatientDentalRecords() {
                   <span className="record-info-value">#{detailItem.tooth_number}</span>
                 </div>
               )}
-            </div>
-            <div className="record-history-detail-notes">
-              <span className="record-info-label">Clinical Notes</span>
-              <p className="record-history-detail-notes-text">
-                {detailItem.notes || 'No additional notes were recorded for this visit.'}
-              </p>
             </div>
           </div>
         )}

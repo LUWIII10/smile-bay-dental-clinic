@@ -343,19 +343,7 @@ function PatientAppointments() {
       minWidth: showDetails ? '22%' : '32%',
       minWidthPx: '170px',
       clampLines: 2,
-      render: (row) => (
-        <span>
-          <span className="cell-service" title={row.service?.name}>{row.service?.name}</span>
-          {/* Only for a genuinely completed row with a real clinical note on
-              file — same condition the Actions column's View Treatment
-              button already checks, so this is never an invented summary. */}
-          {row.status === 'completed' && row.treatment_history_entry?.notes && (
-            <span className="cell-service-note" title={row.treatment_history_entry.notes}>
-              {row.treatment_history_entry.notes}
-            </span>
-          )}
-        </span>
-      ),
+      render: (row) => <span className="cell-service" title={row.service?.name}>{row.service?.name}</span>,
     },
     {
       key: 'dentist',
@@ -648,12 +636,6 @@ function PatientAppointments() {
                   <span className="record-info-value">#{treatmentDetail.tooth_number}</span>
                 </div>
               )}
-            </div>
-            <div className="record-history-detail-notes">
-              <span className="record-info-label">Clinical Notes</span>
-              <p className="record-history-detail-notes-text">
-                {treatmentDetail.notes || 'No additional notes were recorded for this visit.'}
-              </p>
             </div>
           </div>
         )}

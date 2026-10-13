@@ -124,7 +124,15 @@ class PatientAppointmentController extends Controller
                 // modal already reads, just surfaced here too. Null for any
                 // appointment nobody has logged a procedure against yet
                 // (see Appointment::treatmentHistoryEntry()'s own comment).
-                'treatmentHistoryEntry.performedBy:id,name',
+                // `notes` is deliberately excluded via select() — Clinical
+                // Notes (and this per-procedure note) are
+                // dentist/dental_assistant/admin-only per explicit client
+                // request, confidential from the patient this appointment
+                // belongs to. appointment_id is the FK the HasOne relation
+                // needs to resolve; id is the PK.
+                'treatmentHistoryEntry' => fn ($q) => $q
+                    ->select('id', 'appointment_id', 'tooth_number', 'procedure_name', 'performed_by', 'performed_at')
+                    ->with('performedBy:id,name'),
             ])
             ->orderBy('appointment_date')
             ->orderBy('appointment_time')

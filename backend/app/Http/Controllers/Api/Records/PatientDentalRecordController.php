@@ -55,12 +55,24 @@ class PatientDentalRecordController extends Controller
             'primaryDentist:id,name',
             'toothConditions' => fn ($q) => $q->orderBy('tooth_number'),
             'toothConditions.updatedBy:id,name',
-            'clinicalNotes' => fn ($q) => $q->with('dentist:id,name')->orderByDesc('created_at'),
+            // Clinical Notes are a dentist/dental_assistant/admin-only
+            // tool per explicit client request — confidential, never sent
+            // to the patient this record belongs to. No relation call at
+            // all here (not just a hidden field): PatientRecordController
+            // (the staff-facing equivalent) still loads it in full.
             'treatmentPlans' => fn ($q) => $q->with([
                 'dentist:id,name',
                 'items' => fn ($iq) => $iq->orderBy('sequence'),
             ])->orderByDesc('created_at'),
-            'treatmentHistory' => fn ($q) => $q->with('performedBy:id,name')->orderByDesc('performed_at'),
+            // Same confidentiality rule applies to a treatment history
+            // entry's own `notes` column — explicitly excluded via select()
+            // (dental_record_id is the FK the relation needs to resolve;
+            // id is the PK) rather than trusting the frontend to just not
+            // render a field it was handed anyway.
+            'treatmentHistory' => fn ($q) => $q
+                ->select('id', 'dental_record_id', 'appointment_id', 'treatment_plan_item_id', 'tooth_number', 'procedure_name', 'performed_by', 'performed_at')
+                ->with('performedBy:id,name')
+                ->orderByDesc('performed_at'),
         ]);
 
         return response()->json(['data' => $record]);
