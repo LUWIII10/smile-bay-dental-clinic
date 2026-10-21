@@ -48,6 +48,36 @@
   backdrop-filter: blur(8px);
 }
 
+/* Lets a user on Login/Register/Forgot Password get back to the landing
+   page in one tap instead of relying on the browser's own Back button. */
+.back-home-btn {
+  position: fixed;
+  top: 24px;
+  left: 24px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.82);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 8px 20px rgba(15, 37, 87, 0.12);
+  color: #1d4ed8;
+  font-size: 0.84rem;
+  font-weight: 600;
+  font-family: inherit;
+  text-decoration: none;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.back-home-btn:hover {
+  background: rgba(255, 255, 255, 0.95);
+  transform: translateX(-2px);
+}
+
 .login-card {
   position: relative;
   z-index: 1;
