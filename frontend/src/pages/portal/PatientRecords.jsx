@@ -1181,6 +1181,27 @@ function PatientRecords() {
                     <span className="record-info-value">{patient.emergency_contact_number || '—'}</span>
                   </div>
                 </div>
+                {patient.guardian_name && (
+                  <div className="record-field">
+                    <span className="record-field-icon record-field-icon--indigo"><UsersIcon /></span>
+                    <div className="record-info-item">
+                      <span className="record-info-label">Parent / Guardian</span>
+                      <span className="record-info-value">
+                        {patient.guardian_name}
+                        {patient.guardian_relationship ? ` (${patient.guardian_relationship})` : ''}
+                      </span>
+                    </div>
+                  </div>
+                )}
+                {patient.guardian_contact_number && (
+                  <div className="record-field">
+                    <span className="record-field-icon record-field-icon--indigo"><PhoneIcon /></span>
+                    <div className="record-info-item">
+                      <span className="record-info-label">Guardian Contact No.</span>
+                      <span className="record-info-value">{patient.guardian_contact_number}</span>
+                    </div>
+                  </div>
+                )}
                 {patient.patient_type === 'hmo' && (
                   <div className="record-field">
                     <span className="record-field-icon record-field-icon--teal"><ShieldIcon /></span>
