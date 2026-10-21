@@ -4,8 +4,10 @@
   width: 100vw;
   height: 100vh;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 16px;
   font-family: 'Poppins', sans-serif;
   background-size: cover;
   background-position: center;
@@ -49,12 +51,17 @@
 }
 
 /* Lets a user on Login/Register/Forgot Password get back to the landing
-   page in one tap instead of relying on the browser's own Back button. */
+   page in one tap instead of relying on the browser's own Back button.
+   A normal flex item (stacked above the card by .login-page's column
+   flow), not position: fixed — a floating overlay collided with tall
+   cards (the register wizard) whenever the viewport was short, since
+   centering could place the card's top edge right under it. Being in
+   flow instead means the page just grows/scrolls like anything else. */
 .back-home-btn {
-  position: fixed;
-  top: 24px;
-  left: 24px;
+  position: relative;
   z-index: 2;
+  align-self: flex-start;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: 8px;
