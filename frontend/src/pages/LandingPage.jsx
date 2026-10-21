@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { FaFacebook, FaInstagram } from 'react-icons/fa';
 import BrandLogo from '../components/common/BrandLogo';
@@ -191,8 +191,54 @@ const CloseIcon = () => (
   </svg>
 );
 
+const TERMS_SECTIONS = [
+  {
+    title: 'Your Account',
+    body: 'You are responsible for the accuracy of the information you register with, for keeping your password to yourself, and for everything done through your account. Tell us at once if you believe someone else has access to it.',
+  },
+  {
+    title: 'Who May Register',
+    body: 'The Patient Portal is for patients of Smile Bay Dental Clinic. Staff accounts (dentist, dental assistant, administrator) are created directly by the clinic and are never opened from this form.',
+  },
+  {
+    title: 'Appointments',
+    body: 'A booking request is confirmed only once the clinic accepts it against actual schedule availability. The clinic may contact you to confirm, reschedule, or decline a request.',
+  },
+  {
+    title: 'Dental Records & Confidentiality',
+    body: 'Your treatment history is maintained by your attending dentist and clinic staff. Clinical notes are visible only to your dentist, dental assistant, and clinic administrators, and are never shared with any other patient.',
+  },
+  {
+    title: 'Your Information',
+    body: 'Personal and medical information you provide is used only to deliver your dental care and is not shared with third parties except as needed to provide treatment.',
+  },
+  {
+    title: 'Changes to These Terms',
+    body: 'Smile Bay Dental Clinic may update these terms from time to time. Continuing to use the Patient Portal means you accept the current version.',
+  },
+];
+
 function LandingPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [termsOpen, setTermsOpen] = useState(false);
+
+  // Esc closes, and body scroll is locked while the modal is open — same
+  // behavior as the portal's shared Modal component, reimplemented here
+  // since this public page doesn't import the portal's CSS/components.
+  useEffect(() => {
+    if (!termsOpen) return undefined;
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') setTermsOpen(false);
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = '';
+    };
+  }, [termsOpen]);
 
   const handleAnchorClick = (e, href) => {
     e.preventDefault();
@@ -552,9 +598,53 @@ function LandingPage() {
         </div>
 
         <div className="landing-footer-bottom">
-          © 2026 Smile Bay Dental Clinic. All rights reserved.
+          <span>© 2026 Smile Bay Dental Clinic. All rights reserved.</span>
+          <span className="landing-footer-dot">•</span>
+          <button type="button" className="landing-footer-terms-link" onClick={() => setTermsOpen(true)}>
+            Terms and Conditions
+          </button>
         </div>
       </footer>
+
+      {termsOpen && (
+        <div className="terms-modal-backdrop" onClick={() => setTermsOpen(false)}>
+          <div className="terms-modal-card" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+            <div className="terms-modal-accent" />
+            <div className="terms-modal-header">
+              <div className="terms-modal-header-main">
+                <span className="terms-modal-icon"><ShieldCheckIcon /></span>
+                <div>
+                  <h3 className="terms-modal-title">Terms and Conditions</h3>
+                  <p className="terms-modal-subtitle">Smile Bay Dental Clinic — Patient Portal</p>
+                </div>
+              </div>
+              <button type="button" className="terms-modal-close" onClick={() => setTermsOpen(false)} aria-label="Close">
+                <CloseIcon />
+              </button>
+            </div>
+
+            <div className="terms-modal-body">
+              <p className="terms-modal-intro">Please read these terms before creating a Smile Bay Patient Portal account.</p>
+              {TERMS_SECTIONS.map((section, i) => (
+                <div key={section.title} className="terms-modal-section">
+                  <span className="terms-modal-badge">{String(i + 1).padStart(2, '0')}</span>
+                  <div>
+                    <h4 className="terms-modal-section-title">{section.title}</h4>
+                    <p className="terms-modal-section-body">{section.body}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="terms-modal-footer">
+              <span className="terms-modal-updated">Last updated: October 2026</span>
+              <button type="button" className="landing-btn landing-btn--solid" onClick={() => setTermsOpen(false)}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
