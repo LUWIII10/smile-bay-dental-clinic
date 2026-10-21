@@ -6,7 +6,15 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  /* flex-start, not center: centering the whole (button + card) GROUP made
+     the button's position depend on the card's own height — it sat much
+     lower on the short Login/Forgot Password cards than on the tall
+     Register wizard card. The button now always sits right after the top
+     padding; the card instead gets margin: auto 0 below (a flexbox
+     centering trick — an item with auto top/bottom margins self-centers
+     in whatever free space is left after earlier siblings), so each page
+     still looks centered without tying the button's position to it. */
+  justify-content: flex-start;
   gap: 16px;
   font-family: 'Poppins', sans-serif;
   background-size: cover;
@@ -90,6 +98,7 @@
   z-index: 1;
   width: 400px;
   max-width: 100%;
+  margin: auto 0;
   padding: 38px 34px;
   border-radius: 22px;
   background: rgba(255, 255, 255, 0.68);
