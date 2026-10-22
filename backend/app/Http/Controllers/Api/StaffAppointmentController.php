@@ -64,7 +64,14 @@ class StaffAppointmentController extends Controller
             // surfaced here so staff has one filter to find every such
             // appointment clinic-wide instead of combining status+date_to
             // by hand for each status separately.
-            'overdue' => ['nullable', 'boolean'],
+            // NOT the 'boolean' rule — that only accepts true/false/0/1/"0"/"1"
+            // by strict in_array comparison, and axios serializes a query
+            // param's JS `true` as the literal string "true", which isn't in
+            // that list — every "Overdue Only" click 422'd before the query
+            // below ever ran. $request->boolean() a few lines down already
+            // coerces "true"/"1"/"on"/"yes" (and anything else) safely on
+            // its own, so this only needs to not reject a legitimate value.
+            'overdue' => ['nullable'],
         ]);
 
         $query = Appointment::query()->with([
