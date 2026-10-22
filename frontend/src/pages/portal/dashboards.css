@@ -1122,6 +1122,12 @@
   gap: 20px;
   align-items: stretch;
   min-width: 0;
+  /* The cards inside zero out their own margin-bottom (gap already
+     spaces them from each other within this row), which left nothing
+     separating the row itself from whatever section-card comes next
+     (Recent Activity) — matches the standard .section-card spacing used
+     everywhere else instead of the two sitting edge to edge. */
+  margin-bottom: 18px;
 }
 
 .chart-grid .section-card {
