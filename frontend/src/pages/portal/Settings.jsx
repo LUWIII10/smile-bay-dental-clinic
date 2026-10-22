@@ -17,6 +17,7 @@ import Modal from './components/Modal';
 import PageHeader from './components/PageHeader';
 import { SettingsIcon, BuildingIcon, ClockIcon, ToothIcon, ShieldIcon } from './icons';
 import { showSuccessToast, showErrorToast, confirmAction } from '../../utils/toast';
+import { resolvePhotoUrl } from './avatarUtils';
 import medicardLogo from '../../assets/images/medicardlogo.png';
 import flexicareLogo from '../../assets/images/flexicarelogo.png';
 import './dashboards.css';
@@ -239,7 +240,7 @@ function Settings() {
 
   const openEditHmoProvider = (provider) => {
     setEditingHmoProvider(provider);
-    setHmoForm({ name: provider.name, logo: null, logoPreview: provider.logo_path || '' });
+    setHmoForm({ name: provider.name, logo: null, logoPreview: resolvePhotoUrl(provider.logo_path) || '' });
     setHmoError('');
     setHmoModalOpen(true);
   };
@@ -346,7 +347,7 @@ function Settings() {
         // A real uploaded logo_path (any provider added from here on)
         // wins over the two hardcoded launch-partner assets, which only
         // exist because Medicard/Flexicare predate this column.
-        const logo = row.logo_path || HMO_PROVIDER_LOGOS[row.name];
+        const logo = resolvePhotoUrl(row.logo_path) || HMO_PROVIDER_LOGOS[row.name];
         return (
           <span className="cell-person">
             {logo ? (
