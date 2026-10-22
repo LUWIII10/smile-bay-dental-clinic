@@ -1,0 +1,16 @@
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # Real files and directories (JS/CSS/images, etc.) are served as-is.
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # Everything else is a React Router client-side route (e.g.
+  # /patient/profile) — Hostinger's static host has no concept of these
+  # paths, so a direct visit or a page refresh 404s unless every unknown
+  # path falls back to index.html and lets the already-loaded app take
+  # over routing itself.
+  RewriteRule ^ index.html [L]
+</IfModule>
