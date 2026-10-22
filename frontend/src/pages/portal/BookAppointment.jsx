@@ -16,6 +16,7 @@ import StatusBadge from './components/StatusBadge';
 import { CheckCircleIcon, AlertIcon, ShieldIcon, UserIcon, UsersIcon, CashIcon, SwapIcon, CalendarIcon, SunIcon, SunsetIcon } from './icons';
 import { formatDateLong, formatTime12h } from './dateTimeUtils';
 import { KNOWN_DENTIST_PHOTOS, KNOWN_DENTIST_CREDENTIALS } from './dentistPhotos';
+import { resolvePhotoUrl } from './avatarUtils';
 import './dashboards.css';
 import './BookAppointment.css';
 
@@ -633,7 +634,7 @@ function BookAppointment() {
                 )}
 
                 {dentists.map((dentist) => {
-                  const photo = dentist.photo_path || KNOWN_DENTIST_PHOTOS[dentist.name];
+                  const photo = resolvePhotoUrl(dentist.photo_path) || KNOWN_DENTIST_PHOTOS[dentist.name];
                   const credentials = dentist.bio || KNOWN_DENTIST_CREDENTIALS[dentist.name];
                   const isSelected = dentist.id === selectedDentistId;
                   return (

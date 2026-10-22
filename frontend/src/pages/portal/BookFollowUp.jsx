@@ -12,6 +12,7 @@ import Modal from './components/Modal';
 import { CheckCircleIcon, AlertIcon, ShieldIcon, CashIcon, CalendarPlusIcon, ClockIcon, CalendarIcon, SunIcon, SunsetIcon } from './icons';
 import { formatDateLong, formatTime12h } from './dateTimeUtils';
 import { KNOWN_DENTIST_PHOTOS } from './dentistPhotos';
+import { resolvePhotoUrl } from './avatarUtils';
 import './dashboards.css';
 import './BookAppointment.css';
 
@@ -422,8 +423,8 @@ function BookFollowUp() {
             {selectedDentist && (
               <div className="followup-doctor-note">
                 <span className="followup-doctor-photo">
-                  {(selectedDentist.photo_path || KNOWN_DENTIST_PHOTOS[selectedDentist.name])
-                    ? <img src={selectedDentist.photo_path || KNOWN_DENTIST_PHOTOS[selectedDentist.name]} alt={selectedDentist.name} />
+                  {(resolvePhotoUrl(selectedDentist.photo_path) || KNOWN_DENTIST_PHOTOS[selectedDentist.name])
+                    ? <img src={resolvePhotoUrl(selectedDentist.photo_path) || KNOWN_DENTIST_PHOTOS[selectedDentist.name]} alt={selectedDentist.name} />
                     : selectedDentist.name?.[0]}
                 </span>
                 <span>

@@ -5,6 +5,7 @@ import Skeleton from './Skeleton';
 import { getAppointmentDetail, getServices, enableFollowUp } from '../../../api/appointments';
 import { formatDateLong, formatTime12h } from '../dateTimeUtils';
 import { KNOWN_DENTIST_PHOTOS } from '../dentistPhotos';
+import { resolvePhotoUrl } from '../avatarUtils';
 import { CalendarPlusIcon, CheckCircleIcon } from '../icons';
 
 function getInitials(name) {
@@ -71,7 +72,7 @@ function AppointmentDetailModal({ appointmentId, onClose }) {
   const isHmo = detail?.patient_type_snapshot === 'hmo';
   const hmoProviderName = detail?.patient?.hmo_provider?.name || detail?.patient?.hmo_company_name;
   const dentistName = detail?.dentist?.name || 'Unassigned';
-  const dentistPhoto = detail?.dentist?.dentist_profile?.photo_path || KNOWN_DENTIST_PHOTOS[dentistName];
+  const dentistPhoto = resolvePhotoUrl(detail?.dentist?.dentist_profile?.photo_path) || KNOWN_DENTIST_PHOTOS[dentistName];
 
   return (
     <Modal open={!!appointmentId} onClose={onClose} title={appointmentId ? `Appointment #${appointmentId}` : ''} size="lg">
