@@ -24,9 +24,17 @@ export function useDropdownPosition() {
   const [position, setPosition] = useState(null);
   const triggerRef = useRef(null);
   const dropdownRef = useRef(null);
+  // The trigger's own on-screen position when the dropdown opened — a
+  // window scroll only means "the dropdown is now stale, dismiss it" when
+  // the trigger has actually moved. A trigger that sits in a sticky topbar
+  // (NotificationBell, AvatarMenu) never moves on a page scroll, so without
+  // this check every scroll of the page itself — not just the dropdown's
+  // own list reaching its scroll boundary — closed the panel for no reason.
+  const triggerRectRef = useRef(null);
 
   const openMenu = () => {
     const rect = triggerRef.current.getBoundingClientRect();
+    triggerRectRef.current = rect;
     setPosition({ top: rect.bottom + 10, right: Math.max(MARGIN, window.innerWidth - rect.right) });
     setOpen(true);
   };
@@ -69,6 +77,11 @@ export function useDropdownPosition() {
     // the scroll originated inside the dropdown itself.
     const handleScroll = (e) => {
       if (dropdownRef.current && dropdownRef.current.contains(e.target)) return;
+      if (triggerRef.current && triggerRectRef.current) {
+        const rect = triggerRef.current.getBoundingClientRect();
+        const prev = triggerRectRef.current;
+        if (Math.abs(rect.top - prev.top) < 1 && Math.abs(rect.right - prev.right) < 1) return;
+      }
       setOpen(false);
     };
 

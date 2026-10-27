@@ -3,12 +3,37 @@ import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { getNotifications, markNotificationRead, markAllNotificationsRead } from '../../../api/notifications';
 import { useDropdownPosition } from '../../../hooks/useDropdownPosition';
-import { BellIcon, CheckCircleIcon } from '../icons';
+import { BellIcon, CheckCircleIcon, XCircleIcon, ClockIcon, ShieldIcon } from '../icons';
 
 // Notifications aren't as time-pressed as an action queue (HMO/pediatric
 // queues poll at 9s) — 20s keeps the badge fresh without hammering the
 // endpoint on every single portal page.
 const POLL_INTERVAL_MS = 20000;
+
+// Keyword match on the notification's own `title` — same approach as
+// dentalRecordShared.js's classifyHistoryCategory(), just local here since
+// this is the only consumer. Order matters (checked top-first): "cancelled"
+// matches before the generic default, "hmo" catches both the verification-
+// needed and verification-update titles, etc. Anything unmatched (booking
+// submitted, pediatric/follow-up notices, primary dentist assignment) falls
+// back to a neutral bell rather than guessing a specific tone for it.
+const NOTIFICATION_TYPES = [
+  { match: /confirmed/i, tone: 'green', icon: CheckCircleIcon },
+  { match: /rejected|cancelled/i, tone: 'red', icon: XCircleIcon },
+  { match: /reminder/i, tone: 'blue', icon: ClockIcon },
+  { match: /hmo/i, tone: 'amber', icon: ShieldIcon },
+];
+const DEFAULT_NOTIFICATION_TYPE = { tone: 'slate', icon: BellIcon };
+
+function classifyNotification(title) {
+  return NOTIFICATION_TYPES.find((t) => t.match.test(title || '')) || DEFAULT_NOTIFICATION_TYPE;
+}
+
+function isToday(iso) {
+  const d = new Date(iso);
+  const now = new Date();
+  return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+}
 
 function timeAgo(iso) {
   const minutes = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
@@ -114,20 +139,34 @@ function NotificationBell() {
                 <span>You're all caught up</span>
               </div>
             ) : (
-              notifications.map((n) => (
-                <button
-                  key={n.id}
-                  type="button"
-                  className={`notif-item${n.read_at ? '' : ' notif-item--unread'}`}
-                  onClick={() => handleSelect(n)}
-                >
-                  <span className="notif-item-dot" aria-hidden="true" />
-                  <span className="notif-item-text">
-                    <span className="notif-item-title">{n.title}</span>
-                    {n.body && <span className="notif-item-body">{n.body}</span>}
-                    <span className="notif-item-time">{timeAgo(n.created_at)}</span>
-                  </span>
-                </button>
+              [
+                { label: 'Today', items: notifications.filter((n) => isToday(n.created_at)) },
+                { label: 'Earlier', items: notifications.filter((n) => !isToday(n.created_at)) },
+              ].map(({ label, items }) => items.length > 0 && (
+                <div key={label}>
+                  <div className="notif-section-label">{label}</div>
+                  {items.map((n) => {
+                    const type = classifyNotification(n.title);
+                    const Icon = type.icon;
+                    return (
+                      <button
+                        key={n.id}
+                        type="button"
+                        className={`notif-item${n.read_at ? '' : ' notif-item--unread'}`}
+                        onClick={() => handleSelect(n)}
+                      >
+                        <span className={`notif-item-icon notif-item-icon--${type.tone}`} aria-hidden="true">
+                          <Icon />
+                        </span>
+                        <span className="notif-item-text">
+                          <span className="notif-item-title">{n.title}</span>
+                          {n.body && <span className="notif-item-body">{n.body}</span>}
+                          <span className="notif-item-time">{timeAgo(n.created_at)}</span>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
               ))
             )}
           </div>
