@@ -98,6 +98,14 @@
   font-weight: 600;
 }
 
+/* Replaces the browser's default black focus rectangle (keyboard Tab
+   navigation) with the same blue halo .form-input/.filter-date-trigger
+   already use elsewhere in the portal. */
+.portal-nav-item:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--portal-blue-tint);
+}
+
 .portal-nav-icon {
   display: flex;
   flex-shrink: 0;
