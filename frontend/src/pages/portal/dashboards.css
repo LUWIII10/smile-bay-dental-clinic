@@ -1241,6 +1241,9 @@
 .modal-icon--danger { background: var(--portal-red-bg); color: var(--portal-red-text); }
 .modal-icon--neutral { background: var(--portal-gray-bg); color: var(--portal-gray-text); }
 .modal-icon--indigo { background: var(--portal-indigo-bg); color: var(--portal-indigo-text); }
+.modal-icon--blue { background: var(--portal-blue-bg); color: var(--portal-blue-text); }
+.modal-icon--green { background: var(--portal-green-bg); color: var(--portal-green-text); }
+.modal-icon--amber { background: var(--portal-amber-bg); color: var(--portal-amber-text); }
 
 .modal-close {
   flex-shrink: 0;

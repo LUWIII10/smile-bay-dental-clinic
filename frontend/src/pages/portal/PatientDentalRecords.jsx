@@ -231,30 +231,42 @@ function PatientDentalRecords() {
         </>
       )}
 
-      <Modal open={!!detailItem} onClose={() => setDetailItem(null)} title="Treatment Details">
+      <Modal
+        open={!!detailItem}
+        onClose={() => setDetailItem(null)}
+        title="Treatment Details"
+        icon={detailItem ? ToothIcon : undefined}
+        tone={detailItem ? classifyHistoryCategory(detailItem.procedure_name).tone : undefined}
+      >
         {detailItem && (
           <div className="record-history-detail">
-            <div className="record-history-detail-badges">
-              <StatusBadge
-                status={classifyHistoryCategory(detailItem.procedure_name).label}
-                tone={classifyHistoryCategory(detailItem.procedure_name).tone}
-              />
-              <StatusBadge status="Completed" tone="green" icon={CheckCircleIcon} />
-            </div>
             <h4 className="record-history-detail-title">{detailItem.procedure_name}</h4>
-            <div className="record-history-detail-grid">
-              <div className="record-info-item">
-                <span className="record-info-label"><CalendarIcon /> Date Performed</span>
-                <span className="record-info-value">{formatDate(detailItem.performed_at)}</span>
+            <div className="record-history-detail-complete">
+              <CheckCircleIcon />
+              Procedure Completed
+            </div>
+            <div className="record-history-detail-fields">
+              <div className="record-history-detail-field">
+                <span className="record-field-icon record-field-icon--blue"><CalendarIcon /></span>
+                <div className="record-info-item">
+                  <span className="record-info-label">Date Performed</span>
+                  <span className="record-info-value">{formatDate(detailItem.performed_at)}</span>
+                </div>
               </div>
-              <div className="record-info-item">
-                <span className="record-info-label"><UserIcon /> Attending Dentist</span>
-                <span className="record-info-value">{detailItem.performed_by?.name || 'Dentist'}</span>
+              <div className="record-history-detail-field">
+                <span className="record-field-icon record-field-icon--navy"><UserIcon /></span>
+                <div className="record-info-item">
+                  <span className="record-info-label">Attending Dentist</span>
+                  <span className="record-info-value">{detailItem.performed_by?.name || 'Dentist'}</span>
+                </div>
               </div>
               {detailItem.tooth_number && (
-                <div className="record-info-item">
-                  <span className="record-info-label"><ToothIcon /> Tooth Number</span>
-                  <span className="record-info-value">#{detailItem.tooth_number}</span>
+                <div className="record-history-detail-field record-history-detail-field--full">
+                  <span className="record-field-icon record-field-icon--teal"><ToothIcon /></span>
+                  <div className="record-info-item">
+                    <span className="record-info-label">Tooth Number</span>
+                    <span className="record-info-value">#{detailItem.tooth_number}</span>
+                  </div>
                 </div>
               )}
             </div>
