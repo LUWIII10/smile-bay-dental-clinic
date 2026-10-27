@@ -13,7 +13,12 @@ import { CloseIcon } from '../icons';
 // (tone picks red/gray/indigo), meant to visually continue whichever
 // colored button opened this dialog instead of resetting to a plain title.
 // Every existing caller omits both and renders exactly as before.
-function Modal({ open, onClose, title, icon: Icon, tone, children, closeOnBackdrop = true, size }) {
+// bare drops the bordered header bar entirely (no title/icon support in
+// that mode) in favor of a close button floating over the content itself —
+// for a dialog whose own content supplies a full-bleed header (the
+// Treatment Details modal's colored banner). Every existing caller omits
+// it and keeps the normal bar, even the few that already pass no title.
+function Modal({ open, onClose, title, icon: Icon, tone, children, closeOnBackdrop = true, size, bare = false }) {
   // Esc closes, and body scroll is locked while any modal is open.
   useEffect(() => {
     if (!open) return undefined;
@@ -40,19 +45,25 @@ function Modal({ open, onClose, title, icon: Icon, tone, children, closeOnBackdr
         aria-modal="true"
         onClick={(e) => e.stopPropagation()}
       >
-        {(title || onClose) && (
-          <div className="modal-header">
-            <div className="modal-header-main">
-              {Icon && <span className={`modal-icon modal-icon--${tone || 'neutral'}`}><Icon /></span>}
-              {title && <h3 className="modal-title">{title}</h3>}
+        {bare
+          ? onClose && (
+            <button type="button" className="modal-close modal-close--floating" onClick={onClose} aria-label="Close">
+              <CloseIcon />
+            </button>
+          )
+          : (title || onClose) && (
+            <div className="modal-header">
+              <div className="modal-header-main">
+                {Icon && <span className={`modal-icon modal-icon--${tone || 'neutral'}`}><Icon /></span>}
+                {title && <h3 className="modal-title">{title}</h3>}
+              </div>
+              {onClose && (
+                <button type="button" className="modal-close" onClick={onClose} aria-label="Close">
+                  <CloseIcon />
+                </button>
+              )}
             </div>
-            {onClose && (
-              <button type="button" className="modal-close" onClick={onClose} aria-label="Close">
-                <CloseIcon />
-              </button>
-            )}
-          </div>
-        )}
+          )}
         <div className="modal-body">{children}</div>
       </div>
     </div>

@@ -1177,6 +1177,7 @@
 }
 
 .modal-card {
+  position: relative;
   width: 100%;
   max-width: 440px;
   max-height: 90vh;
@@ -1262,6 +1263,22 @@
 .modal-close:hover {
   background: var(--portal-canvas);
   color: var(--portal-slate);
+}
+
+/* bare mode (Modal's `bare` prop) — floats over the dialog's own full-bleed
+   header content instead of sitting in a bordered bar, so it needs
+   light-on-dark contrast and to lift above that content's own stacking. */
+.modal-close--floating {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 1;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.modal-close--floating:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
 }
 
 .modal-body {

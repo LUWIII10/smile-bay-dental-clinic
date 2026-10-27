@@ -231,7 +231,7 @@ function PatientDentalRecords() {
         </>
       )}
 
-      <Modal open={!!detailItem} onClose={() => setDetailItem(null)}>
+      <Modal open={!!detailItem} onClose={() => setDetailItem(null)} bare>
         {detailItem && (
           <div className="record-history-detail">
             <div className={`record-history-detail-banner record-history-detail-banner--${classifyHistoryCategory(detailItem.procedure_name).tone}`}>

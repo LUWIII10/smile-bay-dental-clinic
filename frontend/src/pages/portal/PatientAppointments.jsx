@@ -598,6 +598,7 @@ function PatientAppointments() {
         open={!!treatmentDetail}
         onClose={() => setTreatmentDetail(null)}
         title={treatmentDetail && treatmentDetail.missingRecord ? 'Treatment Details' : undefined}
+        bare={!!treatmentDetail && !treatmentDetail.missingRecord}
       >
         {treatmentDetail && treatmentDetail.missingRecord && (
           // A visit marked completed before per-visit records were required,

@@ -1110,15 +1110,17 @@
 /* Colored header band — tone is one of classifyHistoryCategory()'s own
    tone names (indigo/blue/green/amber), so this needs no translation at
    the call site. Bleeds past .modal-body's own padding via negative
-   margin, rather than changing Modal.jsx itself (shared by every other
-   dialog in the app) — Modal's own header bar (just the close button,
-   title omitted at the call site) still sits above it. */
+   margin (Modal's `bare` prop drops its usual bordered header bar for
+   this dialog, so this sits flush against the card's own rounded top
+   corners — matching that radius here, since .modal-card itself only
+   clips to it via overflow-y rather than overflow: hidden). */
 .record-history-detail-banner {
   display: flex;
   gap: 14px;
   align-items: center;
   margin: -24px -20px 20px;
   padding: 20px 24px;
+  border-radius: var(--portal-radius-lg) var(--portal-radius-lg) 0 0;
 }
 
 .record-history-detail-banner--indigo { background: linear-gradient(135deg, #4338ca, #312a9e); }
