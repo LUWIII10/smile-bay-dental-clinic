@@ -5,7 +5,7 @@ import Modal from './components/Modal';
 import Skeleton from './components/Skeleton';
 import PageHeader from './components/PageHeader';
 import FilterDropdown from './components/FilterDropdown';
-import { FileIcon, ClockIcon, UserIcon, CheckCircleIcon, CalendarIcon, ToothIcon } from './icons';
+import { FileIcon, ClockIcon, UserIcon, CheckCircleIcon, CalendarIcon, ToothIcon, ShieldIcon } from './icons';
 import {
   PLAN_STATUS_TONE,
   HISTORY_CATEGORY_OPTIONS,
@@ -222,6 +222,11 @@ function PatientDentalRecords() {
                 )}
               </>
             )}
+          </div>
+
+          <div className="profile-alert profile-alert--info">
+            <ShieldIcon />
+            <span>Detailed clinical notes and tooth-by-tooth chart annotations are visible only to your dentist, dental assistant, and clinic admin — for the privacy of your medical record.</span>
           </div>
         </>
       )}

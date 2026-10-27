@@ -9,11 +9,12 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * The patient-facing "My Dental Records" page's backend — a read-only view
- * of the logged-in patient's own dental_records row: tooth chart, clinical
- * notes, treatment plans/items, and treatment history. Nothing here is
- * writable yet — dentist-side charting/notes tooling doesn't exist in the
- * app yet either (Patient Records is still a ComingSoon stub on that side),
- * so most patients will see a freshly-provisioned, mostly-empty record.
+ * of the logged-in patient's own dental_records row: treatment plans/items
+ * and treatment history. Deliberately excludes the tooth chart and clinical
+ * notes (see the confidentiality comments in show() below) — those stay
+ * staff-only (dentist/dental_assistant/admin), same as on
+ * PatientRecordController, which does load them in full. Nothing here is
+ * writable — this page has no editing of its own.
  */
 class PatientDentalRecordController extends Controller
 {
@@ -53,8 +54,13 @@ class PatientDentalRecordController extends Controller
         $record->load([
             'patient:id,patient_number',
             'primaryDentist:id,name',
-            'toothConditions' => fn ($q) => $q->orderBy('tooth_number'),
-            'toothConditions.updatedBy:id,name',
+            // Same confidentiality rule as Clinical Notes below: the tooth
+            // chart (including each tooth's own `notes` column) is a
+            // dentist/dental_assistant/admin-only tool, never sent to the
+            // patient this record belongs to. No relation call at all here
+            // (not just a hidden field) — PatientRecordController (the
+            // staff-facing equivalent) still loads it in full.
+            //
             // Clinical Notes are a dentist/dental_assistant/admin-only
             // tool per explicit client request — confidential, never sent
             // to the patient this record belongs to. No relation call at

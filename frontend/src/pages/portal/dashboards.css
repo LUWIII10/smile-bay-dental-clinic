@@ -1326,6 +1326,21 @@
   color: var(--portal-green-text);
 }
 
+.profile-alert--info {
+  background: var(--portal-blue-bg);
+  color: var(--portal-blue-text);
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.profile-alert--info svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
 /* Editable-form field grid shared by My Profile and Settings — a plain
    label + input/select/textarea, two columns above 600px. */
 .profile-grid {
