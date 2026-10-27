@@ -259,6 +259,36 @@ class PatientRecordController extends Controller
     }
 
     /**
+     * A dentist can only edit/delete their own clinical notes — matching the
+     * same ownership rule already enforced on treatment plan writes below.
+     */
+    public function updateClinicalNote(Request $request, ClinicalNote $clinicalNote)
+    {
+        if ($clinicalNote->dentist_id !== $request->user()->id) {
+            return response()->json(['message' => 'This clinical note was not created by you.'], 403);
+        }
+
+        $validated = $request->validate([
+            'note' => ['required', 'string', 'max:5000'],
+        ]);
+
+        $clinicalNote->update(['note' => $validated['note']]);
+
+        return response()->json(['data' => $clinicalNote->load('dentist:id,name')]);
+    }
+
+    public function destroyClinicalNote(Request $request, ClinicalNote $clinicalNote)
+    {
+        if ($clinicalNote->dentist_id !== $request->user()->id) {
+            return response()->json(['message' => 'This clinical note was not created by you.'], 403);
+        }
+
+        $clinicalNote->delete();
+
+        return response()->json(['message' => 'Clinical note deleted.']);
+    }
+
+    /**
      * Set (or update) a single tooth's condition — upsert on the
      * (dental_record_id, tooth_number) unique constraint, so re-editing an
      * already-charted tooth updates the same row instead of erroring or
@@ -391,6 +421,39 @@ class PatientRecordController extends Controller
         });
 
         return response()->json(['data' => $treatmentPlanItem->fresh()]);
+    }
+
+    /**
+     * Add one more item to an already-created treatment plan — same
+     * ownership rule as updateTreatmentPlanStatus/updateTreatmentPlanItem
+     * above. sequence continues from the plan's current highest (not just
+     * count()), so a deleted/reordered item never collides with an existing
+     * one.
+     */
+    public function storeTreatmentPlanItem(Request $request, TreatmentPlan $treatmentPlan)
+    {
+        if ($treatmentPlan->dentist_id !== $request->user()->id) {
+            return response()->json(['message' => 'This treatment plan was not created by you.'], 403);
+        }
+
+        $validated = $request->validate([
+            'procedure_name' => ['required', 'string', 'max:255'],
+            'tooth_number' => ['nullable', 'integer', 'between:1,32'],
+            'notes' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $nextSequence = $treatmentPlan->items()->max('sequence') + 1;
+
+        $item = TreatmentPlanItem::create([
+            'treatment_plan_id' => $treatmentPlan->id,
+            'tooth_number' => $validated['tooth_number'] ?? null,
+            'procedure_name' => $validated['procedure_name'],
+            'status' => 'pending',
+            'sequence' => $nextSequence,
+            'notes' => $validated['notes'] ?? null,
+        ]);
+
+        return response()->json(['data' => $item], 201);
     }
 
     /**

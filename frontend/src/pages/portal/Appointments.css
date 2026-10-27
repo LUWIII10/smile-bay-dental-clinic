@@ -558,6 +558,11 @@
   color: var(--portal-blue);
 }
 
+.row-action-icon--danger:hover {
+  background: var(--portal-red-bg);
+  color: var(--portal-red-text);
+}
+
 /* ============ Action overflow menu ============ */
 
 .action-menu {

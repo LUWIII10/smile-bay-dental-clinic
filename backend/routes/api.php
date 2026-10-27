@@ -116,9 +116,12 @@ Route::middleware('auth:sanctum')->group(function () {
         // migration doc comments) — reads sit in the shared
         // dentist/dental_assistant/admin group below instead.
         Route::post('/patient-records/{patient}/clinical-notes', [PatientRecordController::class, 'storeClinicalNote']);
+        Route::patch('/clinical-notes/{clinicalNote}', [PatientRecordController::class, 'updateClinicalNote']);
+        Route::delete('/clinical-notes/{clinicalNote}', [PatientRecordController::class, 'destroyClinicalNote']);
         Route::put('/patient-records/{patient}/tooth-conditions/{toothNumber}', [PatientRecordController::class, 'updateToothCondition']);
         Route::post('/patient-records/{patient}/treatment-plans', [PatientRecordController::class, 'storeTreatmentPlan']);
         Route::patch('/treatment-plans/{treatmentPlan}/status', [PatientRecordController::class, 'updateTreatmentPlanStatus']);
+        Route::post('/treatment-plans/{treatmentPlan}/items', [PatientRecordController::class, 'storeTreatmentPlanItem']);
         Route::patch('/treatment-plan-items/{treatmentPlanItem}', [PatientRecordController::class, 'updateTreatmentPlanItem']);
         Route::post('/patient-records/{patient}/treatment-history', [PatientRecordController::class, 'storeTreatmentHistory']);
         Route::patch('/patient-records/{patient}/primary-dentist', [PatientRecordController::class, 'updatePrimaryDentist']);

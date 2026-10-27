@@ -6,10 +6,13 @@ import {
   getPatientRecord,
   getAppointmentsByDate,
   addClinicalNote,
+  updateClinicalNote,
+  deleteClinicalNote,
   setToothCondition,
   createTreatmentPlan,
   updateTreatmentPlanStatus,
   updateTreatmentPlanItemStatus,
+  addTreatmentPlanItem,
   addTreatmentHistory,
   downloadAppointmentsByDatePdf,
   downloadPatientRecordPdf,
@@ -34,7 +37,7 @@ import {
   formatRecordDate as formatDate,
   formatRecordDateParts,
 } from './dentalRecordShared';
-import { SearchIcon, FileIcon, ClockIcon, UserIcon, ShieldIcon, PrinterIcon, DownloadIcon, AlertIcon, SyringeIcon, ToothIcon, MailIcon, CalendarIcon, UsersIcon, PhoneIcon, MapPinIcon } from './icons';
+import { SearchIcon, FileIcon, ClockIcon, UserIcon, ShieldIcon, PrinterIcon, DownloadIcon, AlertIcon, SyringeIcon, ToothIcon, MailIcon, CalendarIcon, UsersIcon, PhoneIcon, MapPinIcon, EditIcon, TrashIcon } from './icons';
 import { formatDateLong, formatTime12h } from './dateTimeUtils';
 import { formatRangeLabel } from './components/dateRangeUtils';
 import { showSuccessToast, showErrorToast } from '../../utils/toast';
@@ -140,7 +143,7 @@ function checkNoteLengthForCompletion(note) {
 }
 
 function PatientRecords() {
-  const { role } = useAuth();
+  const { role, user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   // Set when the dentist arrives here from DentistSchedule.jsx — either
@@ -262,9 +265,18 @@ function PatientRecords() {
   const [linkedAppointmentId, setLinkedAppointmentId] = useState(incoming.appointmentId ?? null);
   const [linkedVisitLabel, setLinkedVisitLabel] = useState(incoming.visitLabel ?? '');
 
+  const [editingNoteId, setEditingNoteId] = useState(null);
+  const [editNoteText, setEditNoteText] = useState('');
+  const [savingNoteEdit, setSavingNoteEdit] = useState(false);
+  const [deletingNoteId, setDeletingNoteId] = useState(null);
+
   const [planModalOpen, setPlanModalOpen] = useState(false);
   const [planForm, setPlanForm] = useState({ title: '', description: '', target_date: '', items: [{ ...EMPTY_ITEM }] });
   const [savingPlan, setSavingPlan] = useState(false);
+
+  const [addItemPlanId, setAddItemPlanId] = useState(null);
+  const [addItemForm, setAddItemForm] = useState({ procedure_name: '', tooth_number: '' });
+  const [savingPlanItem, setSavingPlanItem] = useState(false);
 
   const [historyModalOpen, setHistoryModalOpen] = useState(false);
   const [historyForm, setHistoryForm] = useState({ procedure_name: '', tooth_number: '', performed_at: '', notes: '' });
@@ -472,6 +484,44 @@ function PatientRecords() {
     }
   };
 
+  const startEditNote = (note) => {
+    setEditingNoteId(note.id);
+    setEditNoteText(note.note);
+  };
+
+  const cancelEditNote = () => {
+    setEditingNoteId(null);
+    setEditNoteText('');
+  };
+
+  const saveEditNote = async () => {
+    setSavingNoteEdit(true);
+    try {
+      await updateClinicalNote(editingNoteId, editNoteText.trim());
+      setEditingNoteId(null);
+      setEditNoteText('');
+      await loadDetail(selectedPatientId);
+      showSuccessToast('Clinical note updated.');
+    } catch (err) {
+      showErrorToast(err.response?.data?.message || 'Could not update this note.');
+    } finally {
+      setSavingNoteEdit(false);
+    }
+  };
+
+  const deleteNote = async (note) => {
+    setDeletingNoteId(note.id);
+    try {
+      await deleteClinicalNote(note.id);
+      await loadDetail(selectedPatientId);
+      showSuccessToast('Clinical note deleted.');
+    } catch (err) {
+      showErrorToast(err.response?.data?.message || 'Could not delete this note.');
+    } finally {
+      setDeletingNoteId(null);
+    }
+  };
+
   // ---- Treatment plan ----
   const updatePlanItem = (index, field, value) => {
     setPlanForm((prev) => {
@@ -529,6 +579,29 @@ function PatientRecords() {
       showSuccessToast('Plan status updated.');
     } catch {
       showErrorToast('Could not update this plan.');
+    }
+  };
+
+  const openAddItem = (planId) => {
+    setAddItemPlanId((current) => (current === planId ? null : planId));
+    setAddItemForm({ procedure_name: '', tooth_number: '' });
+  };
+
+  const submitPlanItem = async (planId) => {
+    setSavingPlanItem(true);
+    try {
+      await addTreatmentPlanItem(planId, {
+        procedure_name: addItemForm.procedure_name.trim(),
+        tooth_number: addItemForm.tooth_number || null,
+      });
+      setAddItemForm({ procedure_name: '', tooth_number: '' });
+      setAddItemPlanId(null);
+      await loadDetail(selectedPatientId);
+      showSuccessToast('Item added to treatment plan.');
+    } catch (err) {
+      showErrorToast(err.response?.data?.message || 'Could not add this item.');
+    } finally {
+      setSavingPlanItem(false);
     }
   };
 
@@ -1460,6 +1533,49 @@ function PatientRecords() {
                             ))}
                           </ul>
                         )}
+                        {isDentist && (
+                          addItemPlanId === plan.id ? (
+                            <div className="plan-item-form-row">
+                              <input
+                                className="form-input"
+                                placeholder="Procedure"
+                                value={addItemForm.procedure_name}
+                                onChange={(e) => setAddItemForm((p) => ({ ...p, procedure_name: e.target.value }))}
+                                maxLength={255}
+                                autoFocus
+                              />
+                              <input
+                                className="form-input plan-item-form-tooth"
+                                type="number"
+                                min="1"
+                                max="32"
+                                placeholder="Tooth #"
+                                value={addItemForm.tooth_number}
+                                onChange={(e) => setAddItemForm((p) => ({ ...p, tooth_number: e.target.value }))}
+                              />
+                              <button
+                                type="button"
+                                className="row-action-icon"
+                                aria-label="Cancel"
+                                onClick={() => setAddItemPlanId(null)}
+                              >
+                                &times;
+                              </button>
+                              <button
+                                type="button"
+                                className="dash-btn"
+                                disabled={savingPlanItem || !addItemForm.procedure_name.trim()}
+                                onClick={() => submitPlanItem(plan.id)}
+                              >
+                                {savingPlanItem ? 'Adding…' : 'Add'}
+                              </button>
+                            </div>
+                          ) : (
+                            <button type="button" className="dash-btn dash-btn--outline plan-item-add-btn" onClick={() => openAddItem(plan.id)}>
+                              + Add Item
+                            </button>
+                          )
+                        )}
                       </div>
                     ))}
                   </div>
@@ -1537,12 +1653,65 @@ function PatientRecords() {
                   </div>
                 ) : (
                   <ul className="notes-list">
-                    {record.clinical_notes.map((note) => (
-                      <li key={note.id} className="note-item">
-                        <p className="note-item-text">{note.note}</p>
-                        <span className="note-item-meta">{note.dentist?.name || 'Dentist'} · {formatDate(note.created_at)}</span>
-                      </li>
-                    ))}
+                    {record.clinical_notes.map((note) => {
+                      const canEdit = isDentist && note.dentist_id === user?.id;
+                      return (
+                        <li key={note.id} className="note-item">
+                          {editingNoteId === note.id ? (
+                            <>
+                              <textarea
+                                className="form-textarea"
+                                value={editNoteText}
+                                onChange={(e) => setEditNoteText(e.target.value)}
+                                maxLength={5000}
+                                autoFocus
+                              />
+                              <div className="note-item-edit-actions">
+                                <button type="button" className="dash-btn dash-btn--outline" onClick={cancelEditNote}>
+                                  Cancel
+                                </button>
+                                <button
+                                  type="button"
+                                  className="dash-btn"
+                                  disabled={savingNoteEdit || !editNoteText.trim()}
+                                  onClick={saveEditNote}
+                                >
+                                  {savingNoteEdit ? 'Saving…' : 'Save'}
+                                </button>
+                              </div>
+                            </>
+                          ) : (
+                            <div className="note-item-header">
+                              <div>
+                                <p className="note-item-text">{note.note}</p>
+                                <span className="note-item-meta">{note.dentist?.name || 'Dentist'} · {formatDate(note.created_at)}</span>
+                              </div>
+                              {canEdit && (
+                                <div className="note-item-actions">
+                                  <button
+                                    type="button"
+                                    className="row-action-icon"
+                                    aria-label="Edit note"
+                                    onClick={() => startEditNote(note)}
+                                  >
+                                    <EditIcon />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="row-action-icon row-action-icon--danger"
+                                    aria-label="Delete note"
+                                    disabled={deletingNoteId === note.id}
+                                    onClick={() => deleteNote(note)}
+                                  >
+                                    <TrashIcon />
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </li>
+                      );
+                    })}
                   </ul>
                 )}
               </div>

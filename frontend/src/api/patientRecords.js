@@ -44,6 +44,17 @@ export async function addClinicalNote(patientId, note, appointmentId = null) {
   return response.data.data;
 }
 
+export async function updateClinicalNote(noteId, note) {
+  await api.get('/sanctum/csrf-cookie');
+  const response = await api.patch(`/api/clinical-notes/${noteId}`, { note });
+  return response.data.data;
+}
+
+export async function deleteClinicalNote(noteId) {
+  await api.get('/sanctum/csrf-cookie');
+  await api.delete(`/api/clinical-notes/${noteId}`);
+}
+
 export async function setToothCondition(patientId, toothNumber, condition, notes = '') {
   await api.get('/sanctum/csrf-cookie');
   const response = await api.put(`/api/patient-records/${patientId}/tooth-conditions/${toothNumber}`, {
@@ -60,6 +71,16 @@ export async function createTreatmentPlan(patientId, { title, description, targe
     description: description || null,
     target_date: target_date || null,
     items: items || [],
+  });
+  return response.data.data;
+}
+
+export async function addTreatmentPlanItem(planId, { procedure_name, tooth_number, notes }) {
+  await api.get('/sanctum/csrf-cookie');
+  const response = await api.post(`/api/treatment-plans/${planId}/items`, {
+    procedure_name,
+    tooth_number: tooth_number || null,
+    notes: notes || null,
   });
   return response.data.data;
 }

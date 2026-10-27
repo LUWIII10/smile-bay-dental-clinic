@@ -704,6 +704,19 @@
   padding-bottom: 0;
 }
 
+.note-item-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.note-item-actions {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
 .note-item-text {
   margin: 0 0 4px;
   font-size: 0.87rem;
@@ -714,6 +727,13 @@
 .note-item-meta {
   font-size: 0.76rem;
   color: var(--portal-muted);
+}
+
+.note-item-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
 }
 
 /* ============ Dentist edit affordances (PatientRecords.jsx only) ============ */
