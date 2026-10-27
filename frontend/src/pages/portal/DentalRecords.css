@@ -155,6 +155,28 @@
 .record-field-icon--slate { background: var(--portal-gray-bg); color: var(--portal-gray-text); }
 .record-field-icon--red { background: var(--portal-red-bg); color: var(--portal-red-text); }
 
+.record-field--with-action {
+  justify-content: space-between;
+  width: 100%;
+}
+
+.record-field-action {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--portal-blue);
+  font-size: 0.78rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.record-field-action:hover {
+  text-decoration: underline;
+}
+
 /* ============ Tooth chart ============ */
 
 .tooth-chart-note {

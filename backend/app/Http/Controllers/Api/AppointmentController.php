@@ -322,6 +322,8 @@ class AppointmentController extends Controller
                 $record->update(['record_number' => DentalRecord::formatRecordNumber($record->id, $record->opened_at)]);
             }
 
+            $this->assignPrimaryDentistIfUnset($record, $appointment->dentist_id);
+
             TreatmentHistory::create([
                 'dental_record_id' => $record->id,
                 'appointment_id' => $appointment->id,
@@ -391,6 +393,8 @@ class AppointmentController extends Controller
                 ]);
                 $record->update(['record_number' => DentalRecord::formatRecordNumber($record->id, $record->opened_at)]);
             }
+
+            $this->assignPrimaryDentistIfUnset($record, $appointment->dentist_id);
 
             TreatmentHistory::create([
                 'dental_record_id' => $record->id,
@@ -556,5 +560,20 @@ class AppointmentController extends Controller
         );
 
         return response()->json(['message' => 'Appointment cancelled.', 'data' => $appointment]);
+    }
+
+    /**
+     * Whichever dentist first actually completes a visit becomes the
+     * patient's primary dentist by default — never overwrites an existing
+     * value, so this only ever fires once per patient (their first
+     * completed appointment, through either complete() or
+     * backfillRecord()) and staff can still reassign it afterward via
+     * PatientRecordController::updatePrimaryDentist().
+     */
+    private function assignPrimaryDentistIfUnset(DentalRecord $record, int $dentistId): void
+    {
+        if (! $record->primary_dentist_id) {
+            $record->update(['primary_dentist_id' => $dentistId]);
+        }
     }
 }

@@ -13,8 +13,9 @@ import {
   addTreatmentHistory,
   downloadAppointmentsByDatePdf,
   downloadPatientRecordPdf,
+  setPrimaryDentist,
 } from '../../api/patientRecords';
-import { completeAppointment, backfillTreatmentRecord } from '../../api/appointments';
+import { completeAppointment, backfillTreatmentRecord, getDentists } from '../../api/appointments';
 import DataTable from './components/DataTable';
 import Pagination from './components/Pagination';
 import Skeleton from './components/Skeleton';
@@ -268,6 +269,12 @@ function PatientRecords() {
   const [historyModalOpen, setHistoryModalOpen] = useState(false);
   const [historyForm, setHistoryForm] = useState({ procedure_name: '', tooth_number: '', performed_at: '', notes: '' });
   const [savingHistory, setSavingHistory] = useState(false);
+
+  const [dentistModalOpen, setDentistModalOpen] = useState(false);
+  const [dentistOptions, setDentistOptions] = useState([]);
+  const [loadingDentistOptions, setLoadingDentistOptions] = useState(false);
+  const [selectedDentistId, setSelectedDentistId] = useState('');
+  const [savingDentist, setSavingDentist] = useState(false);
 
   useEffect(() => {
     clearTimeout(debounceRef.current);
@@ -543,6 +550,35 @@ function PatientRecords() {
       showErrorToast(err.response?.data?.message || 'Could not log this procedure.');
     } finally {
       setSavingHistory(false);
+    }
+  };
+
+  // ---- Primary dentist assignment ----
+  const openDentistModal = async (currentDentistId) => {
+    setSelectedDentistId(currentDentistId ? String(currentDentistId) : '');
+    setDentistModalOpen(true);
+    setLoadingDentistOptions(true);
+    try {
+      setDentistOptions(await getDentists());
+    } catch {
+      showErrorToast('Could not load the dentist list.');
+    } finally {
+      setLoadingDentistOptions(false);
+    }
+  };
+
+  const submitPrimaryDentist = async () => {
+    if (!selectedDentistId) return;
+    setSavingDentist(true);
+    try {
+      await setPrimaryDentist(selectedPatientId, Number(selectedDentistId));
+      setDentistModalOpen(false);
+      await loadDetail(selectedPatientId);
+      showSuccessToast('Primary dentist updated.');
+    } catch (err) {
+      showErrorToast(err.response?.data?.message || 'Could not update the primary dentist.');
+    } finally {
+      setSavingDentist(false);
     }
   };
 
@@ -1214,12 +1250,21 @@ function PatientRecords() {
                     </div>
                   </div>
                 )}
-                <div className="record-field">
+                <div className={`record-field${isDentist ? ' record-field--with-action' : ''}`}>
                   <span className="record-field-icon record-field-icon--navy"><UserIcon /></span>
                   <div className="record-info-item">
                     <span className="record-info-label">Primary Dentist</span>
                     <span className="record-info-value">{record.primary_dentist?.name || 'Not yet assigned'}</span>
                   </div>
+                  {isDentist && (
+                    <button
+                      type="button"
+                      className="record-field-action"
+                      onClick={() => openDentistModal(record.primary_dentist_id)}
+                    >
+                      {record.primary_dentist?.name ? 'Change' : 'Assign →'}
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -1726,6 +1771,36 @@ function PatientRecords() {
                   onClick={submitHistory}
                 >
                   {savingHistory ? 'Saving…' : 'Log Procedure'}
+                </button>
+              </div>
+            </Modal>
+
+            <Modal open={dentistModalOpen} onClose={() => setDentistModalOpen(false)} title="Assign Primary Dentist">
+              <label className="modal-field-label" htmlFor="primary-dentist-select">Dentist</label>
+              <select
+                id="primary-dentist-select"
+                className="form-input"
+                value={selectedDentistId}
+                onChange={(e) => setSelectedDentistId(e.target.value)}
+                disabled={loadingDentistOptions}
+              >
+                <option value="" disabled>{loadingDentistOptions ? 'Loading…' : 'Select a dentist'}</option>
+                {dentistOptions.map((d) => (
+                  <option key={d.id} value={d.id}>{d.name}</option>
+                ))}
+              </select>
+
+              <div className="modal-actions">
+                <button type="button" className="dash-btn dash-btn--outline" onClick={() => setDentistModalOpen(false)}>
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="dash-btn"
+                  disabled={savingDentist || !selectedDentistId}
+                  onClick={submitPrimaryDentist}
+                >
+                  {savingDentist ? 'Saving…' : 'Save'}
                 </button>
               </div>
             </Modal>
