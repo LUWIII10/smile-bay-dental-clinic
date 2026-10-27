@@ -87,9 +87,20 @@ class ClinicSettingsController extends Controller
             // Explicit flag — see Service::isPediatric()'s own doc comment
             // for why this is a real column now, not derived from the name.
             'is_pediatric' => ['sometimes', 'boolean'],
+            // Defaults to true here (not the column's own migration
+            // default of false) — an admin adding a service expects
+            // patients to see it immediately; the toggle exists for the
+            // rarer staff-only/walk-in-assessment case, not as an
+            // extra required step every time.
+            'is_patient_bookable' => ['sometimes', 'boolean'],
         ]);
 
-        $service = Service::create([...$validated, 'is_active' => true, 'is_pediatric' => $validated['is_pediatric'] ?? false]);
+        $service = Service::create([
+            ...$validated,
+            'is_active' => true,
+            'is_pediatric' => $validated['is_pediatric'] ?? false,
+            'is_patient_bookable' => $validated['is_patient_bookable'] ?? true,
+        ]);
 
         return response()->json(['data' => $service], 201);
     }
@@ -102,6 +113,7 @@ class ClinicSettingsController extends Controller
             'category' => ['sometimes', 'nullable', 'string', 'max:100'],
             'duration_minutes' => ['sometimes', 'integer', 'min:5', 'max:480'],
             'is_pediatric' => ['sometimes', 'boolean'],
+            'is_patient_bookable' => ['sometimes', 'boolean'],
         ]);
 
         $service->update($validated);

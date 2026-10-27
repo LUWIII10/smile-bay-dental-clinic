@@ -26,7 +26,23 @@ import './Settings.css';
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const SERVICE_CATEGORIES = ['General Dentistry', 'Cosmetic Dentistry', 'Orthodontics', 'Specialist Services'];
-const EMPTY_SERVICE_FORM = { name: '', category: SERVICE_CATEGORIES[0], duration_minutes: 30, description: '' };
+const EMPTY_SERVICE_FORM = { name: '', category: SERVICE_CATEGORIES[0], duration_minutes: 30, description: '', is_patient_bookable: true };
+
+// Same .toggle-switch markup/CSS as MyAvailability.jsx's own ToggleSwitch —
+// no shared component exists yet for it, so this is a second small copy
+// rather than reaching across pages for one pill switch.
+function ToggleSwitch({ checked, onChange, label }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      className={`toggle-switch${checked ? ' toggle-switch--on' : ''}`}
+      onClick={() => onChange(!checked)}
+    />
+  );
+}
 // Existing StatusBadge tones only (portalTokens.css) — no new colors, just
 // spreading the 4 categories across the palette so the column reads at a
 // glance instead of as a wall of identical plain text.
@@ -175,6 +191,7 @@ function Settings() {
       category: service.category || SERVICE_CATEGORIES[0],
       duration_minutes: service.duration_minutes,
       description: service.description || '',
+      is_patient_bookable: service.is_patient_bookable ?? true,
     });
     setServiceError('');
     setServiceModalOpen(true);
@@ -189,6 +206,7 @@ function Settings() {
         category: serviceForm.category,
         duration_minutes: Number(serviceForm.duration_minutes),
         description: serviceForm.description.trim() || null,
+        is_patient_bookable: serviceForm.is_patient_bookable,
       };
       if (editingService) {
         await updateService(editingService.id, payload);
@@ -299,18 +317,25 @@ function Settings() {
   };
 
   const serviceColumns = [
-    { key: 'name', label: 'Service', minWidth: '28%', render: (row) => row.name },
+    { key: 'name', label: 'Service', minWidth: '22%', render: (row) => row.name },
     {
       key: 'category',
       label: 'Category',
-      minWidth: '20%',
+      minWidth: '16%',
       render: (row) => row.category ? <StatusBadge status={row.category} tone={CATEGORY_TONE[row.category] || 'gray'} /> : '—',
     },
-    { key: 'duration', label: 'Duration', minWidth: '14%', render: (row) => `${row.duration_minutes} min` },
+    { key: 'duration', label: 'Duration', minWidth: '12%', render: (row) => `${row.duration_minutes} min` },
+    {
+      key: 'bookable',
+      label: 'Bookable Online',
+      minWidth: '14%',
+      align: 'center',
+      render: (row) => <StatusBadge status={row.is_patient_bookable ? 'Yes' : 'No'} tone={row.is_patient_bookable ? 'blue' : 'gray'} />,
+    },
     {
       key: 'status',
       label: 'Status',
-      minWidth: '14%',
+      minWidth: '12%',
       align: 'center',
       render: (row) => <StatusBadge status={row.is_active ? 'Active' : 'Inactive'} tone={row.is_active ? 'green' : 'gray'} />,
     },
@@ -526,6 +551,20 @@ function Settings() {
 
         <label className="modal-field-label">Description</label>
         <textarea className="form-textarea" value={serviceForm.description} onChange={(e) => setServiceForm((p) => ({ ...p, description: e.target.value }))} placeholder="Optional" />
+
+        <div className="service-bookable-field">
+          <div>
+            <span className="service-bookable-field-title">Available for Online Booking</span>
+            <p className="service-bookable-field-desc">
+              When on, patients see this in their own Book Appointment wizard. Off keeps it staff/walk-in only.
+            </p>
+          </div>
+          <ToggleSwitch
+            checked={serviceForm.is_patient_bookable}
+            onChange={(v) => setServiceForm((p) => ({ ...p, is_patient_bookable: v }))}
+            label="Available for online booking"
+          />
+        </div>
 
         <div className="modal-actions">
           <button type="button" className="dash-btn dash-btn--outline" onClick={() => setServiceModalOpen(false)}>Cancel</button>

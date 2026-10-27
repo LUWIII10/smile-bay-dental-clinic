@@ -185,3 +185,67 @@
   font-size: 0.75rem;
   color: var(--portal-muted);
 }
+
+/* ============ Add/Edit Service modal: patient-bookable toggle ============ */
+
+.service-bookable-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 14px;
+  margin: 4px 0 0;
+  border-radius: 10px;
+  background: var(--portal-canvas);
+  border: 1px solid var(--portal-border-light);
+}
+
+.service-bookable-field-title {
+  display: block;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--portal-navy);
+}
+
+.service-bookable-field-desc {
+  margin: 2px 0 0;
+  font-size: 0.74rem;
+  color: var(--portal-muted);
+  line-height: 1.4;
+}
+
+/* Same .toggle-switch markup/behavior as MyAvailability.css's own — a
+   second small copy rather than importing that whole stylesheet here for
+   one shared control. */
+.toggle-switch {
+  position: relative;
+  flex-shrink: 0;
+  width: 42px;
+  height: 24px;
+  border-radius: 999px;
+  border: none;
+  background: var(--portal-border);
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.toggle-switch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.25);
+  transition: transform 0.15s ease;
+}
+
+.toggle-switch--on {
+  background: var(--portal-blue);
+}
+
+.toggle-switch--on::after {
+  transform: translateX(18px);
+}
