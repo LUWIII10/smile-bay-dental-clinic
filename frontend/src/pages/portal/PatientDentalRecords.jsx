@@ -231,16 +231,16 @@ function PatientDentalRecords() {
         </>
       )}
 
-      <Modal
-        open={!!detailItem}
-        onClose={() => setDetailItem(null)}
-        title="Treatment Details"
-        icon={detailItem ? ToothIcon : undefined}
-        tone={detailItem ? classifyHistoryCategory(detailItem.procedure_name).tone : undefined}
-      >
+      <Modal open={!!detailItem} onClose={() => setDetailItem(null)}>
         {detailItem && (
           <div className="record-history-detail">
-            <h4 className="record-history-detail-title">{detailItem.procedure_name}</h4>
+            <div className={`record-history-detail-banner record-history-detail-banner--${classifyHistoryCategory(detailItem.procedure_name).tone}`}>
+              <span className="record-history-detail-banner-icon"><ToothIcon /></span>
+              <div>
+                <span className="record-history-detail-banner-badge">{classifyHistoryCategory(detailItem.procedure_name).label}</span>
+                <h4 className="record-history-detail-banner-title">{detailItem.procedure_name}</h4>
+              </div>
+            </div>
             <div className="record-history-detail-complete">
               <CheckCircleIcon />
               Procedure Completed

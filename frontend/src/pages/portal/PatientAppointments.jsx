@@ -597,9 +597,7 @@ function PatientAppointments() {
       <Modal
         open={!!treatmentDetail}
         onClose={() => setTreatmentDetail(null)}
-        title="Treatment Details"
-        icon={treatmentDetail && !treatmentDetail.missingRecord ? ToothIcon : undefined}
-        tone={treatmentDetail && !treatmentDetail.missingRecord ? classifyHistoryCategory(treatmentDetail.procedure_name).tone : undefined}
+        title={treatmentDetail && treatmentDetail.missingRecord ? 'Treatment Details' : undefined}
       >
         {treatmentDetail && treatmentDetail.missingRecord && (
           // A visit marked completed before per-visit records were required,
@@ -619,7 +617,13 @@ function PatientAppointments() {
         )}
         {treatmentDetail && !treatmentDetail.missingRecord && (
           <div className="record-history-detail">
-            <h4 className="record-history-detail-title">{treatmentDetail.procedure_name}</h4>
+            <div className={`record-history-detail-banner record-history-detail-banner--${classifyHistoryCategory(treatmentDetail.procedure_name).tone}`}>
+              <span className="record-history-detail-banner-icon"><ToothIcon /></span>
+              <div>
+                <span className="record-history-detail-banner-badge">{classifyHistoryCategory(treatmentDetail.procedure_name).label}</span>
+                <h4 className="record-history-detail-banner-title">{treatmentDetail.procedure_name}</h4>
+              </div>
+            </div>
             <div className="record-history-detail-complete">
               <CheckCircleIcon />
               Procedure Completed

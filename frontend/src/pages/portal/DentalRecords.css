@@ -1107,19 +1107,61 @@
    chart-note layout for a completed visit no matter which page they
    reached it from) ============ */
 
-.record-history-detail-title {
-  margin: 0 0 14px;
-  font-size: 1.05rem;
-  font-weight: 700;
-  color: var(--portal-navy);
-  padding-bottom: 14px;
-  border-bottom: 1px solid var(--portal-border-light);
+/* Colored header band — tone is one of classifyHistoryCategory()'s own
+   tone names (indigo/blue/green/amber), so this needs no translation at
+   the call site. Bleeds past .modal-body's own padding via negative
+   margin, rather than changing Modal.jsx itself (shared by every other
+   dialog in the app) — Modal's own header bar (just the close button,
+   title omitted at the call site) still sits above it. */
+.record-history-detail-banner {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  margin: -24px -20px 20px;
+  padding: 20px 24px;
 }
 
-/* Replaces the old stacked category + "Completed" badge pair — the
-   category now reads from the modal's own colored icon chip (Modal's
-   icon/tone props, set from the same classifyHistoryCategory() tone), so
-   this is just a plain confirmation line instead of a second pill. */
+.record-history-detail-banner--indigo { background: linear-gradient(135deg, #4338ca, #312a9e); }
+.record-history-detail-banner--blue { background: linear-gradient(135deg, #1d4ed8, #1739a6); }
+.record-history-detail-banner--green { background: linear-gradient(135deg, #15803d, #0f5c2c); }
+.record-history-detail-banner--amber { background: linear-gradient(135deg, #b45309, #8a3f07); }
+
+.record-history-detail-banner-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.record-history-detail-banner-icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.record-history-detail-banner-badge {
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  font-size: 0.64rem;
+  font-weight: 700;
+  padding: 2px 9px;
+  border-radius: 999px;
+  margin-bottom: 5px;
+}
+
+.record-history-detail-banner-title {
+  margin: 0;
+  font-size: 1.02rem;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.3;
+}
+
 .record-history-detail-complete {
   display: flex;
   align-items: center;
