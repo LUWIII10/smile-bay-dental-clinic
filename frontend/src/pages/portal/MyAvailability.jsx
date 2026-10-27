@@ -64,7 +64,7 @@ function ConflictModal({ open, onClose, onConfirm, confirming, conflicts }) {
           Cancel
         </button>
         <button type="button" className="dash-btn dash-btn--danger" disabled={confirming} onClick={onConfirm}>
-          {confirming ? 'Saving…' : 'Save anyway — I understand these appointments are already booked and will remain as-is'}
+          {confirming ? 'Saving…' : 'Save Anyway'}
         </button>
       </div>
     </Modal>
