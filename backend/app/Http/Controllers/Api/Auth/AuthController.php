@@ -285,7 +285,23 @@ class AuthController extends Controller
 
         $this->issueOtp($user, 'password_reset');
 
-        return response()->json($genericResponse);
+        // Past this point the account's existence is already established
+        // internally (it's why we're in this branch at all), so an honest
+        // answer about delivery here reveals nothing new to an enumeration
+        // attempt — $genericResponse above is what keeps a non-existent
+        // email indistinguishable from this one. Matches resendOtp()'s own
+        // same pattern: silently claiming "sent" on a failed send left the
+        // user waiting on a code that was never coming, with no way to know
+        // it was safe to immediately retry rather than wait out the cooldown.
+        if (! $this->otpEmailDelivered) {
+            return response()->json([
+                'message' => 'We could not send the verification code right now. Please wait a moment and try again.',
+                'email_sent' => false,
+                'retry_after' => self::OTP_RESEND_COOLDOWN_SECONDS,
+            ], 502);
+        }
+
+        return response()->json(['email_sent' => true, ...$genericResponse]);
     }
 
     /**
@@ -415,15 +431,30 @@ class AuthController extends Controller
             ]
         );
 
-        try {
-            Mail::to($user->email)->send(new OtpMail($user, $plainOtp, self::OTP_TTL_MINUTES, $purpose));
-            $this->otpEmailDelivered = true;
-        } catch (\Throwable $e) {
-            $this->otpEmailDelivered = false;
+        // One immediate retry on a transient SMTP hiccup (a slow/throttled
+        // Gmail handshake timing out per config/mail.php's mail.timeout) —
+        // last_sent_at above already started the resend cooldown, so a
+        // bare single-attempt failure would otherwise leave the user stuck
+        // waiting out that whole cooldown before the UI even lets them ask
+        // for a fresh send.
+        $lastError = null;
+        for ($attempt = 1; $attempt <= 2; $attempt++) {
+            try {
+                Mail::to($user->email)->send(new OtpMail($user, $plainOtp, self::OTP_TTL_MINUTES, $purpose));
+                $this->otpEmailDelivered = true;
+                $lastError = null;
+                break;
+            } catch (\Throwable $e) {
+                $this->otpEmailDelivered = false;
+                $lastError = $e;
+            }
+        }
+
+        if ($lastError) {
             Log::warning('OTP email failed to send', [
                 'user_id' => $user->id,
                 'purpose' => $purpose,
-                'error' => $e->getMessage(),
+                'error' => $lastError->getMessage(),
             ]);
         }
 

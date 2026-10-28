@@ -45,7 +45,14 @@ return [
             'port' => env('MAIL_PORT', 2525),
             'username' => env('MAIL_USERNAME'),
             'password' => env('MAIL_PASSWORD'),
-            'timeout' => null,
+            // null (the framework default) leaves the connection timeout up
+            // to the OS/stream defaults, which can run well past a minute
+            // on a slow or throttled SMTP handshake — the OTP send below is
+            // synchronous and blocks the HTTP response, so a hang here was
+            // read by the user as "no email sent" long before anything
+            // actually failed. A bounded timeout fails fast instead, so it
+            // gets caught and retried (or logged) quickly.
+            'timeout' => env('MAIL_TIMEOUT', 10),
             'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
         ],
 
