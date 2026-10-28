@@ -1218,6 +1218,26 @@
   width: 150px;
 }
 
+/* No wrap/stacking rule existed at all below .appt-page-header's own
+   560px breakpoint (Appointments.css), so these 3 items (date range,
+   Print Record, Download PDF) just overflowed the row on a real phone
+   instead of wrapping — the last one run off the right edge of the
+   screen instead of fitting. Same full-width-stacked treatment
+   Reports.css's own .reports-date-range already uses for the identical
+   problem. */
+@media (max-width: 560px) {
+  .record-print-controls {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .record-print-controls .drp-wrap,
+  .record-print-controls .dash-btn {
+    width: 100%;
+  }
+}
+
 /* ============ Print — patient record (PatientRecords.jsx ONLY) ============
    .record-print-formal is a new, standalone print block — not nested
    inside any of the isDentist/isAssistantView-gated on-screen sections, so
