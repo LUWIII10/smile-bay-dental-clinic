@@ -125,7 +125,7 @@ class StaffAppointmentController extends Controller
             });
         }
 
-        $direction = ($validated['sort'] ?? 'date_desc') === 'date_asc' ? 'asc' : 'desc';
+        $direction = ($validated['sort'] ?? 'date_asc') === 'date_asc' ? 'asc' : 'desc';
         $query->orderBy('appointment_date', $direction)->orderBy('appointment_time', $direction);
 
         $perPage = $validated['per_page'] ?? 10;

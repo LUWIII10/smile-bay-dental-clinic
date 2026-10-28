@@ -125,7 +125,7 @@ function AllAppointments() {
 
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
-  const [sort, setSort] = useState('date_desc');
+  const [sort, setSort] = useState('date_asc');
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
 
