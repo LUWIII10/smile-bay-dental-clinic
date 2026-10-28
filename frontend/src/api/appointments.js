@@ -256,11 +256,12 @@ export async function getHmoQueue() {
   return response.data.data;
 }
 
-export async function verifyHmoAppointment(appointmentId, action, reason) {
+export async function verifyHmoAppointment(appointmentId, action, reason, hmoCoverageNotes) {
   await api.get('/sanctum/csrf-cookie');
   const response = await api.patch(`/api/staff/appointments/${appointmentId}/verify`, {
     action,
     reason,
+    hmo_coverage_notes: hmoCoverageNotes,
   });
   return response.data;
 }

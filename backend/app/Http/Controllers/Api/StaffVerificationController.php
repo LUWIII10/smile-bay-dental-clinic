@@ -74,6 +74,7 @@ class StaffVerificationController extends Controller
         $validated = $request->validate([
             'action' => ['required', 'in:approve,reject'],
             'reason' => ['nullable', 'string', 'max:1000'],
+            'hmo_coverage_notes' => ['nullable', 'string', 'max:2000'],
         ]);
 
         if ($appointment->status !== 'pending_verification') {
@@ -106,13 +107,30 @@ class StaffVerificationController extends Controller
         $newStatus = $validated['action'] === 'approve' ? 'confirmed' : 'rejected';
         $reason = $validated['action'] === 'reject' ? ($validated['reason'] ?? null) : null;
 
-        DB::transaction(function () use ($appointment, $newStatus, $reason, $request) {
+        // Same "only touch it if it actually changed" guard as
+        // proposeNewDate() below — this is the routine approve path (most
+        // HMO bookings never hit the overdue-date branch above), so without
+        // it the patient's own coverage box in My Profile stayed empty
+        // unless staff separately used "Edit Info" first.
+        $patient = $appointment->patient;
+        $coverageNotesChanged = $newStatus === 'confirmed'
+            && ! empty(trim((string) ($validated['hmo_coverage_notes'] ?? '')))
+            && trim((string) $validated['hmo_coverage_notes']) !== trim((string) $patient->hmo_coverage_notes);
+
+        DB::transaction(function () use ($appointment, $newStatus, $reason, $request, $patient, $coverageNotesChanged, $validated) {
             $appointment->update([
                 'status' => $newStatus,
                 'verified_by' => $request->user()->id,
                 'verified_at' => now(),
                 'cancellation_reason' => $reason,
             ]);
+
+            if ($coverageNotesChanged) {
+                $patient->update([
+                    'hmo_coverage_notes' => trim($validated['hmo_coverage_notes']),
+                    'hmo_coverage_verified_at' => now(),
+                ]);
+            }
 
             AppointmentStatusLog::create([
                 'appointment_id' => $appointment->id,

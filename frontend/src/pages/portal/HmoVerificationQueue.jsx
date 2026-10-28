@@ -215,6 +215,15 @@ function HmoVerificationQueue() {
   const [proposing, setProposing] = useState(false);
   const [proposeError, setProposeError] = useState('');
 
+  // Plain "Approve" (the routine case — requested date hasn't passed) used
+  // to confirm outright with no way to record coverage, so a patient's own
+  // "Your Verified Coverage" box (MyProfile.jsx) stayed empty unless staff
+  // separately used Edit Info first. Same optional Coverage Details field
+  // as "Approve & Reschedule" above, just without the date-picker part.
+  const [approveTarget, setApproveTarget] = useState(null);
+  const [approveCoverageNotes, setApproveCoverageNotes] = useState('');
+  const [approveError, setApproveError] = useState('');
+
   // Full staff-facing catalog (not the patient-bookable-only subset the
   // booking wizard uses) — staff can reassign to anything the clinic
   // offers, minus pediatric (blocked below, same as the backend guard —
@@ -321,15 +330,25 @@ function HmoVerificationQueue() {
     return () => { cancelled = true; };
   }, [editTarget, editForm.serviceId, editForm.dentistId, editForm.appointmentDate]);
 
-  const handleApprove = async (appointment) => {
+  const openApproveModal = (appointment) => {
+    setApproveError('');
+    setApproveCoverageNotes(appointment.patient?.hmo_coverage_notes || '');
+    setApproveTarget(appointment);
+  };
+
+  const handleApprove = async () => {
+    if (!approveTarget) return;
+    const appointment = approveTarget;
     setActingId(appointment.id);
-    setActionError('');
+    setApproveError('');
     try {
-      await verifyHmoAppointment(appointment.id, 'approve');
+      await verifyHmoAppointment(appointment.id, 'approve', undefined, approveCoverageNotes.trim() || undefined);
       setAppointments((prev) => prev.filter((a) => a.id !== appointment.id));
+      setApproveTarget(null);
+      setApproveCoverageNotes('');
       showSuccessToast('Appointment approved.');
     } catch (err) {
-      setActionError(err.response?.data?.message || 'Could not approve this appointment.');
+      setApproveError(err.response?.data?.message || 'Could not approve this appointment.');
     } finally {
       setActingId(null);
     }
@@ -491,7 +510,7 @@ function HmoVerificationQueue() {
             appointment={appointment}
             actingId={actingId}
             sendingId={sendingId}
-            onApprove={handleApprove}
+            onApprove={openApproveModal}
             onReject={openReject}
             onSendUpdate={openStatusUpdate}
             onEditHmoInfo={openEditHmoInfo}
@@ -745,6 +764,43 @@ function HmoVerificationQueue() {
               </button>
               <button type="button" className="dash-btn" disabled={proposing || !proposeTime} onClick={handleProposeNewDate}>
                 {proposing ? 'Sending…' : 'Send New Date to Patient'}
+              </button>
+            </div>
+          </>
+        )}
+      </Modal>
+
+      <Modal open={!!approveTarget} onClose={() => setApproveTarget(null)} title="Approve & Verify Coverage">
+        {approveTarget && (
+          <>
+            <div className="profile-alert profile-alert--success" style={{ marginBottom: 18, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+              <CheckCircleIcon />
+              <span>
+                Approving marks {approveTarget.patient?.first_name}&rsquo;s HMO coverage as verified and confirms
+                their {formatDateLong(approveTarget.appointment_date)} appointment.
+              </span>
+            </div>
+
+            <label className="modal-field-label" style={{ display: 'block' }}>
+              Coverage Details <span style={{ fontWeight: 400, color: 'var(--portal-muted)' }}>(optional — saved to the patient's account)</span>
+            </label>
+            <textarea
+              className="form-textarea"
+              placeholder="e.g. 2 tooth extractions/year, 1 cleaning every 6 months, up to ₱5,000 crown allowance — as told by the provider."
+              value={approveCoverageNotes}
+              onChange={(e) => setApproveCoverageNotes(e.target.value)}
+            />
+
+            {approveError && (
+              <p style={{ margin: '10px 0 0', fontSize: '0.82rem', color: 'var(--portal-red-text)' }}>{approveError}</p>
+            )}
+
+            <div className="modal-actions">
+              <button type="button" className="dash-btn dash-btn--outline" onClick={() => setApproveTarget(null)}>
+                Cancel
+              </button>
+              <button type="button" className="dash-btn" disabled={actingId === approveTarget.id} onClick={handleApprove}>
+                {actingId === approveTarget.id ? 'Saving…' : 'Approve'}
               </button>
             </div>
           </>
