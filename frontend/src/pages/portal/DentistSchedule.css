@@ -105,16 +105,22 @@
 }
 
 .schedule-row-name {
+  min-width: 0;
   font-weight: 600;
   font-size: 0.92rem;
   color: var(--portal-navy);
-  overflow-wrap: anywhere;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .schedule-row-meta {
+  min-width: 0;
   font-size: 0.8rem;
   color: var(--portal-muted);
-  overflow-wrap: anywhere;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .schedule-row-more {

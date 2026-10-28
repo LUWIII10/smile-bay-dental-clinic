@@ -62,8 +62,8 @@ function ScheduleRow({ appointment, expanded, onToggle, completingId, onComplete
         </span>
         <span className="schedule-row-avatar">{getInitials(patientName)}</span>
         <span className="schedule-row-text">
-          <span className="schedule-row-name">{patientName}</span>
-          <span className="schedule-row-meta">{appointment.service.name} &middot; {isCash ? 'Cash' : 'HMO'}</span>
+          <span className="schedule-row-name" title={patientName}>{patientName}</span>
+          <span className="schedule-row-meta" title={`${appointment.service.name} · ${isCash ? 'Cash' : 'HMO'}`}>{appointment.service.name} &middot; {isCash ? 'Cash' : 'HMO'}</span>
         </span>
         <StatusBadge status={appointment.status} />
         {canExpand && (
