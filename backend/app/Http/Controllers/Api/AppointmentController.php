@@ -249,6 +249,17 @@ class AppointmentController extends Controller
                 "Your {$service->name} appointment is confirmed.",
                 '/patient/appointments'
             );
+            // Cash bookings auto-confirm with no staff review step (unlike
+            // the pediatric/HMO branches above, which already notify the
+            // dentist or staff as part of their own review queue) — without
+            // this, the dentist has no way to know a new appointment landed
+            // on their schedule until they happen to check it.
+            Notification::notifyUser(
+                $validated['dentist_id'],
+                'New appointment booked',
+                "{$patient->first_name} {$patient->last_name} booked {$service->name} on {$appointment->appointment_date->format('M j')} at {$appointment->appointment_time}.",
+                '/dentist/schedule'
+            );
         }
 
         $appointment->load(['service:id,name,duration_minutes', 'dentist:id,name']);
@@ -295,7 +306,9 @@ class AppointmentController extends Controller
             'notes' => ['required', 'string', 'min:20', 'max:1000'],
         ]);
 
-        DB::transaction(function () use ($appointment, $request, $validated) {
+        $primaryDentistJustAssigned = false;
+
+        DB::transaction(function () use ($appointment, $request, $validated, &$primaryDentistJustAssigned) {
             $appointment->update(['status' => 'completed']);
 
             AppointmentStatusLog::create([
@@ -322,7 +335,7 @@ class AppointmentController extends Controller
                 $record->update(['record_number' => DentalRecord::formatRecordNumber($record->id, $record->opened_at)]);
             }
 
-            $this->assignPrimaryDentistIfUnset($record, $appointment->dentist_id);
+            $primaryDentistJustAssigned = $this->assignPrimaryDentistIfUnset($record, $appointment->dentist_id);
 
             TreatmentHistory::create([
                 'dental_record_id' => $record->id,
@@ -334,6 +347,22 @@ class AppointmentController extends Controller
                 'notes' => $validated['notes'],
             ]);
         });
+
+        Notification::notifyUser(
+            $appointment->patient->user_id,
+            'Visit completed',
+            "Your {$appointment->service->name} visit has been logged. View the details in your dental records.",
+            '/patient/dental-records'
+        );
+
+        if ($primaryDentistJustAssigned) {
+            Notification::notifyUser(
+                $appointment->patient->user_id,
+                'Primary dentist assigned',
+                "{$appointment->dentist->name} is now your primary dentist.",
+                '/patient/dental-records'
+            );
+        }
 
         $appointment->load([
             'service:id,name,duration_minutes',
@@ -380,7 +409,9 @@ class AppointmentController extends Controller
             'notes' => ['required', 'string', 'min:20', 'max:1000'],
         ]);
 
-        DB::transaction(function () use ($appointment, $request, $validated) {
+        $primaryDentistJustAssigned = false;
+
+        DB::transaction(function () use ($appointment, $request, $validated, &$primaryDentistJustAssigned) {
             // Same lazy-provisioning shape as complete() above — a patient
             // whose only appointment is this one may still have no
             // dental_records row yet.
@@ -394,7 +425,7 @@ class AppointmentController extends Controller
                 $record->update(['record_number' => DentalRecord::formatRecordNumber($record->id, $record->opened_at)]);
             }
 
-            $this->assignPrimaryDentistIfUnset($record, $appointment->dentist_id);
+            $primaryDentistJustAssigned = $this->assignPrimaryDentistIfUnset($record, $appointment->dentist_id);
 
             TreatmentHistory::create([
                 'dental_record_id' => $record->id,
@@ -406,6 +437,15 @@ class AppointmentController extends Controller
                 'notes' => $validated['notes'],
             ]);
         });
+
+        if ($primaryDentistJustAssigned) {
+            Notification::notifyUser(
+                $appointment->patient->user_id,
+                'Primary dentist assigned',
+                "{$appointment->dentist->name} is now your primary dentist.",
+                '/patient/dental-records'
+            );
+        }
 
         $appointment->load([
             'service:id,name,duration_minutes',
@@ -568,12 +608,19 @@ class AppointmentController extends Controller
      * value, so this only ever fires once per patient (their first
      * completed appointment, through either complete() or
      * backfillRecord()) and staff can still reassign it afterward via
-     * PatientRecordController::updatePrimaryDentist().
+     * PatientRecordController::updatePrimaryDentist(). Returns whether it
+     * just assigned one — both call sites use that to notify the patient
+     * only on an actual (first-time) assignment, after their own
+     * transaction commits, not on every call.
      */
-    private function assignPrimaryDentistIfUnset(DentalRecord $record, int $dentistId): void
+    private function assignPrimaryDentistIfUnset(DentalRecord $record, int $dentistId): bool
     {
         if (! $record->primary_dentist_id) {
             $record->update(['primary_dentist_id' => $dentistId]);
+
+            return true;
         }
+
+        return false;
     }
 }

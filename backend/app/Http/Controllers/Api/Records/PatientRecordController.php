@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Appointment;
 use App\Models\ClinicalNote;
 use App\Models\DentalRecord;
+use App\Models\Notification;
 use App\Models\Patient;
 use App\Models\ToothCondition;
 use App\Models\TreatmentHistory;
@@ -502,7 +503,15 @@ class PatientRecordController extends Controller
         abort_if(! $record, 404, 'This patient has no dental record yet.');
 
         $record->update(['primary_dentist_id' => $validated['dentist_id']]);
+        $record->load('primaryDentist:id,name');
 
-        return response()->json(['data' => $record->load('primaryDentist:id,name')]);
+        Notification::notifyUser(
+            $patient->user_id,
+            'Primary dentist assigned',
+            "{$record->primaryDentist->name} is now your primary dentist.",
+            '/patient/dental-records'
+        );
+
+        return response()->json(['data' => $record]);
     }
 }

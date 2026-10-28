@@ -582,6 +582,12 @@ class StaffAppointmentController extends Controller
                 "New {$appointment->service->name} booking from {$appointment->patient->first_name} {$appointment->patient->last_name} needs your review.",
                 '/dentist/pediatric-queue'
             );
+            Notification::notifyUser(
+                $appointment->patient->user_id,
+                'Booking submitted',
+                "Your {$appointment->service->name} request is awaiting pediatric review.",
+                '/patient/appointments'
+            );
         } elseif ($appointment->patient_type_snapshot === 'hmo') {
             try {
                 Mail::to($patientEmail)->send(new HmoBookingSubmittedMail($appointment));
@@ -598,6 +604,12 @@ class StaffAppointmentController extends Controller
                 'HMO verification needed',
                 "New HMO booking from {$appointment->patient->first_name} {$appointment->patient->last_name} needs verification."
             );
+            Notification::notifyUser(
+                $appointment->patient->user_id,
+                'Booking submitted',
+                'Your HMO booking is pending coverage verification.',
+                '/patient/appointments'
+            );
         } else {
             try {
                 Mail::to($patientEmail)->send(new AppointmentConfirmedMail($appointment));
@@ -608,6 +620,12 @@ class StaffAppointmentController extends Controller
                     'error' => $e->getMessage(),
                 ]);
             }
+            Notification::notifyUser(
+                $appointment->patient->user_id,
+                'Appointment confirmed',
+                "Your {$appointment->service->name} appointment is confirmed.",
+                '/patient/appointments'
+            );
         }
 
         return response()->json([
