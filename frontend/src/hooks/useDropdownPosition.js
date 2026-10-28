@@ -31,10 +31,25 @@ export function useDropdownPosition() {
   // this check every scroll of the page itself — not just the dropdown's
   // own list reaching its scroll boundary — closed the panel for no reason.
   const triggerRectRef = useRef(null);
+  // Whether this open session has already run its one-time edge correction
+  // below. Without this, a subpixel measurement (the corrected rect still
+  // reading a hair past MARGIN, e.g. from a border or a mobile browser's own
+  // rounding) kept constructing a brand-new `position` object every pass —
+  // a new object is never === the old one, so React never bailed out, and
+  // the effect re-ran forever. On a phone, that pegged the main thread hard
+  // enough for Safari to treat the tab as hung and kill it (reported as the
+  // calendar filter going black and closing the whole app) — invisible on
+  // desktop, which never hit the oscillation in the first place. A real fix
+  // for the oscillation would mean knowing its exact cause on a device this
+  // can't be tested on; not re-measuring after the first correction removes
+  // the infinite-loop possibility outright, with no change in behavior for
+  // the normal (non-oscillating) case this effect was written for.
+  const correctedRef = useRef(false);
 
   const openMenu = () => {
     const rect = triggerRef.current.getBoundingClientRect();
     triggerRectRef.current = rect;
+    correctedRef.current = false;
     setPosition({ top: rect.bottom + 10, right: Math.max(MARGIN, window.innerWidth - rect.right) });
     setOpen(true);
   };
@@ -47,8 +62,9 @@ export function useDropdownPosition() {
   // about, then settles once corrected (the second pass finds nothing left
   // to fix).
   useLayoutEffect(() => {
-    if (!open || !dropdownRef.current) return;
+    if (!open || !dropdownRef.current || correctedRef.current) return;
     const rect = dropdownRef.current.getBoundingClientRect();
+    correctedRef.current = true;
     if (rect.left < MARGIN) {
       setPosition((p) => (p ? { top: p.top, left: MARGIN } : p));
     } else if (rect.right > window.innerWidth - MARGIN) {
