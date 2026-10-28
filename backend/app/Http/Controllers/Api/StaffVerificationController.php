@@ -413,6 +413,12 @@ class StaffVerificationController extends Controller
             'note' => "Status update sent to patient by staff: {$validated['status_label']}.".($validated['note'] ? ' Note: '.$validated['note'] : ''),
         ]);
 
+        ActivityLog::record(
+            $request->user()->id,
+            'hmo_status_update',
+            "{$request->user()->name} sent {$appointment->patient->first_name} {$appointment->patient->last_name} an HMO status update: {$validated['status_label']}."
+        );
+
         return response()->json(['message' => 'Status update sent to the patient.', 'data' => $appointment->fresh()]);
     }
 

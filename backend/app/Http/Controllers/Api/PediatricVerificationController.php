@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Mail\AppointmentConfirmedMail;
 use App\Mail\AppointmentRejectedMail;
 use App\Mail\AppointmentRescheduledMail;
+use App\Models\ActivityLog;
 use App\Models\Appointment;
 use App\Models\AppointmentStatusLog;
 use App\Models\Notification;
@@ -179,6 +180,14 @@ class PediatricVerificationController extends Controller
             );
         }
 
+        ActivityLog::record(
+            $request->user()->id,
+            $isApprove ? 'pediatric_verified' : 'appointment_rejected',
+            $isApprove
+                ? "{$request->user()->name} confirmed {$appointment->patient->first_name} {$appointment->patient->last_name}'s pediatric slot for {$appointment->service->name}."
+                : "{$request->user()->name} rejected {$appointment->patient->first_name} {$appointment->patient->last_name}'s pediatric {$appointment->service->name} booking."
+        );
+
         return response()->json([
             'message' => $isApprove
                 ? ($isCash ? 'Pediatric slot confirmed — appointment is now confirmed.' : 'Pediatric slot confirmed — now pending HMO verification.')
@@ -280,6 +289,12 @@ class PediatricVerificationController extends Controller
             'New date proposed',
             "Dr. {$appointment->dentist->name} proposed {$validated['appointment_date']} at {$validated['appointment_time']} for your {$appointment->service->name} visit — please confirm.",
             '/patient/appointments'
+        );
+
+        ActivityLog::record(
+            $request->user()->id,
+            'appointment_rescheduled',
+            "{$request->user()->name} proposed a new date for {$appointment->patient->first_name} {$appointment->patient->last_name}'s pediatric {$appointment->service->name} appointment."
         );
 
         return response()->json(['message' => 'New date sent to the patient for confirmation.', 'data' => $appointment]);

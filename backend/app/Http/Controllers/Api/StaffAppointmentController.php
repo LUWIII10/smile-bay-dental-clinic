@@ -7,6 +7,7 @@ use App\Mail\AppointmentConfirmedMail;
 use App\Mail\AppointmentRejectedMail;
 use App\Mail\HmoBookingSubmittedMail;
 use App\Mail\PediatricBookingSubmittedMail;
+use App\Models\ActivityLog;
 use App\Models\Appointment;
 use App\Models\AppointmentStatusLog;
 use App\Models\Notification;
@@ -224,13 +225,19 @@ class StaffAppointmentController extends Controller
             'follow_up_fulfilled_at' => null,
         ]);
 
-        $appointment->load(['patient:id,user_id', 'recommendedFollowUpService:id,name,duration_minutes', 'followUpRecommendedBy:id,name']);
+        $appointment->load(['patient:id,user_id,first_name,last_name', 'recommendedFollowUpService:id,name,duration_minutes', 'followUpRecommendedBy:id,name']);
 
         Notification::notifyUser(
             $appointment->patient->user_id,
             'Follow-up available',
             "You can now book a follow-up for {$appointment->recommendedFollowUpService->name}.",
             '/patient/appointments'
+        );
+
+        ActivityLog::record(
+            $request->user()->id,
+            'follow_up_enabled',
+            "{$request->user()->name} enabled a {$appointment->recommendedFollowUpService->name} follow-up for {$appointment->patient->first_name} {$appointment->patient->last_name}."
         );
 
         return response()->json(['data' => $appointment]);
@@ -294,6 +301,12 @@ class StaffAppointmentController extends Controller
             '/patient/appointments'
         );
 
+        ActivityLog::record(
+            $request->user()->id,
+            'appointment_cancelled',
+            "{$request->user()->name} cancelled {$appointment->patient->first_name} {$appointment->patient->last_name}'s {$appointment->service->name} appointment."
+        );
+
         return response()->json(['message' => 'Appointment cancelled.', 'data' => $appointment]);
     }
 
@@ -344,6 +357,12 @@ class StaffAppointmentController extends Controller
             'Missed appointment recorded',
             'Your '.$appointment->service->name.' appointment on '.$appointment->appointment_date->format('M j').' was marked as a missed visit. Contact the clinic if this is a mistake.',
             '/patient/appointments'
+        );
+
+        ActivityLog::record(
+            $request->user()->id,
+            'appointment_no_show',
+            "{$request->user()->name} marked {$appointment->patient->first_name} {$appointment->patient->last_name}'s {$appointment->service->name} appointment as a no-show."
         );
 
         return response()->json(['message' => 'Appointment marked as no-show.', 'data' => $appointment]);

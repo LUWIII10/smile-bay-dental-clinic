@@ -370,6 +370,12 @@ class AppointmentController extends Controller
             'treatmentHistoryEntry',
         ]);
 
+        ActivityLog::record(
+            $request->user()->id,
+            'appointment_completed',
+            "{$request->user()->name} marked {$appointment->patient->first_name} {$appointment->patient->last_name}'s {$appointment->service->name} appointment as completed."
+        );
+
         return response()->json(['message' => 'Appointment marked as completed.', 'data' => $appointment]);
     }
 
@@ -538,6 +544,12 @@ class AppointmentController extends Controller
             '/patient/appointments'
         );
 
+        ActivityLog::record(
+            $request->user()->id,
+            'appointment_rescheduled',
+            "{$request->user()->name} rescheduled {$appointment->patient->first_name} {$appointment->patient->last_name}'s {$appointment->service->name} appointment to {$validated['appointment_date']}."
+        );
+
         return response()->json(['message' => 'Appointment rescheduled.', 'data' => $appointment]);
     }
 
@@ -597,6 +609,12 @@ class AppointmentController extends Controller
             'Your '.$appointment->service->name.' appointment was cancelled by the clinic.'
                 .(! empty($validated['reason']) ? ' Reason: '.$validated['reason'] : ''),
             '/patient/appointments'
+        );
+
+        ActivityLog::record(
+            $request->user()->id,
+            'appointment_cancelled',
+            "{$request->user()->name} cancelled {$appointment->patient->first_name} {$appointment->patient->last_name}'s {$appointment->service->name} appointment."
         );
 
         return response()->json(['message' => 'Appointment cancelled.', 'data' => $appointment]);
