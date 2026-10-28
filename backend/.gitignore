@@ -24,7 +24,6 @@
 /public/favicon.svg
 /public/icons.svg
 /storage/*.key
-/storage/fonts
 /storage/pail
 /vendor
 Homestead.json
