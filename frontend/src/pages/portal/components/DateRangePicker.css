@@ -30,6 +30,17 @@
   gap: 9px;
 }
 
+/* No-op whenever .drp-trigger stays content-sized (every existing desktop
+   and modal usage — nothing for flex-grow to grow into there); only
+   matters where the trigger is given an explicit width wider than its
+   content, which pins the chevron to the far right instead of letting it
+   bunch up against a short label. Matches FilterDropdown's own
+   .filter-dd-label pattern. */
+.drp-trigger-label {
+  flex-grow: 1;
+  text-align: left;
+}
+
 .drp-trigger svg:first-child {
   color: var(--portal-blue);
   flex-shrink: 0;

@@ -921,6 +921,25 @@
        this column layout expects. */
     flex: none;
   }
+
+  /* FilterDropdown/DateRangePicker used bare in this toolbar (not wrapped
+     in .filter-field — UserManagement's role/status filters, ActivityLog's
+     role/type/date filters) or inside .filter-field (Patient Records'
+     DateRangePicker): .filter-field above already goes full width at this
+     breakpoint, but .filter-dd-wrap/.drp-wrap are inline-flex with no
+     width of their own, so the wrapper filled the row while its actual
+     trigger button stayed content-sized inside it — left-aligned with
+     empty space to its right, not matching the full-width search bar
+     next to it. */
+  .appt-toolbar .filter-dd-wrap,
+  .appt-toolbar .drp-wrap {
+    width: 100%;
+  }
+
+  .appt-toolbar .filter-dd-trigger,
+  .appt-toolbar .drp-trigger {
+    width: 100%;
+  }
 }
 
 /* This table's own min-width (1025px, above) plus the sidebar + page/card

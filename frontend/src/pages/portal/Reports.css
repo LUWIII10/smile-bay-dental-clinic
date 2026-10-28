@@ -21,6 +21,33 @@
   color: var(--portal-red-text);
 }
 
+/* Below this, .reports-date-range's 3 items (DateRangePicker, Print,
+   Download) have nothing to distinguish their widths from one another, so
+   PageHeader's own generic mobile rule (.page-hero-actions .dash-btn {
+   flex: 1 }, dashboards.css) just wraps them wherever 2 happen to fit on
+   one line and leaves the 3rd alone on the next — unpredictable, and
+   different combinations of button/date-label length wrap differently.
+   Stacking them explicitly, one full-width item per row, reads as one
+   deliberate list instead. Each selector below is 3 classes deep
+   (.page-hero-actions .reports-date-range .dash-btn, etc.) specifically to
+   outrank that 2-class generic rule regardless of file/declaration order —
+   scoped to this page's own action bar, so every other PageHeader actions
+   slot (UserManagement's "+ Add Staff Account", PatientAppointments' "Book
+   Appointment", etc.) keeps the generic behavior it already had. */
+@media (max-width: 560px) {
+  .page-hero-actions .reports-date-range {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .page-hero-actions .reports-date-range .drp-wrap,
+  .page-hero-actions .reports-date-range .dash-btn {
+    width: 100%;
+    flex: none;
+  }
+}
+
 .reports-bar-list {
   list-style: none;
   margin: 0;

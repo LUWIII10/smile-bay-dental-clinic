@@ -180,7 +180,7 @@ function DateRangePicker({ mode = 'range', value, onChange, placeholder = 'Pick 
         onClick={openPicker}
       >
         <CalendarIcon />
-        {triggerLabel}
+        <span className="drp-trigger-label">{triggerLabel}</span>
         <ChevronDownIcon open={open} />
       </button>
 
