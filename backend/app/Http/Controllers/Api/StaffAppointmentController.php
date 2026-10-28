@@ -125,6 +125,23 @@ class StaffAppointmentController extends Controller
             });
         }
 
+        // Landing on this page with nothing deliberately filtered should
+        // read like a work queue — what's coming up — not a lifetime
+        // history with months-old completed/cancelled visits buried among
+        // it. The moment staff actually ask for something specific (a
+        // status, a date range, "Overdue Only", a search), that request
+        // wins and this implicit cutoff steps aside — a status=completed
+        // filter or a typed patient name is exactly how staff reach past
+        // visits here, not a separate screen.
+        $isDefaultView = empty($validated['status'])
+            && empty($validated['date_from'])
+            && empty($validated['date_to'])
+            && empty($validated['search'])
+            && ! $request->boolean('overdue');
+        if ($isDefaultView) {
+            $query->whereDate('appointment_date', '>=', now()->toDateString());
+        }
+
         $direction = ($validated['sort'] ?? 'date_asc') === 'date_asc' ? 'asc' : 'desc';
         $query->orderBy('appointment_date', $direction)->orderBy('appointment_time', $direction);
 
