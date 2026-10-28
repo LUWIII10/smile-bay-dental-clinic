@@ -30,6 +30,17 @@ class AppointmentStatusLog extends Model
         ];
     }
 
+    // See ActivityLog::booted() for why this is needed: the migration's
+    // `useCurrent()` default lets the DB server's own clock stamp this
+    // column, which silently breaks once the DB server's clock isn't in
+    // app.timezone (as on live Hostinger, where MySQL runs in UTC).
+    protected static function booted(): void
+    {
+        static::creating(function (self $log) {
+            $log->created_at ??= now();
+        });
+    }
+
     public function appointment(): BelongsTo
     {
         return $this->belongsTo(Appointment::class);
