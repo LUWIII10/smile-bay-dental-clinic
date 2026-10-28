@@ -75,6 +75,12 @@ class DentistController extends Controller
      * service_id filtering and on_duty_today, neither of which mean
      * anything to a visitor who isn't booking), scoped to just the fields
      * a public bio card needs — no email or other account detail.
+     *
+     * Excludes the pediatric dentist on purpose — per explicit client
+     * request, not an oversight. She still appears everywhere she
+     * functionally needs to (booking wizard's doctor-selection step,
+     * Pediatric Queue, her own account) via index() above and
+     * isPediatricDentist(); only this public-facing bio grid omits her.
      */
     public function publicIndex()
     {
@@ -82,6 +88,7 @@ class DentistController extends Controller
             ->with('dentistProfile')
             ->orderBy('name')
             ->get()
+            ->reject(fn (User $dentist) => $dentist->isPediatricDentist())
             ->map(fn (User $dentist) => [
                 'name' => $dentist->name,
                 'specialization' => $dentist->dentistProfile?->specialization,
