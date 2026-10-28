@@ -13,8 +13,8 @@
                     </tr>
                     <tr>
                         <td align="center" style="padding:28px 32px 12px;">
-                            <img src="{{ asset('images/logo.png') }}" alt="Smile Bay Dental Clinic" width="64" height="64" style="display:block; width:64px; height:64px;">
-                            <div style="margin-top:10px; color:#0f2557; font-size:18px; font-weight:600;">Smile Bay Dental Clinic</div>
+                            <img src="{{ asset('images/logo.png') }}" alt="{{ $clinicInfo->clinic_name ?? 'Smile Bay Dental Clinic' }}" width="64" height="64" style="display:block; width:64px; height:64px;">
+                            <div style="margin-top:10px; color:#0f2557; font-size:18px; font-weight:600;">{{ $clinicInfo->clinic_name ?? 'Smile Bay Dental Clinic' }}</div>
                         </td>
                     </tr>
                     <tr>

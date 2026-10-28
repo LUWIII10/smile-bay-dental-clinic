@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\Admin\ReportsController;
 use App\Http\Controllers\Api\Admin\UserManagementController;
 use App\Http\Controllers\Api\AppointmentController;
 use App\Http\Controllers\Api\Auth\AuthController;
+use App\Http\Controllers\Api\ClinicInfoController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\DentistAvailabilityController;
 use App\Http\Controllers\Api\DentistController;
@@ -26,6 +27,11 @@ use Illuminate\Support\Facades\Route;
 // Public — the registration wizard's HMO dropdown needs this before the
 // patient has an account, so it sits outside the auth:sanctum group.
 Route::get('/hmo-providers', [HmoProviderController::class, 'index']);
+
+// Public — the landing page's "Meet Our Dentists" and Contact sections,
+// reachable before login.
+Route::get('/dentists/public', [DentistController::class, 'publicIndex']);
+Route::get('/clinic-info', [ClinicInfoController::class, 'index']);
 
 // Public — live email-uniqueness check for the registration wizard.
 // Throttled per-IP: the wizard fires this a handful of times per sign-up

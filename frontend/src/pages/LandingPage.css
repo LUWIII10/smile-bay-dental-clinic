@@ -685,6 +685,20 @@
   box-shadow: 0 4px 20px rgba(15, 23, 42, 0.06);
   padding: 32px;
   transition: box-shadow 0.25s ease, transform 0.25s ease;
+  /* Real bio/specialization text varies in length per dentist — a plain
+     block stack left the Specializations section starting at whatever
+     height each card's own upper content happened to end at, so two
+     cards side by side (CSS Grid stretches both to the row's tallest
+     automatically) didn't line up at the bottom. Column + .landing-
+     dentist-spacer (flex: 1, see below) pushes the divider/specializations
+     down to the same point in every card in the row, however much upper
+     content there is. */
+  display: flex;
+  flex-direction: column;
+}
+
+.landing-dentist-spacer {
+  flex: 1;
 }
 
 .landing-dentist-card:hover {
@@ -736,8 +750,7 @@
   color: var(--landing-text-main);
 }
 
-.landing-dentist-degree,
-.landing-dentist-university {
+.landing-dentist-degree {
   margin: 0;
   font-size: 0.9375rem;
   line-height: 1.55;

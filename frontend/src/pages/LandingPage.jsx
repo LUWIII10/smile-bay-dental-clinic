@@ -3,10 +3,11 @@ import { Link } from 'react-router-dom';
 import { FaFacebook, FaInstagram } from 'react-icons/fa';
 import BrandLogo from '../components/common/BrandLogo';
 import clinicPhoto from '../assets/images/dentalchairbackground.jpg';
-import drRamirezPhoto from '../assets/images/dr-ramirez.jpg';
-import drCastroPhoto from '../assets/images/dr-castro.jpg';
 import medicardLogo from '../assets/images/medicardlogo.png';
 import flexicareLogo from '../assets/images/flexicarelogo.png';
+import { getPublicClinicInfo, getPublicDentists } from '../api/public';
+import { resolvePhotoUrl } from './portal/avatarUtils';
+import { KNOWN_DENTIST_PHOTOS, KNOWN_DENTIST_CREDENTIALS } from './portal/dentistPhotos';
 import './LandingPage.css';
 
 const NAV_LINKS = [
@@ -144,27 +145,6 @@ const STEPS = [
   },
 ];
 
-const DENTISTS = [
-  {
-    name: 'Dr. Richelle Ramirez',
-    photo: drRamirezPhoto,
-    alt: 'Dr. Richelle Ramirez, General Dentist at Smile Bay Dental Clinic',
-    degree: 'Doctor of Dental Medicine',
-    university: 'University of the Philippines – Manila',
-    licenseDate: 'June 2014',
-    specializations: ['General Dentistry', 'Orthodontics', 'Cosmetic Dentistry', 'Restorative Dentistry'],
-  },
-  {
-    name: 'Dr. Rizael Castro',
-    photo: drCastroPhoto,
-    alt: 'Dr. Rizael Castro, General Dentist at Smile Bay Dental Clinic',
-    degree: 'Doctor of Dental Medicine',
-    university: 'University of the Philippines – Manila',
-    licenseDate: 'December 2013',
-    specializations: ['General Dentistry', 'Orthodontics', 'Endodontics', 'Cosmetic Dentistry'],
-  },
-];
-
 const HMO_PARTNERS = [
   { name: 'Medicard', logo: medicardLogo, alt: 'Medicard accredited logo', width: 172, height: 120 },
   { name: 'Flexicare', logo: flexicareLogo, alt: 'Flexicare accredited logo', width: 247, height: 120 },
@@ -221,6 +201,18 @@ const TERMS_SECTIONS = [
 function LandingPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [termsOpen, setTermsOpen] = useState(false);
+  // Real clinic/dentist data — falls back to the hardcoded copy below
+  // (unchanged from before this fetch existed) on a failed request or
+  // before it resolves, so the page never shows a blank Contact section or
+  // an empty dentist grid while loading, and still works if the API is
+  // ever briefly unreachable.
+  const [clinicInfo, setClinicInfo] = useState(null);
+  const [dentists, setDentists] = useState(null);
+
+  useEffect(() => {
+    getPublicClinicInfo().then(setClinicInfo).catch(() => {});
+    getPublicDentists().then(setDentists).catch(() => {});
+  }, []);
 
   // Esc closes, and body scroll is locked while the modal is open — same
   // behavior as the portal's shared Modal component, reimplemented here
@@ -415,46 +407,68 @@ function LandingPage() {
           </div>
 
           <div className="landing-dentists-grid">
-            {DENTISTS.map((dentist) => (
-              <div key={dentist.name} className="landing-dentist-card">
-                <div className="landing-dentist-upper">
-                  <img
-                    src={dentist.photo}
-                    alt={dentist.alt}
-                    width={120}
-                    height={120}
-                    loading="lazy"
-                    className="landing-dentist-photo"
-                  />
-                  <div className="landing-dentist-info">
-                    <span className="landing-dentist-badge">
-                      <FilledCheckCircleIcon />
-                      Licensed Dentist
-                    </span>
-                    <h3 className="landing-dentist-name">{dentist.name}</h3>
-                    <p className="landing-dentist-degree">{dentist.degree}</p>
-                    <p className="landing-dentist-university">{dentist.university}</p>
-                    <div className="landing-dentist-license">
-                      <CalendarIcon />
-                      <span>
-                        Licensed to practice since <strong>{dentist.licenseDate}</strong>
+            {(dentists || []).map((dentist) => {
+              // Own account's real upload wins; KNOWN_DENTIST_PHOTOS/
+              // KNOWN_DENTIST_CREDENTIALS (same stopgap maps BookAppointment's
+              // doctor-selection step already falls back to) cover a dentist
+              // who hasn't filled in My Profile yet, so the card still shows
+              // something real-looking instead of a broken image or blank bio.
+              const photo = resolvePhotoUrl(dentist.photo_path) || KNOWN_DENTIST_PHOTOS[dentist.name];
+              const bio = dentist.bio || KNOWN_DENTIST_CREDENTIALS[dentist.name];
+              const specializations = (dentist.specialization || '')
+                .split(',')
+                .map((s) => s.trim())
+                .filter(Boolean);
+
+              return (
+                <div key={dentist.name} className="landing-dentist-card">
+                  <div className="landing-dentist-upper">
+                    {photo && (
+                      <img
+                        src={photo}
+                        alt={`${dentist.name}, dentist at Smile Bay Dental Clinic`}
+                        width={120}
+                        height={120}
+                        loading="lazy"
+                        className="landing-dentist-photo"
+                      />
+                    )}
+                    <div className="landing-dentist-info">
+                      <span className="landing-dentist-badge">
+                        <FilledCheckCircleIcon />
+                        Licensed Dentist
                       </span>
+                      <h3 className="landing-dentist-name">{dentist.name}</h3>
+                      {bio && <p className="landing-dentist-degree">{bio}</p>}
+                      {dentist.years_experience != null && (
+                        <div className="landing-dentist-license">
+                          <CalendarIcon />
+                          <span>
+                            <strong>{dentist.years_experience}</strong> years of experience
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
-                </div>
 
-                <hr className="landing-dentist-divider" />
+                  <div className="landing-dentist-spacer" />
 
-                <div className="landing-dentist-lower">
-                  <span className="landing-dentist-spec-label">Specializations</span>
-                  <div className="landing-dentist-chips">
-                    {dentist.specializations.map((spec) => (
-                      <span key={spec} className="landing-dentist-chip">{spec}</span>
-                    ))}
-                  </div>
+                  {specializations.length > 0 && (
+                    <>
+                      <hr className="landing-dentist-divider" />
+                      <div className="landing-dentist-lower">
+                        <span className="landing-dentist-spec-label">Specializations</span>
+                        <div className="landing-dentist-chips">
+                          {specializations.map((spec) => (
+                            <span key={spec} className="landing-dentist-chip">{spec}</span>
+                          ))}
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </section>
@@ -486,8 +500,8 @@ function LandingPage() {
 
           <div className="landing-location-grid">
             <div className="landing-glass-card landing-location-card">
-              <h3>Smile Bay Dental Clinic</h3>
-              <p>Ground Floor, Mega Building, National Highway, Landayan, San Pedro, Laguna, Philippines, 4023</p>
+              <h3>{clinicInfo?.clinic_name || 'Smile Bay Dental Clinic'}</h3>
+              <p>{clinicInfo?.address || 'Ground Floor, Mega Building, National Highway, Landayan, San Pedro, Laguna, Philippines, 4023'}</p>
 
               <dl className="landing-location-details">
                 <div>
@@ -496,11 +510,11 @@ function LandingPage() {
                 </div>
                 <div>
                   <dt>Phone</dt>
-                  <dd><a href="tel:+639171323093">0917 132 3093</a></dd>
+                  <dd><a href={`tel:${(clinicInfo?.contact_number || '0917 132 3093').replace(/\s+/g, '')}`}>{clinicInfo?.contact_number || '0917 132 3093'}</a></dd>
                 </div>
                 <div>
                   <dt>Email</dt>
-                  <dd><a href="mailto:smilebayph@gmail.com">smilebayph@gmail.com</a></dd>
+                  <dd><a href={`mailto:${clinicInfo?.contact_email || 'smilebayph@gmail.com'}`}>{clinicInfo?.contact_email || 'smilebayph@gmail.com'}</a></dd>
                 </div>
               </dl>
             </div>
@@ -592,13 +606,13 @@ function LandingPage() {
             <h4>Contact</h4>
             <p>Monday–Saturday, 9:00 AM–6:00 PM</p>
             <p>Closed Sundays</p>
-            <p><a href="tel:+639171323093">0917 132 3093</a></p>
-            <p><a href="mailto:smilebayph@gmail.com">smilebayph@gmail.com</a></p>
+            <p><a href={`tel:${(clinicInfo?.contact_number || '0917 132 3093').replace(/\s+/g, '')}`}>{clinicInfo?.contact_number || '0917 132 3093'}</a></p>
+            <p><a href={`mailto:${clinicInfo?.contact_email || 'smilebayph@gmail.com'}`}>{clinicInfo?.contact_email || 'smilebayph@gmail.com'}</a></p>
           </div>
         </div>
 
         <div className="landing-footer-bottom">
-          <span>© 2026 Smile Bay Dental Clinic. All rights reserved.</span>
+          <span>© 2026 {clinicInfo?.clinic_name || 'Smile Bay Dental Clinic'}. All rights reserved.</span>
           <span className="landing-footer-dot">•</span>
           <button type="button" className="landing-footer-terms-link" onClick={() => setTermsOpen(true)}>
             Terms and Conditions

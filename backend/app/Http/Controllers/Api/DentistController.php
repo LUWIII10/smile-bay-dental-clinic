@@ -68,4 +68,28 @@ class DentistController extends Controller
 
         return response()->json(['data' => $dentists]);
     }
+
+    /**
+     * Public — the landing page's "Meet Our Dentists" section, reachable
+     * before login. Same dentist_profiles fields as index() above (minus
+     * service_id filtering and on_duty_today, neither of which mean
+     * anything to a visitor who isn't booking), scoped to just the fields
+     * a public bio card needs — no email or other account detail.
+     */
+    public function publicIndex()
+    {
+        $dentists = User::where('role', 'dentist')->where('status', 'active')
+            ->with('dentistProfile')
+            ->orderBy('name')
+            ->get()
+            ->map(fn (User $dentist) => [
+                'name' => $dentist->name,
+                'specialization' => $dentist->dentistProfile?->specialization,
+                'bio' => $dentist->dentistProfile?->bio,
+                'photo_path' => $dentist->dentistProfile?->photo_path,
+                'years_experience' => $dentist->dentistProfile?->years_experience,
+            ]);
+
+        return response()->json(['data' => $dentists]);
+    }
 }

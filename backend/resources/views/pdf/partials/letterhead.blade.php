@@ -11,10 +11,10 @@
           </td>
         </tr>
       </table>
-      <div class="pdf-tagline">Your Smile, Our Priority</div>
+      <div class="pdf-tagline">{{ $clinicInfo->tagline ?? 'Your Smile, Our Priority' }}</div>
       <div class="pdf-contact">
-        Ground Floor, Mega Building, National Highway, Landayan, San Pedro, Laguna, 4023<br>
-        0917 132 3093 &middot; smilebayph@gmail.com
+        {{ $clinicInfo->address ?? 'Ground Floor, Mega Building, National Highway, Landayan, San Pedro, Laguna, 4023' }}<br>
+        {{ $clinicInfo->contact_number ?? '0917 132 3093' }} &middot; {{ $clinicInfo->contact_email ?? 'smilebayph@gmail.com' }}
       </div>
     </td>
     <td class="pdf-doc-col">
