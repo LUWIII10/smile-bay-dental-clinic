@@ -8,10 +8,21 @@
   justify-content: center;
   gap: 10px;
   margin: 1.2rem 0 0.4rem 0;
+  width: 100%;
 }
 
+/* flex + max-width (not a fixed width) so the 6 boxes always divide
+   whatever space .verify-otp-digits actually has and shrink together —
+   a fixed px width here, combined with the default content-box sizing
+   (each box's 1px border adding on top of it instead of being absorbed
+   into it), measured out just over budget on a real narrow phone and
+   pushed the 6th box past .login-page's own overflow-x: hidden, clipping
+   it off-screen instead of fitting the row. */
 .verify-otp-digit {
-  width: 44px;
+  box-sizing: border-box;
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 44px;
   height: 52px;
   text-align: center;
   font-size: 1.3rem;
@@ -97,7 +108,7 @@
   }
 
   .verify-otp-digit {
-    width: 38px;
+    max-width: 38px;
     height: 46px;
     font-size: 1.15rem;
   }
@@ -110,7 +121,7 @@
   }
 
   .verify-otp-digit {
-    width: 34px;
+    max-width: 34px;
     height: 42px;
     font-size: 1.05rem;
   }
