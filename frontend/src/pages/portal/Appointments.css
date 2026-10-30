@@ -453,6 +453,16 @@
   color: var(--portal-muted);
 }
 
+/* Dentist suggested a follow-up while completing the visit, not yet
+   reviewed/enabled by staff (AppointmentDetailModal's own "Dentist
+   recommends..." banner) — a row-level echo of the same live Notification
+   fired the moment it was suggested, for whenever staff are already
+   looking at this list. */
+.cell-followup-badge {
+  margin-top: 2px;
+  width: fit-content;
+}
+
 .cell-dentist-name {
   font-weight: 500;
   font-size: 0.88rem;

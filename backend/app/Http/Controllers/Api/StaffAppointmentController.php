@@ -82,6 +82,11 @@ class StaffAppointmentController extends Controller
             'dentist:id,name',
             'dentist.dentistProfile:id,user_id,photo_path',
             'service:id,name,duration_minutes',
+            // Only the suggestion's own name is rendered (the "Follow-up
+            // Suggested" row badge) — recommended_follow_up_service_id
+            // itself (no relation needed) is enough to tell whether staff
+            // already acted on it.
+            'dentistSuggestedFollowUpService:id,name',
         ]);
 
         if (! empty($validated['status']) && $validated['status'] !== 'all') {

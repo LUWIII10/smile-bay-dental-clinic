@@ -384,6 +384,25 @@ class AppointmentController extends Controller
             );
         }
 
+        // Staff doesn't see this until they happen to open this specific
+        // appointment's detail — broadcasts it immediately instead, so a
+        // suggestion surfaces right away rather than only being found by
+        // browsing completed visits one at a time. Deliberately
+        // notifyRoles(), not notifyRolesOnce(): that one's dedup is keyed
+        // only by appointment_id, and this same appointment may already
+        // have an unrelated notification on file from earlier in its
+        // lifecycle (e.g. a pediatric "HMO verification needed" broadcast)
+        // — using it here could silently skip this one. complete() can
+        // only ever run once per appointment anyway (status guard above),
+        // so no dedup is needed.
+        if ($suggestedServiceId) {
+            Notification::notifyRoles(
+                ['dental_assistant', 'admin'],
+                'Follow-up Suggested',
+                "{$request->user()->name} suggested a {$appointment->dentistSuggestedFollowUpService->name} follow-up for {$appointment->patient->first_name} {$appointment->patient->last_name} — review and enable it."
+            );
+        }
+
         $appointment->load([
             'service:id,name,duration_minutes',
             'patient:id,patient_number,first_name,last_name',

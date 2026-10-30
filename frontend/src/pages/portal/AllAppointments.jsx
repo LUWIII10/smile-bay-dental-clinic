@@ -175,6 +175,17 @@ function AllAppointments() {
     return () => clearTimeout(debounceRef.current);
   }, [searchInput]);
 
+  // Soonest-first makes sense while browsing what's coming up (the
+  // default, or Confirmed/Pending) but reads backwards once the filter is
+  // a terminal, already-happened status — newest-first is what "what
+  // recently got completed/cancelled" actually means there. Still just a
+  // default: the Appointment column's own sort toggle can flip either one
+  // at any time: this only resets it the moment the status filter itself
+  // changes.
+  useEffect(() => {
+    setSort(['completed', 'cancelled', 'rejected'].includes(status) ? 'date_desc' : 'date_asc');
+  }, [status]);
+
   // Any filter/sort change invalidates the current page — landing on (say)
   // page 4 of a now-3-page result set would just render empty.
   useEffect(() => {
@@ -443,12 +454,27 @@ function AllAppointments() {
         const patientNumber = row.patient?.patient_number;
         const phone = row.patient?.user?.mobile_number;
         const subLine = [patientNumber, phone].filter(Boolean).join(' · ');
+        // A dentist-suggested follow-up that staff hasn't reviewed yet
+        // (recommended_follow_up_service_id still null — see
+        // AppointmentDetailModal's own "Dentist recommends..." banner,
+        // which this links to). Also broadcast live via Notification on
+        // the moment of completion; this is the same signal shown
+        // whenever staff happen to be looking at the list already.
+        const hasPendingSuggestion = row.dentist_suggested_follow_up_service && !row.recommended_follow_up_service_id;
         return (
           <span className="cell-person">
             <span className="cell-avatar">{getInitials(name)}</span>
             <span className="cell-person-text">
               <span className="cell-person-name" title={name}>{name}</span>
               {subLine && <span className="cell-person-sub" title={subLine}>{subLine}</span>}
+              {hasPendingSuggestion && (
+                <StatusBadge
+                  status="Follow-up Suggested"
+                  tone="amber"
+                  icon={CalendarIcon}
+                  className="cell-followup-badge"
+                />
+              )}
             </span>
           </span>
         );
