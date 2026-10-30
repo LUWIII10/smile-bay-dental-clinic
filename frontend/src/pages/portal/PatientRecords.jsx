@@ -18,7 +18,7 @@ import {
   downloadPatientRecordPdf,
   setPrimaryDentist,
 } from '../../api/patientRecords';
-import { completeAppointment, backfillTreatmentRecord, getDentists } from '../../api/appointments';
+import { completeAppointment, backfillTreatmentRecord, getDentists, getServices } from '../../api/appointments';
 import DataTable from './components/DataTable';
 import Pagination from './components/Pagination';
 import Skeleton from './components/Skeleton';
@@ -48,6 +48,10 @@ import './DentalRecords.css';
 import './components/PrintLetterhead.css';
 
 const SEARCH_DEBOUNCE_MS = 400;
+// Kept in sync with Appointment::FOLLOW_UP_WINDOWS — purely a display label
+// shown to the patient next to a follow-up recommendation, never used in
+// any scheduling/availability check.
+const FOLLOW_UP_WINDOWS = ['1-2 weeks', '1 month', '3 months', '6 months'];
 const VISIT_NOTES_MIN_LENGTH = 20;
 // complete()'s notes column caps at 1000 — storeClinicalNote() allows up to
 // 5000 (same as the "+ Add Note" textarea). A note longer than this is
@@ -255,6 +259,26 @@ function PatientRecords() {
   const [visitErrors, setVisitErrors] = useState({});
   const [visitFormError, setVisitFormError] = useState('');
   const [savingVisit, setSavingVisit] = useState(false);
+
+  // Optional — lets the dentist flag a follow-up right here, while the
+  // visit is still fresh, instead of staff having to infer one from the
+  // notes later. Does NOT open it for the patient on its own: it only
+  // pre-fills what staff see on "Enable Follow-up" (AppointmentDetailModal),
+  // who still review and activate it themselves. Completing-only (not
+  // backfilling a long-past visit) — backfillTreatmentRecord() doesn't
+  // accept these fields.
+  const [suggestFollowUp, setSuggestFollowUp] = useState(false);
+  const [followUpServiceId, setFollowUpServiceId] = useState('');
+  const [followUpWindow, setFollowUpWindow] = useState('');
+  const [followUpServices, setFollowUpServices] = useState([]);
+
+  // Same full staff-facing catalog AppointmentDetailModal's own "Enable
+  // Follow-up" picker uses — fetched lazily, once, only once the toggle is
+  // actually switched on.
+  useEffect(() => {
+    if (!suggestFollowUp || followUpServices.length > 0) return;
+    getServices().then(setFollowUpServices).catch(() => {});
+  }, [suggestFollowUp, followUpServices.length]);
 
   // ---- Modals (dentist-only actions) ----
   const [noteModalOpen, setNoteModalOpen] = useState(false);
@@ -698,7 +722,11 @@ function PatientRecords() {
         await backfillTreatmentRecord(incoming.appointmentId, payload);
         showSuccessToast('Treatment record added.');
       } else {
-        await completeAppointment(incoming.appointmentId, payload);
+        await completeAppointment(incoming.appointmentId, {
+          ...payload,
+          recommendFollowUpServiceId: suggestFollowUp && followUpServiceId ? Number(followUpServiceId) : null,
+          recommendFollowUpWindow: suggestFollowUp ? followUpWindow : null,
+        });
         showSuccessToast('Appointment completed.');
       }
       // Stay right here on this patient's now-updated record (fresh
@@ -1774,6 +1802,61 @@ function PatientRecords() {
                 onChange={(e) => setVisitForm((p) => ({ ...p, performed_at: e.target.value }))}
               />
               {visitErrors.performed_at && <span className="modal-field-error">{visitErrors.performed_at}</span>}
+
+              {!isBackfillingVisit && (
+                <div style={{ marginTop: 16, padding: '12px 14px', background: 'var(--portal-canvas)', border: '1px dashed var(--portal-border)', borderRadius: 'var(--portal-radius-sm)' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 9, fontSize: '0.85rem', fontWeight: 700, color: 'var(--portal-navy)', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={suggestFollowUp} onChange={(e) => setSuggestFollowUp(e.target.checked)} />
+                    Recommend a follow-up for this patient?
+                  </label>
+                  <p style={{ margin: '6px 0 0', fontSize: '0.76rem', color: 'var(--portal-muted)', lineHeight: 1.5 }}>
+                    This pre-fills staff&rsquo;s own &ldquo;Enable Follow-up&rdquo; step — they still review and activate it before the patient sees it.
+                  </p>
+
+                  {suggestFollowUp && (
+                    <>
+                      <label className="modal-field-label" htmlFor="followup-service" style={{ marginTop: 12 }}>Procedure</label>
+                      <select
+                        id="followup-service"
+                        className="form-select"
+                        value={followUpServiceId}
+                        onChange={(e) => setFollowUpServiceId(e.target.value)}
+                      >
+                        <option value="">Select a procedure…</option>
+                        {followUpServices.map((service) => (
+                          <option key={service.id} value={service.id}>
+                            {service.name} ({service.duration_minutes} min)
+                          </option>
+                        ))}
+                      </select>
+
+                      <label className="modal-field-label">
+                        Recommended within <span style={{ fontWeight: 400, color: 'var(--portal-muted)', textTransform: 'none' }}>(optional)</span>
+                      </label>
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                        {FOLLOW_UP_WINDOWS.map((window) => {
+                          const selected = followUpWindow === window;
+                          return (
+                            <button
+                              key={window}
+                              type="button"
+                              style={{
+                                padding: '5px 12px', fontSize: '0.74rem', fontWeight: 600, borderRadius: 999, cursor: 'pointer',
+                                border: `1.5px solid ${selected ? 'var(--portal-green-border)' : 'var(--portal-border)'}`,
+                                background: selected ? 'var(--portal-green-bg)' : '#fff',
+                                color: selected ? 'var(--portal-green-text)' : 'var(--portal-muted)',
+                              }}
+                              onClick={() => setFollowUpWindow(selected ? '' : window)}
+                            >
+                              {window}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
 
               {visitErrors.notes && <div className="profile-alert profile-alert--error" style={{ marginTop: 14 }}>{visitErrors.notes}</div>}
               {visitFormError && <div className="profile-alert profile-alert--error" style={{ marginTop: 14 }}>{visitFormError}</div>}

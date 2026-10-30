@@ -1,14 +1,9 @@
 import { useEffect, useState } from 'react';
 import Modal from './Modal';
 import { formatDateLong, formatTime12h } from '../dateTimeUtils';
-import { completeAppointment, getServices } from '../../../api/appointments';
+import { completeAppointment } from '../../../api/appointments';
 
 const NOTES_MIN_LENGTH = 20;
-
-// Kept in sync with Appointment::FOLLOW_UP_WINDOWS — purely a display label
-// shown to the patient next to a follow-up recommendation, never used in
-// any scheduling/availability check.
-const FOLLOW_UP_WINDOWS = ['1-2 weeks', '1 month', '3 months', '6 months'];
 
 // The only path to completing an appointment now runs through this form —
 // no skip, no dismiss-into-completion (Cancel writes nothing and leaves the
@@ -30,16 +25,6 @@ function CompleteAppointmentModal({ open, appointment, onClose, onCompleted }) {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
 
-  // Optional — lets the dentist flag a follow-up right here, while the
-  // visit is still fresh, instead of staff having to infer one from the
-  // notes later. This does NOT open it for the patient on its own: it only
-  // pre-fills what staff see on "Enable Follow-up" (AppointmentDetailModal),
-  // who still review and activate it themselves, same as before this existed.
-  const [suggestFollowUp, setSuggestFollowUp] = useState(false);
-  const [followUpServiceId, setFollowUpServiceId] = useState('');
-  const [followUpWindow, setFollowUpWindow] = useState('');
-  const [services, setServices] = useState([]);
-
   // Re-seed the form from the appointment being completed every time the
   // modal opens — not on every appointment prop change, so switching which
   // row's Complete button was clicked always starts from that row's own
@@ -52,18 +37,7 @@ function CompleteAppointmentModal({ open, appointment, onClose, onCompleted }) {
     setNotes('');
     setErrors({});
     setFormError('');
-    setSuggestFollowUp(false);
-    setFollowUpServiceId('');
-    setFollowUpWindow('');
   }, [open, appointment]);
-
-  // Same full staff-facing catalog AppointmentDetailModal's own "Enable
-  // Follow-up" picker uses — fetched lazily, once, only once the toggle is
-  // actually switched on.
-  useEffect(() => {
-    if (!suggestFollowUp || services.length > 0) return;
-    getServices().then(setServices).catch(() => {});
-  }, [suggestFollowUp, services.length]);
 
   if (!appointment) return null;
 
@@ -98,8 +72,6 @@ function CompleteAppointmentModal({ open, appointment, onClose, onCompleted }) {
         toothNumber: toothNumber ? Number(toothNumber) : null,
         performedAt,
         notes: notes.trim(),
-        recommendFollowUpServiceId: suggestFollowUp && followUpServiceId ? Number(followUpServiceId) : null,
-        recommendFollowUpWindow: suggestFollowUp ? followUpWindow : null,
       });
       onCompleted(response.data);
     } catch (err) {
@@ -172,57 +144,6 @@ function CompleteAppointmentModal({ open, appointment, onClose, onCompleted }) {
         What was done, findings, materials used, anything the next dentist needs to know. Minimum {NOTES_MIN_LENGTH} characters.
       </span>
       {errors.notes && <span className="modal-field-error">{errors.notes}</span>}
-
-      <div style={{ marginTop: 16, padding: '12px 14px', background: 'var(--portal-canvas)', border: '1px dashed var(--portal-border)', borderRadius: 'var(--portal-radius-sm)' }}>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 9, fontSize: '0.85rem', fontWeight: 700, color: 'var(--portal-navy)', cursor: 'pointer' }}>
-          <input type="checkbox" checked={suggestFollowUp} onChange={(e) => setSuggestFollowUp(e.target.checked)} />
-          Recommend a follow-up for this patient?
-        </label>
-        <p style={{ margin: '6px 0 0', fontSize: '0.76rem', color: 'var(--portal-muted)', lineHeight: 1.5 }}>
-          This pre-fills staff&rsquo;s own &ldquo;Enable Follow-up&rdquo; step — they still review and activate it before the patient sees it.
-        </p>
-
-        {suggestFollowUp && (
-          <>
-            <label className="modal-field-label" htmlFor="followup-service" style={{ marginTop: 12 }}>Procedure</label>
-            <select
-              id="followup-service"
-              className="form-select"
-              value={followUpServiceId}
-              onChange={(e) => setFollowUpServiceId(e.target.value)}
-            >
-              <option value="">Select a procedure…</option>
-              {services.map((service) => (
-                <option key={service.id} value={service.id}>
-                  {service.name} ({service.duration_minutes} min)
-                </option>
-              ))}
-            </select>
-
-            <label className="modal-field-label">Recommended within <span style={{ fontWeight: 400, color: 'var(--portal-muted)', textTransform: 'none' }}>(optional)</span></label>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-              {FOLLOW_UP_WINDOWS.map((window) => {
-                const selected = followUpWindow === window;
-                return (
-                  <button
-                    key={window}
-                    type="button"
-                    style={{
-                      padding: '5px 12px', fontSize: '0.74rem', fontWeight: 600, borderRadius: 999, cursor: 'pointer',
-                      border: `1.5px solid ${selected ? 'var(--portal-green-border)' : 'var(--portal-border)'}`,
-                      background: selected ? 'var(--portal-green-bg)' : '#fff',
-                      color: selected ? 'var(--portal-green-text)' : 'var(--portal-muted)',
-                    }}
-                    onClick={() => setFollowUpWindow(selected ? '' : window)}
-                  >
-                    {window}
-                  </button>
-                );
-              })}
-            </div>
-          </>
-        )}
-      </div>
 
       {formError && <div className="profile-alert profile-alert--error" style={{ marginTop: 14 }}>{formError}</div>}
 
