@@ -23,6 +23,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Validation\Rule;
 
 class AppointmentController extends Controller
 {
@@ -304,12 +305,26 @@ class AppointmentController extends Controller
             'tooth_number' => ['nullable', 'integer', 'between:1,32'],
             'performed_at' => ['required', 'date'],
             'notes' => ['required', 'string', 'min:20', 'max:1000'],
+            // Optional — the dentist flagging a follow-up right here, while
+            // the visit is still fresh in mind, instead of staff having to
+            // infer one from these notes later. Does NOT activate it for
+            // the patient on its own: it only pre-fills what staff see on
+            // "Enable Follow-up" (AppointmentDetailModal.jsx), who still
+            // review and click that button themselves, same as today.
+            'recommend_follow_up_service_id' => ['nullable', 'integer', 'exists:services,id'],
+            'recommend_follow_up_window' => ['nullable', Rule::in(Appointment::FOLLOW_UP_WINDOWS)],
         ]);
 
         $primaryDentistJustAssigned = false;
 
-        DB::transaction(function () use ($appointment, $request, $validated, &$primaryDentistJustAssigned) {
-            $appointment->update(['status' => 'completed']);
+        $suggestedServiceId = $validated['recommend_follow_up_service_id'] ?? null;
+
+        DB::transaction(function () use ($appointment, $request, $validated, $suggestedServiceId, &$primaryDentistJustAssigned) {
+            $appointment->update([
+                'status' => 'completed',
+                'dentist_suggested_follow_up_service_id' => $suggestedServiceId,
+                'dentist_suggested_follow_up_window' => $suggestedServiceId ? ($validated['recommend_follow_up_window'] ?? null) : null,
+            ]);
 
             AppointmentStatusLog::create([
                 'appointment_id' => $appointment->id,

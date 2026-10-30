@@ -156,13 +156,15 @@ export async function getCompletedPatients() {
   return response.data.data;
 }
 
-export async function completeAppointment(appointmentId, { procedureName, toothNumber, performedAt, notes }) {
+export async function completeAppointment(appointmentId, { procedureName, toothNumber, performedAt, notes, recommendFollowUpServiceId, recommendFollowUpWindow }) {
   await api.get('/sanctum/csrf-cookie');
   const response = await api.patch(`/api/appointments/${appointmentId}/complete`, {
     procedure_name: procedureName,
     tooth_number: toothNumber || null,
     performed_at: performedAt,
     notes,
+    recommend_follow_up_service_id: recommendFollowUpServiceId || null,
+    recommend_follow_up_window: recommendFollowUpServiceId ? (recommendFollowUpWindow || null) : null,
   });
   return response.data;
 }
@@ -398,10 +400,11 @@ export async function releaseHmoSlot(appointmentId) {
 
 // appointmentId is the completed visit the recommendation is enabled from,
 // not the future follow-up itself (that doesn't exist yet).
-export async function enableFollowUp(appointmentId, serviceId) {
+export async function enableFollowUp(appointmentId, serviceId, recommendedWindow) {
   await api.get('/sanctum/csrf-cookie');
   const response = await api.post(`/api/staff/appointments/${appointmentId}/enable-follow-up`, {
     service_id: serviceId,
+    recommended_window: recommendedWindow || null,
   });
   return response.data;
 }

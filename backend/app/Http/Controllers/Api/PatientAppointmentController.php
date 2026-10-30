@@ -164,7 +164,7 @@ class PatientAppointmentController extends Controller
                 'dentist:id,name',
             ])
             ->orderByDesc('follow_up_recommended_at')
-            ->get(['id', 'dentist_id', 'appointment_date', 'recommended_follow_up_service_id', 'follow_up_recommended_by', 'follow_up_recommended_at']);
+            ->get(['id', 'dentist_id', 'appointment_date', 'recommended_follow_up_service_id', 'recommended_follow_up_window', 'follow_up_recommended_by', 'follow_up_recommended_at']);
 
         return response()->json(['data' => $recommendations]);
     }

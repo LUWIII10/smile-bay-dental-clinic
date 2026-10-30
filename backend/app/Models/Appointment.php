@@ -10,15 +10,25 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Appointment extends Model
 {
+    // Shared with AppointmentController::complete()'s and
+    // StaffAppointmentController::enableFollowUp()'s own validation rules —
+    // purely a display label next to a follow-up recommendation, never used
+    // in any scheduling/availability query (the patient still picks their
+    // own exact date+time regardless of what this says).
+    public const FOLLOW_UP_WINDOWS = ['1-2 weeks', '1 month', '3 months', '6 months'];
+
     protected $fillable = [
         'patient_id',
         'dentist_id',
         'service_id',
         'patient_notes',
         'recommended_follow_up_service_id',
+        'recommended_follow_up_window',
         'follow_up_recommended_by',
         'follow_up_recommended_at',
         'follow_up_fulfilled_at',
+        'dentist_suggested_follow_up_service_id',
+        'dentist_suggested_follow_up_window',
         'fulfills_appointment_id',
         'appointment_date',
         'appointment_time',
@@ -79,6 +89,15 @@ class Appointment extends Model
     public function recommendedFollowUpService(): BelongsTo
     {
         return $this->belongsTo(Service::class, 'recommended_follow_up_service_id');
+    }
+
+    // The dentist's own not-yet-activated suggestion (AppointmentController::
+    // complete()) — distinct from recommendedFollowUpService() above, the
+    // ACTIVE one a patient can already book. Staff review this and click
+    // "Enable Follow-up" to turn it into the active one.
+    public function dentistSuggestedFollowUpService(): BelongsTo
+    {
+        return $this->belongsTo(Service::class, 'dentist_suggested_follow_up_service_id');
     }
 
     public function followUpRecommendedBy(): BelongsTo

@@ -409,6 +409,9 @@ function BookFollowUp() {
                         <ClockIcon /> {rec.recommended_follow_up_service.duration_minutes} minutes
                         {rec.dentist?.name ? ` · after your visit with ${rec.dentist.name}` : ''}
                       </span>
+                      {rec.recommended_follow_up_window && (
+                        <span className="followup-recommend-meta">Recommended within {rec.recommended_follow_up_window}</span>
+                      )}
                     </div>
                     {isSelected && (
                       <span className="followup-recommend-check" aria-hidden="true">

@@ -8,6 +8,11 @@ import { KNOWN_DENTIST_PHOTOS } from '../dentistPhotos';
 import { resolvePhotoUrl } from '../avatarUtils';
 import { CalendarPlusIcon, CheckCircleIcon } from '../icons';
 
+// Kept in sync with Appointment::FOLLOW_UP_WINDOWS — purely a display label
+// shown to the patient next to a follow-up recommendation, never used in
+// any scheduling/availability check.
+const FOLLOW_UP_WINDOWS = ['1-2 weeks', '1 month', '3 months', '6 months'];
+
 function getInitials(name) {
   if (!name) return '?';
   const parts = name.trim().split(/\s+/);
@@ -29,6 +34,7 @@ function AppointmentDetailModal({ appointmentId, onClose }) {
 
   const [services, setServices] = useState([]);
   const [selectedServiceId, setSelectedServiceId] = useState('');
+  const [selectedWindow, setSelectedWindow] = useState('');
   const [enabling, setEnabling] = useState(false);
   const [enableError, setEnableError] = useState('');
 
@@ -41,7 +47,12 @@ function AppointmentDetailModal({ appointmentId, onClose }) {
     getAppointmentDetail(appointmentId)
       .then((data) => {
         setDetail(data);
-        setSelectedServiceId(data.recommended_follow_up_service?.id ?? '');
+        // Already-active recommendation wins; otherwise pre-fill from the
+        // dentist's own not-yet-activated suggestion (if any) so staff
+        // aren't retyping what the dentist already flagged while completing
+        // the visit — they still have to review and click Enable themselves.
+        setSelectedServiceId(data.recommended_follow_up_service?.id ?? data.dentist_suggested_follow_up_service?.id ?? '');
+        setSelectedWindow(data.recommended_follow_up_window ?? data.dentist_suggested_follow_up_window ?? '');
       })
       .catch(() => setError('Could not load this appointment.'))
       .finally(() => setLoading(false));
@@ -60,7 +71,7 @@ function AppointmentDetailModal({ appointmentId, onClose }) {
     setEnabling(true);
     setEnableError('');
     try {
-      const response = await enableFollowUp(appointmentId, selectedServiceId);
+      const response = await enableFollowUp(appointmentId, selectedServiceId, selectedWindow);
       setDetail((prev) => ({ ...prev, ...response.data }));
     } catch (err) {
       setEnableError(err.response?.data?.message || 'Could not enable this follow-up. Please try again.');
@@ -186,9 +197,21 @@ function AppointmentDetailModal({ appointmentId, onClose }) {
                   ) : (
                     <span>
                       Enabled — {detail.recommended_follow_up_service.name}
+                      {detail.recommended_follow_up_window ? ` · recommended within ${detail.recommended_follow_up_window}` : ''}
                       {detail.follow_up_recommended_by ? ` · by ${detail.follow_up_recommended_by.name}` : ''} · not yet booked
                     </span>
                   )}
+                </div>
+              )}
+
+              {!detail.recommended_follow_up_service && detail.dentist_suggested_follow_up_service && (
+                <div className="detail-followup-status detail-followup-status--open">
+                  <CalendarPlusIcon />
+                  <span>
+                    Dentist recommends: {detail.dentist_suggested_follow_up_service.name}
+                    {detail.dentist_suggested_follow_up_window ? ` within ${detail.dentist_suggested_follow_up_window}` : ''}
+                    — review and enable below.
+                  </span>
                 </div>
               )}
 
@@ -219,6 +242,35 @@ function AppointmentDetailModal({ appointmentId, onClose }) {
                   {enabling ? 'Enabling…' : 'Enable Follow-up'}
                 </button>
               </div>
+
+              {selectedServiceId && (
+                <div style={{ marginTop: 10 }}>
+                  <span className="detail-label" style={{ display: 'block', marginBottom: 6 }}>
+                    Recommended within <span style={{ fontWeight: 400, textTransform: 'none' }}>(optional)</span>
+                  </span>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {FOLLOW_UP_WINDOWS.map((window) => {
+                      const windowSelected = selectedWindow === window;
+                      return (
+                        <button
+                          key={window}
+                          type="button"
+                          disabled={enabling}
+                          style={{
+                            padding: '5px 12px', fontSize: '0.74rem', fontWeight: 600, borderRadius: 999, cursor: 'pointer',
+                            border: `1.5px solid ${windowSelected ? 'var(--portal-green-border)' : 'var(--portal-border)'}`,
+                            background: windowSelected ? 'var(--portal-green-bg)' : '#fff',
+                            color: windowSelected ? 'var(--portal-green-text)' : 'var(--portal-muted)',
+                          }}
+                          onClick={() => setSelectedWindow(windowSelected ? '' : window)}
+                        >
+                          {window}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {enableError && <p className="detail-followup-error">{enableError}</p>}
             </div>

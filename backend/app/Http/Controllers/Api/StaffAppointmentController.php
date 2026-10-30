@@ -208,6 +208,7 @@ class StaffAppointmentController extends Controller
             'pediatricConfirmedBy:id,name',
             'recommendedFollowUpService:id,name,duration_minutes',
             'followUpRecommendedBy:id,name',
+            'dentistSuggestedFollowUpService:id,name,duration_minutes',
             'statusLogs' => fn ($q) => $q->with('changedBy:id,name')->orderBy('created_at'),
         ]);
 
@@ -234,13 +235,23 @@ class StaffAppointmentController extends Controller
 
         $validated = $request->validate([
             'service_id' => ['required', 'integer', 'exists:services,id'],
+            // Optional — purely a display label next to the recommendation
+            // (see Appointment::FOLLOW_UP_WINDOWS); never affects slot
+            // availability, the patient still picks their own exact time.
+            'recommended_window' => ['nullable', Rule::in(Appointment::FOLLOW_UP_WINDOWS)],
         ]);
 
         $appointment->update([
             'recommended_follow_up_service_id' => $validated['service_id'],
+            'recommended_follow_up_window' => $validated['recommended_window'] ?? null,
             'follow_up_recommended_by' => $request->user()->id,
             'follow_up_recommended_at' => now(),
             'follow_up_fulfilled_at' => null,
+            // The dentist's own suggestion (if any) is now consumed —
+            // staff either acted on it as-is or overrode it with a
+            // different pick; either way it's no longer "pending review".
+            'dentist_suggested_follow_up_service_id' => null,
+            'dentist_suggested_follow_up_window' => null,
         ]);
 
         $appointment->load(['patient:id,user_id,first_name,last_name', 'recommendedFollowUpService:id,name,duration_minutes', 'followUpRecommendedBy:id,name']);
@@ -248,7 +259,8 @@ class StaffAppointmentController extends Controller
         Notification::notifyUser(
             $appointment->patient->user_id,
             'Follow-up available',
-            "You can now book a follow-up for {$appointment->recommendedFollowUpService->name}.",
+            "You can now book a follow-up for {$appointment->recommendedFollowUpService->name}."
+                .($appointment->recommended_follow_up_window ? " Recommended within {$appointment->recommended_follow_up_window}." : ''),
             '/patient/appointments'
         );
 
