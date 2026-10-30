@@ -71,17 +71,26 @@ const TABS = [
 const CANCELLABLE_STATUSES = ['confirmed', 'pending_verification'];
 const REASON_VISIBLE_STATUSES = ['cancelled', 'rejected'];
 
-// Mirrors PatientAppointmentController::cancel()'s own "isUpcoming" check
-// server-side — a confirmed/pending appointment whose date has already
-// passed gets rejected there ("Only an upcoming confirmed or pending
-// appointment can be cancelled"), so the button shouldn't even show for
-// one, now that a stale one can appear here (under Past) instead of
-// silently sitting in Upcoming.
+// Mirrors PatientAppointmentController::cancel()'s own "isUpcoming" +
+// "isLapsedToday" checks server-side — a confirmed/pending appointment
+// whose date has already passed, OR whose date is today but its own
+// scheduled time has already passed, gets rejected there ("This
+// appointment's scheduled time has already passed..."), so the button
+// shouldn't even show for one. The same-day+time case matters because the
+// visit may have genuinely already happened and just not be logged yet.
 function isCancellable(appointment) {
   if (!CANCELLABLE_STATUSES.includes(appointment.status)) return false;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  return toLocalDate(appointment.appointment_date) >= today;
+  const apptDay = toLocalDate(appointment.appointment_date);
+  if (apptDay < today) return false;
+  if (apptDay.getTime() === today.getTime()) {
+    const [h, m] = appointment.appointment_time.split(':').map(Number);
+    const slotMoment = new Date();
+    slotMoment.setHours(h, m, 0, 0);
+    if (slotMoment < new Date()) return false;
+  }
+  return true;
 }
 
 // A confirmed/pending appointment whose date has already passed (falls

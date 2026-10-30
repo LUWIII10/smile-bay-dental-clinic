@@ -189,11 +189,24 @@ class PatientAppointmentController extends Controller
         ]);
 
         $isCancellableStatus = in_array($appointment->status, ['confirmed', 'pending_verification'], true);
-        $isUpcoming = $appointment->appointment_date->toDateString() >= now()->toDateString();
+        $today = now()->toDateString();
+        $isUpcoming = $appointment->appointment_date->toDateString() >= $today;
+        // Same-day, but the scheduled moment itself has already passed — the
+        // date-only check above alone still treated this as cancellable all
+        // day. By then the visit may have already happened and just not be
+        // logged yet (AppointmentController::complete()); a patient
+        // self-cancelling out from under that would erase a real visit
+        // before the dentist gets to it. Past this point, only the clinic
+        // itself (StaffAppointmentController::cancel()/noShow(), no time
+        // restriction) resolves it.
+        $isLapsedToday = $appointment->appointment_date->toDateString() === $today
+            && $appointment->appointment_time <= now()->format('H:i:s');
 
-        if (! $isCancellableStatus || ! $isUpcoming) {
+        if (! $isCancellableStatus || ! $isUpcoming || $isLapsedToday) {
             return response()->json([
-                'message' => 'Only an upcoming confirmed or pending appointment can be cancelled.',
+                'message' => $isLapsedToday
+                    ? "This appointment's scheduled time has already passed — please contact the clinic directly to cancel it."
+                    : 'Only an upcoming confirmed or pending appointment can be cancelled.',
             ], 422);
         }
 

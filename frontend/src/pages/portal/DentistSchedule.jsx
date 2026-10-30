@@ -38,6 +38,25 @@ function dayHeading(dateStr, today) {
   return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
 }
 
+// True once this appointment's own scheduled moment has passed — the whole
+// day (the existing Needs Update case) or, same-day, just its own time.
+// Past this point, Reschedule/Cancel no longer make sense here: the visit
+// either already happened (Complete it) or needs the clinic's own
+// resolution (staff's Cancel/Mark No Show on All Appointments, no time
+// restriction) — not a self-service move/cancel that assumes it hasn't
+// happened yet.
+function isLapsed(appointment) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const apptDay = toLocalDate(appointment.appointment_date);
+  if (apptDay < today) return true;
+  if (apptDay.getTime() !== today.getTime()) return false;
+  const [h, m] = appointment.appointment_time.split(':').map(Number);
+  const slotMoment = new Date();
+  slotMoment.setHours(h, m, 0, 0);
+  return slotMoment < new Date();
+}
+
 // variant: 'danger' tints the collapsed row for the Needs Update tab (a
 // confirmed visit whose date already passed) — omitted everywhere else,
 // same default look as before this prop existed.
@@ -88,12 +107,16 @@ function ScheduleRow({ appointment, expanded, onToggle, completingId, onComplete
           >
             <CheckCircleIcon /> {completingId === appointment.id ? 'Saving…' : 'Complete'}
           </button>
-          <button type="button" className="schedule-action-btn schedule-action-btn--amber" onClick={() => onReschedule(appointment)}>
-            <SwapIcon /> Reschedule
-          </button>
-          <button type="button" className="schedule-action-btn schedule-action-btn--red" onClick={() => onCancel(appointment)}>
-            <CalendarXIcon /> Cancel
-          </button>
+          {!isLapsed(appointment) && (
+            <>
+              <button type="button" className="schedule-action-btn schedule-action-btn--amber" onClick={() => onReschedule(appointment)}>
+                <SwapIcon /> Reschedule
+              </button>
+              <button type="button" className="schedule-action-btn schedule-action-btn--red" onClick={() => onCancel(appointment)}>
+                <CalendarXIcon /> Cancel
+              </button>
+            </>
+          )}
         </div>
       )}
 
