@@ -768,6 +768,73 @@
   font-size: 0.85rem;
 }
 
+/* Full-width section divider row (DataTable.jsx's row.__groupHeader) — a
+   single cell spanning every column instead of DataTable's usual
+   one-cell-per-column layout. .data-table-group-label/--upcoming/-count/
+   -empty are the content pieces a caller builds inside that cell; this
+   file only owns the spanning row itself, since every other visual choice
+   (icon, copy, tone) is the caller's to make per table. */
+.data-table-group-row td {
+  padding: 10px 16px;
+  background: var(--portal-blue-tint);
+  border-bottom: 1.5px solid var(--portal-blue-border);
+  border-top: 1.5px solid var(--portal-blue-border);
+}
+
+.data-table-group-row--upcoming td {
+  background: var(--portal-canvas);
+  border-color: var(--portal-border-light);
+}
+
+.data-table-group-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--portal-blue-text);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.data-table-group-row--upcoming .data-table-group-label {
+  color: var(--portal-muted);
+}
+
+.data-table-group-label svg {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+}
+
+.data-table-group-date {
+  font-weight: 500;
+  color: var(--portal-slate);
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.data-table-group-count {
+  margin-left: auto;
+  background: var(--portal-blue);
+  color: #fff;
+  font-size: 0.66rem;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 2px 9px;
+}
+
+.data-table-group-row--upcoming .data-table-group-count {
+  background: var(--portal-muted);
+}
+
+.data-table-group-empty {
+  padding: 2px 0 0;
+  font-size: 0.8rem;
+  color: var(--portal-muted);
+  font-style: italic;
+}
+
 @media (max-width: 767px) {
   .data-table thead {
     display: none;

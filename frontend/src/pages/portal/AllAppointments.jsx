@@ -21,8 +21,9 @@ import PageHeader from './components/PageHeader';
 import FilterDropdown from './components/FilterDropdown';
 import {
   CalendarIcon, CheckCircleIcon, ClockIcon, XCircleIcon, SearchIcon, EyeIcon, CashIcon, ShieldIcon, UserIcon,
+  TrendingUpIcon,
 } from './icons';
-import { formatDateShort, formatTime12h, toLocalDate } from './dateTimeUtils';
+import { formatDateShort, formatDateLong, formatTime12h, toLocalDate } from './dateTimeUtils';
 import { showSuccessToast, showErrorToast, confirmAction } from '../../utils/toast';
 import './dashboards.css';
 import './Appointments.css';
@@ -92,6 +93,11 @@ function isOverdueUnresolved(row) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   return toLocalDate(row.appointment_date) < today;
+}
+
+function localTodayKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 function AllAppointments() {
@@ -231,6 +237,58 @@ function AllAppointments() {
   };
 
   const hasActiveFilters = status || dentistId || paymentType || dateFrom || dateTo || overdueOnly || search;
+
+  // Same cutoff the backend applies by default (StaffAppointmentController::
+  // index()'s own $isDefaultView) — status/date range/search/Overdue Only
+  // are the only things that take the list out of "what's coming up" mode;
+  // dentist/payment filters narrow it without changing that mode. Grouping
+  // only makes sense while every row on screen is genuinely today-or-later,
+  // which is exactly what that condition guarantees, and only on page 1 —
+  // Today's own rows, sorted soonest-first, can only ever land there.
+  const isDefaultView = !status && !dateFrom && !dateTo && !search && !overdueOnly;
+  const showTodayGrouping = isDefaultView && page === 1 && appointments.length > 0;
+
+  const displayRows = (() => {
+    if (!showTodayGrouping) return appointments;
+
+    const todayKey = localTodayKey();
+    const todayRows = appointments.filter((a) => a.appointment_date.slice(0, 10) === todayKey);
+    const upcomingRows = appointments.filter((a) => a.appointment_date.slice(0, 10) !== todayKey);
+
+    const rows = [
+      {
+        id: '__group-today',
+        __groupHeader: (
+          <span className="data-table-group-label">
+            <CalendarIcon />
+            TODAY <span className="data-table-group-date">· {formatDateLong(todayKey)}</span>
+            <span className="data-table-group-count">{todayRows.length}</span>
+          </span>
+        ),
+      },
+      ...(todayRows.length > 0
+        ? todayRows
+        : [{ id: '__group-today-empty', __groupHeader: <span className="data-table-group-empty">No appointments today.</span> }]),
+    ];
+
+    if (upcomingRows.length > 0) {
+      rows.push(
+        {
+          id: '__group-upcoming',
+          __groupHeaderClassName: 'data-table-group-row--upcoming',
+          __groupHeader: (
+            <span className="data-table-group-label">
+              <TrendingUpIcon />
+              UPCOMING <span className="data-table-group-count">{upcomingRows.length}</span>
+            </span>
+          ),
+        },
+        ...upcomingRows
+      );
+    }
+
+    return rows;
+  })();
 
   const openDateRange = () => {
     // Seed the draft from whatever's currently applied, not from whatever
@@ -608,7 +666,7 @@ function AllAppointments() {
           </div>
         ) : (
           <div className="appt-master-table">
-            <DataTable columns={columns} rows={appointments} emptyMessage="No appointments match these filters." />
+            <DataTable columns={columns} rows={displayRows} emptyMessage="No appointments match these filters." />
             <Pagination
               meta={meta}
               onPageChange={setPage}

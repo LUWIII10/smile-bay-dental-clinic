@@ -27,6 +27,16 @@
 //     value) — for a table like Activity Log's where each column heading
 //     gets its own accent color. Omit it for the normal muted-gray header
 //     text every other table already has.
+//
+// A row may also opt out of normal per-column rendering entirely by
+// setting `__groupHeader` to any renderable content — used to split one
+// table into labeled sections (e.g. Appointments' "Today"/"Upcoming")
+// without a second table or a different data shape. That row renders as a
+// single cell spanning every column instead of one cell per column; every
+// other row (the vast majority of callers, which never set this) is
+// unaffected. `__groupHeaderClassName` adds an extra class to that row
+// (e.g. a second section's muted tone vs. the first's default one) —
+// optional, purely cosmetic, same opt-in shape as every other field here.
 function DataTable({ columns, rows, keyField = 'id', emptyMessage = 'No records found.' }) {
   if (!rows || rows.length === 0) {
     return <div className="data-table-empty">{emptyMessage}</div>;
@@ -72,40 +82,51 @@ function DataTable({ columns, rows, keyField = 'id', emptyMessage = 'No records 
           </tr>
         </thead>
         <tbody>
-          {rows.map((row) => (
-            <tr key={row[keyField]}>
-              {columns.map((column) => {
-                const cellClass = [
-                  column.noWrap && 'data-table-cell-nowrap',
-                  column.clampLines && 'data-table-cell-clamp',
-                ]
-                  .filter(Boolean)
-                  .join(' ') || undefined;
+          {rows.map((row) => {
+            if (row.__groupHeader) {
+              const groupClass = ['data-table-group-row', row.__groupHeaderClassName].filter(Boolean).join(' ');
+              return (
+                <tr key={row[keyField]} className={groupClass}>
+                  <td colSpan={columns.length}>{row.__groupHeader}</td>
+                </tr>
+              );
+            }
 
-                // data-label feeds the stacked-card ::before content below
-                // the breakpoint, which needs a plain string — column.label
-                // itself may be JSX (e.g. a clickable sort control), so fall
-                // back to mobileLabel when label isn't already a string.
-                const labelText = typeof column.label === 'string' ? column.label : (column.mobileLabel || '');
+            return (
+              <tr key={row[keyField]}>
+                {columns.map((column) => {
+                  const cellClass = [
+                    column.noWrap && 'data-table-cell-nowrap',
+                    column.clampLines && 'data-table-cell-clamp',
+                  ]
+                    .filter(Boolean)
+                    .join(' ') || undefined;
 
-                return (
-                  <td
-                    key={column.key}
-                    data-label={labelText}
-                    style={cellStyle(column)}
-                    className={cellClass}
-                  >
-                    <span
-                      className="data-table-value"
-                      style={column.clampLines ? { WebkitLineClamp: column.clampLines } : undefined}
+                  // data-label feeds the stacked-card ::before content below
+                  // the breakpoint, which needs a plain string — column.label
+                  // itself may be JSX (e.g. a clickable sort control), so fall
+                  // back to mobileLabel when label isn't already a string.
+                  const labelText = typeof column.label === 'string' ? column.label : (column.mobileLabel || '');
+
+                  return (
+                    <td
+                      key={column.key}
+                      data-label={labelText}
+                      style={cellStyle(column)}
+                      className={cellClass}
                     >
-                      {column.render ? column.render(row) : row[column.key]}
-                    </span>
-                  </td>
-                );
-              })}
-            </tr>
-          ))}
+                      <span
+                        className="data-table-value"
+                        style={column.clampLines ? { WebkitLineClamp: column.clampLines } : undefined}
+                      >
+                        {column.render ? column.render(row) : row[column.key]}
+                      </span>
+                    </td>
+                  );
+                })}
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>
