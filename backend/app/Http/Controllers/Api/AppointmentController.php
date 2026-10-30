@@ -304,7 +304,12 @@ class AppointmentController extends Controller
             'procedure_name' => ['required', 'string', 'max:255'],
             'tooth_number' => ['nullable', 'integer', 'between:1,32'],
             'performed_at' => ['required', 'date'],
-            'notes' => ['required', 'string', 'min:20', 'max:1000'],
+            // No min length — a genuinely brief note ("N/A", "No issues
+            // noted") is a real clinical judgment call, not a shortcut to
+            // guard against. A fixed character count can't tell a padded,
+            // meaningless note from a real short one anyway; this trusts
+            // the dentist the same way the rest of the record already does.
+            'notes' => ['required', 'string', 'max:1000'],
             // Optional — the dentist flagging a follow-up right here, while
             // the visit is still fresh in mind, instead of staff having to
             // infer one from these notes later. Does NOT activate it for
@@ -427,7 +432,8 @@ class AppointmentController extends Controller
             'procedure_name' => ['required', 'string', 'max:255'],
             'tooth_number' => ['nullable', 'integer', 'between:1,32'],
             'performed_at' => ['required', 'date'],
-            'notes' => ['required', 'string', 'min:20', 'max:1000'],
+            // Same reasoning as complete() above — no min length.
+            'notes' => ['required', 'string', 'max:1000'],
         ]);
 
         $primaryDentistJustAssigned = false;

@@ -52,7 +52,6 @@ const SEARCH_DEBOUNCE_MS = 400;
 // shown to the patient next to a follow-up recommendation, never used in
 // any scheduling/availability check.
 const FOLLOW_UP_WINDOWS = ['1-2 weeks', '1 month', '3 months', '6 months'];
-const VISIT_NOTES_MIN_LENGTH = 20;
 // complete()'s notes column caps at 1000 — storeClinicalNote() allows up to
 // 5000 (same as the "+ Add Note" textarea). A note longer than this is
 // valid everywhere else on this page but can't be forwarded to complete()
@@ -132,14 +131,14 @@ function defaultPrintRange() {
   return { date_from: toIso(from), date_to: toIso(now) };
 }
 
-// complete()'s exact notes rule (min 20, max 1000), checked ahead of time so
-// a note that fails it is caught with a specific message on submit rather
-// than a 422 from the network. Doesn't gate the button — see submitVisit.
+// complete()'s exact notes rule (no minimum — a brief note like "N/A" or
+// "No issues noted" is a real clinical judgment call, not something a
+// character count should second-guess; max 1000 still applies), checked
+// ahead of time so a note that fails it is caught with a specific message
+// on submit rather than a 422 from the network. Doesn't gate the button —
+// see submitVisit.
 function checkNoteLengthForCompletion(note) {
   const length = note.trim().length;
-  if (length < VISIT_NOTES_MIN_LENGTH) {
-    return `The clinical note for this visit is too short to record — ${length}/${VISIT_NOTES_MIN_LENGTH} characters.`;
-  }
   if (length > VISIT_NOTES_MAX_LENGTH) {
     return `The clinical note for this visit is too long to record — shorten it to ${VISIT_NOTES_MAX_LENGTH.toLocaleString()} characters or fewer. It is currently ${length.toLocaleString()}.`;
   }
