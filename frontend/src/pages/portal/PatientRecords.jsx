@@ -688,6 +688,14 @@ function PatientRecords() {
     const next = {};
     if (!visitForm.procedure_name.trim()) next.procedure_name = 'Enter the procedure that was performed.';
     if (!visitForm.performed_at) next.performed_at = 'Enter the date this was performed.';
+    // The toggle alone recommends nothing on its own — without a procedure
+    // picked, checking it silently did nothing (no error, nothing saved),
+    // which read as "I asked for a follow-up" when nothing was actually
+    // recorded. Only relevant for completing (the toggle isn't rendered at
+    // all while backfilling), so suggestFollowUp is never true there.
+    if (suggestFollowUp && !followUpServiceId) {
+      next.followUpService = 'Select a procedure for the follow-up, or uncheck the box above.';
+    }
     return next;
   };
 
@@ -1828,6 +1836,7 @@ function PatientRecords() {
                           </option>
                         ))}
                       </select>
+                      {visitErrors.followUpService && <span className="modal-field-error">{visitErrors.followUpService}</span>}
 
                       <label className="modal-field-label">
                         Recommended within <span style={{ fontWeight: 400, color: 'var(--portal-muted)', textTransform: 'none' }}>(optional)</span>
