@@ -135,9 +135,26 @@ class AppointmentSlotService
             // same-day union with zero slots because the clinic itself was
             // closed matched the $count === 0 branch below and showed as
             // "Fully Booked" instead of "Unavailable."
-            $anyOpen = collect($dentistIds)->contains(fn (int $id) => $this->operatingHoursFor($id, $dateKey) !== null);
+            $schedules = collect($dentistIds)
+                ->map(fn (int $id) => $this->operatingHoursFor($id, $dateKey))
+                ->filter();
+            $anyOpen = $schedules->isNotEmpty();
 
-            if ($cursor->lt($today) || ! $anyOpen) {
+            // Today specifically, once the clinic's own last bookable start
+            // has passed for every open dentist, there is no time left to
+            // book today no matter what — getAvailableSlotsAnyDentist()
+            // would already return an empty array here (it excludes past
+            // times), but $count === 0 alone can't tell "genuinely every
+            // slot taken" apart from "the day is simply over," and the two
+            // read very differently to a patient staring at a red "Fully
+            // Booked" cell at 6:30pm, well after closing. Same real-world
+            // outcome either way — nothing is bookable today — so this
+            // folds into the same 'unavailable' bucket the frontend already
+            // renders as "Clinic closed".
+            $todayFullyElapsed = $cursor->isSameDay($today) && $anyOpen
+                && $schedules->every(fn (array $schedule) => Carbon::now()->gt($this->lastBookableStart($dateKey, $schedule, $durationMinutes)));
+
+            if ($cursor->lt($today) || ! $anyOpen || $todayFullyElapsed) {
                 // No single dentist's "day off" applies to a union across
                 // all of them automatically — but when the reason every one
                 // of them is unavailable traces back to their OWN personal
@@ -147,7 +164,7 @@ class AppointmentSlotService
                 // dentist is off reads very differently from an actual
                 // Sunday shutdown.
                 $offNames = [];
-                if (! $cursor->lt($today)) {
+                if (! $cursor->lt($today) && ! $todayFullyElapsed) {
                     foreach ($dentists as $dentist) {
                         if ($this->unavailabilityReason($dentist->id, $dateKey) === 'day_off') {
                             $offNames[] = $dentist->name;
@@ -157,7 +174,7 @@ class AppointmentSlotService
                 $summary[$dateKey] = [
                     'status' => 'unavailable',
                     'count' => 0,
-                    'reason' => $cursor->lt($today) ? null : (empty($offNames) ? 'closed' : 'day_off'),
+                    'reason' => ($cursor->lt($today) || $todayFullyElapsed) ? null : (empty($offNames) ? 'closed' : 'day_off'),
                     'dentists' => empty($offNames) ? null : $offNames,
                 ];
             } else {
@@ -251,6 +268,15 @@ class AppointmentSlotService
 
         while ($cursor->lte($end)) {
             $dateKey = $cursor->toDateString();
+            $schedule = $this->operatingHoursFor($dentistId, $dateKey);
+
+            // Today specifically, once this dentist's own last bookable
+            // start has passed, there is no time left to book today no
+            // matter what — see getDayAvailabilitySummaryAnyDentist()'s own
+            // comment for why this folds into 'unavailable' ("Clinic
+            // closed") instead of staying a $count === 0 "Fully Booked".
+            $todayFullyElapsed = $schedule && $cursor->isSameDay($today)
+                && Carbon::now()->gt($this->lastBookableStart($dateKey, $schedule, $durationMinutes));
 
             // Closed day (including every Sunday) or a calendar date that's
             // already fully in the past — nothing to compute, not bookable.
@@ -258,8 +284,8 @@ class AppointmentSlotService
             // that case out for itself from the date alone) and is only
             // filled in — 'day_off' vs 'closed' — for a future unavailable
             // one, via unavailabilityReason() above.
-            if ($cursor->lt($today) || ! $this->operatingHoursFor($dentistId, $dateKey)) {
-                $reason = $cursor->lt($today) ? null : $this->unavailabilityReason($dentistId, $dateKey);
+            if ($cursor->lt($today) || ! $schedule || $todayFullyElapsed) {
+                $reason = ($cursor->lt($today) || $todayFullyElapsed) ? null : $this->unavailabilityReason($dentistId, $dateKey);
                 $summary[$dateKey] = ['status' => 'unavailable', 'count' => 0, 'reason' => $reason];
             } else {
                 $count = count($this->getAvailableSlots($dentistId, $dateKey, $durationMinutes));
