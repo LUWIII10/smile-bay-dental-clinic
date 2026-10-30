@@ -34,6 +34,7 @@ class Appointment extends Model
         'hmo_status_label',
         'hmo_status_note',
         'hmo_status_updated_at',
+        'slot_released_at',
     ];
 
     protected function casts(): array
@@ -46,6 +47,7 @@ class Appointment extends Model
             'hmo_status_updated_at' => 'datetime',
             'follow_up_recommended_at' => 'datetime',
             'follow_up_fulfilled_at' => 'datetime',
+            'slot_released_at' => 'datetime',
         ];
     }
 

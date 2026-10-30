@@ -154,6 +154,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::patch('/staff/appointments/{appointment}/hmo-info', [StaffVerificationController::class, 'updateHmoInfo']);
         Route::get('/staff/appointments/{appointment}/available-slots', [StaffVerificationController::class, 'availableSlotsForEdit']);
         Route::patch('/staff/appointments/{appointment}/propose-new-date', [StaffVerificationController::class, 'proposeNewDate']);
+        Route::post('/staff/appointments/{appointment}/release-slot', [StaffVerificationController::class, 'releaseSlot']);
 
         Route::get('/staff/appointments', [StaffAppointmentController::class, 'index']);
         // /stats must resolve before the {appointment} route below, or Laravel
@@ -164,6 +165,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/staff/appointments/walk-in', [StaffAppointmentController::class, 'assignWalkIn']);
         Route::get('/staff/appointments/{appointment}', [StaffAppointmentController::class, 'show']);
         Route::patch('/staff/appointments/{appointment}/cancel', [StaffAppointmentController::class, 'cancel']);
+        Route::patch('/staff/appointments/{appointment}/reschedule', [StaffAppointmentController::class, 'reschedule']);
         Route::patch('/staff/appointments/{appointment}/no-show', [StaffAppointmentController::class, 'noShow']);
         Route::post('/staff/appointments/{appointment}/enable-follow-up', [StaffAppointmentController::class, 'enableFollowUp']);
 

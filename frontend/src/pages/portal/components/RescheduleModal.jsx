@@ -9,12 +9,15 @@ function todayDateKey() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-// Dentist-only — the appointment's own dentist/service never change here,
-// only the date/time, so this reuses the exact same getAvailableSlots grid
-// the patient booking wizard and staff walk-in modal use (real
-// AppointmentSlotService math), just with dentist/service fixed instead of
-// pickable.
-function RescheduleModal({ open, onClose, appointment, onSuccess }) {
+// Dentist's own schedule by default — the appointment's own dentist/service
+// never change here, only the date/time, so this reuses the exact same
+// getAvailableSlots grid the patient booking wizard and staff walk-in modal
+// use (real AppointmentSlotService math), just with dentist/service fixed
+// instead of pickable. `rescheduleFn` is swappable (defaults to the
+// dentist-only API) so staff's clinic-wide "Move to Next Open Slot" action
+// (AllAppointments.jsx) can reuse this same modal with its own staff-wide
+// endpoint — every other existing caller is unaffected.
+function RescheduleModal({ open, onClose, appointment, onSuccess, rescheduleFn = rescheduleAppointment }) {
   const [date, setDate] = useState(todayDateKey());
   const [timeSlots, setTimeSlots] = useState([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
@@ -55,7 +58,7 @@ function RescheduleModal({ open, onClose, appointment, onSuccess }) {
     setSubmitting(true);
     setError('');
     try {
-      await rescheduleAppointment(appointment.id, date, time);
+      await rescheduleFn(appointment.id, date, time);
       onSuccess();
     } catch (err) {
       setError(err.response?.data?.message || 'Could not reschedule this appointment.');

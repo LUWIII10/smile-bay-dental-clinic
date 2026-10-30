@@ -104,6 +104,25 @@ class StaffVerificationController extends Controller
             ], 422);
         }
 
+        // This request's own hold on its slot was explicitly released (see
+        // releaseSlot() below) — someone else may have booked it since.
+        // Never trust that it's still free just because it once was.
+        if ($validated['action'] === 'approve' && $appointment->slot_released_at) {
+            $stillAvailable = $this->slots->isSlotAvailable(
+                $appointment->dentist_id,
+                $appointment->appointment_date->toDateString(),
+                $appointment->appointment_time,
+                $appointment->service->duration_minutes,
+                $appointment->id,
+            );
+
+            if (! $stillAvailable) {
+                return response()->json([
+                    'message' => 'This slot was released and is no longer available — use "Approve & Reschedule" to give this patient a new date.',
+                ], 422);
+            }
+        }
+
         $newStatus = $validated['action'] === 'approve' ? 'confirmed' : 'rejected';
         $reason = $validated['action'] === 'reject' ? ($validated['reason'] ?? null) : null;
 
@@ -618,5 +637,53 @@ class StaffVerificationController extends Controller
         return response()->json([
             'data' => ['slots' => array_map(fn ($slot) => $slot->format('H:i'), $slots)],
         ]);
+    }
+
+    /**
+     * Staff explicitly frees a still-pending_verification booking's hold on
+     * its own date+time — meant for a request that has "lapsed" (its
+     * requested date+time already passed without HMO coverage being
+     * verified), so the slot isn't held hostage to a request likely headed
+     * for "Approve & Reschedule" anyway. This is NOT a reject: the
+     * appointment stays pending_verification, fully on file, still
+     * answerable here later — only AppointmentSlotService's occupancy check
+     * (slot_released_at IS NULL) stops counting it, so the slot shows up as
+     * bookable for a walk-in or anyone else. verify()'s approve branch
+     * re-checks real availability once this is set, so this can never lead
+     * to a double-booking even if staff later approves onto the same date.
+     */
+    public function releaseSlot(Request $request, Appointment $appointment)
+    {
+        if ($appointment->status !== 'pending_verification') {
+            return response()->json([
+                'message' => 'Only a still-pending booking\'s slot can be released.',
+            ], 422);
+        }
+
+        if ($appointment->slot_released_at) {
+            return response()->json([
+                'message' => 'This slot has already been released.',
+            ], 422);
+        }
+
+        $appointment->update(['slot_released_at' => now()]);
+
+        $appointment->load('patient', 'service');
+
+        AppointmentStatusLog::create([
+            'appointment_id' => $appointment->id,
+            'old_status' => $appointment->status,
+            'new_status' => $appointment->status,
+            'changed_by' => $request->user()->id,
+            'note' => "Slot released by staff for {$appointment->appointment_date->toDateString()} {$appointment->appointment_time} — still awaiting HMO verification, but the slot is now open for other bookings.",
+        ]);
+
+        ActivityLog::record(
+            $request->user()->id,
+            'hmo_slot_released',
+            "{$request->user()->name} released {$appointment->patient->first_name} {$appointment->patient->last_name}'s {$appointment->appointment_date->toDateString()} {$appointment->appointment_time} slot for {$appointment->service->name} — their HMO request is still pending."
+        );
+
+        return response()->json(['message' => 'Slot released — it can now be booked by someone else.', 'data' => $appointment]);
     }
 }

@@ -7,6 +7,7 @@ import {
   getServices,
   cancelAppointmentAsStaff,
   markNoShow,
+  rescheduleAppointmentAsStaff,
 } from '../../api/appointments';
 import StatusBadge from './components/StatusBadge';
 import StatCard from './components/StatCard';
@@ -14,6 +15,7 @@ import DataTable from './components/DataTable';
 import Skeleton from './components/Skeleton';
 import WalkInBookingModal from './components/WalkInBookingModal';
 import AppointmentDetailModal from './components/AppointmentDetailModal';
+import RescheduleModal from './components/RescheduleModal';
 import ActionMenu from './components/ActionMenu';
 import Pagination from './components/Pagination';
 import RejectionModal from './components/RejectionModal';
@@ -95,6 +97,22 @@ function isOverdueUnresolved(row) {
   return toLocalDate(row.appointment_date) < today;
 }
 
+// A CONFIRMED appointment, today, whose own scheduled time already passed
+// with no check-in — distinct from isOverdueUnresolved() above (that one
+// only fires once the whole DAY has passed). Drives the "Move to Next Open
+// Slot" action only; the row's status/badge are untouched by this, same as
+// isOverdueUnresolved() never changes status either.
+function isRunningLate(row) {
+  if (row.status !== 'confirmed') return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  if (toLocalDate(row.appointment_date).getTime() !== today.getTime()) return false;
+  const [h, m] = row.appointment_time.split(':').map(Number);
+  const slotMoment = new Date();
+  slotMoment.setHours(h, m, 0, 0);
+  return slotMoment < new Date();
+}
+
 function localTodayKey() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -142,6 +160,12 @@ function AllAppointments() {
   const [cancelTarget, setCancelTarget] = useState(null);
   const [cancelReason, setCancelReason] = useState('');
   const [cancelling, setCancelling] = useState(false);
+
+  // "Move to Next Open Slot" — reuses the same RescheduleModal the dentist's
+  // own schedule uses, just pointed at the staff-wide reschedule endpoint
+  // (rescheduleAppointmentAsStaff) since this isn't scoped to one dentist's
+  // own appointments.
+  const [rescheduleTarget, setRescheduleTarget] = useState(null);
 
   const debounceRef = useRef(null);
 
@@ -497,6 +521,8 @@ function AllAppointments() {
       render: (row) => (
         isOverdueUnresolved(row) ? (
           <StatusBadge status="Awaiting Update" tone="amber" icon={ClockIcon} />
+        ) : isRunningLate(row) ? (
+          <StatusBadge status="Running Late" tone="amber" icon={ClockIcon} />
         ) : (
           <StatusBadge status={row.status} icon={STATUS_ICON[row.status]} />
         )
@@ -516,6 +542,7 @@ function AllAppointments() {
           <ActionMenu
             items={[
               row.status === 'cancelled' && { label: 'Assign Walk-In', onClick: () => openWalkInForRow(row) },
+              isRunningLate(row) && { label: 'Move to Next Open Slot', onClick: () => setRescheduleTarget(row) },
               isOverdueUnresolved(row) && { label: 'Mark No Show', onClick: () => handleNoShow(row), danger: true },
               ['confirmed', 'pending_verification'].includes(row.status) && {
                 label: 'Cancel Appointment', onClick: () => openCancel(row), danger: true,
@@ -700,6 +727,19 @@ function AllAppointments() {
         onReasonChange={setCancelReason}
         onConfirm={handleCancel}
         confirming={cancelling}
+      />
+
+      <RescheduleModal
+        open={!!rescheduleTarget}
+        onClose={() => setRescheduleTarget(null)}
+        appointment={rescheduleTarget}
+        rescheduleFn={rescheduleAppointmentAsStaff}
+        onSuccess={() => {
+          setRescheduleTarget(null);
+          load();
+          loadStats();
+          showSuccessToast('Appointment moved to a new time.');
+        }}
       />
     </div>
   );

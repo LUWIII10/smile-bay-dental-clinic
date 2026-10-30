@@ -44,6 +44,7 @@ const ACTION_META = {
   hmo_verified: { label: 'HMO Coverage Verified', tone: 'green' },
   hmo_info_updated: { label: 'HMO Info Updated', tone: 'indigo' },
   hmo_status_update: { label: 'HMO Status Update Sent', tone: 'indigo' },
+  hmo_slot_released: { label: 'HMO Slot Released', tone: 'amber' },
   account_restricted: { label: 'Account Restricted', tone: 'red' },
   restriction_lifted: { label: 'Restriction Lifted', tone: 'green' },
   account_activated: { label: 'Account Activated', tone: 'green' },
@@ -59,6 +60,7 @@ const TONE_COLORS = {
   green: { bg: '#dcfce7', text: '#15803d' },
   red: { bg: '#fee2e2', text: '#b42318' },
   gray: { bg: '#f1f5f9', text: '#334155' },
+  amber: { bg: '#fef3c7', text: '#b45309' },
 };
 
 const ACTION_OPTIONS = [

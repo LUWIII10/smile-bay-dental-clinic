@@ -31,6 +31,10 @@ const STATUS_TONE = {
   // pending_verification here too, but verified_at IS already set: coverage
   // cleared, only the date needs the patient's own confirmation.
   hmo_awaiting_date_confirmation: 'blue',
+  // HMO Verification Queue — this request's own slot was explicitly
+  // released (Appointment.slot_released_at set) so someone else can book
+  // it; the request itself stays pending_verification, unaffected.
+  slot_released: 'amber',
 };
 
 // Full-phrase overrides for the two composite pediatric labels above —

@@ -541,6 +541,12 @@ class AppointmentSlotService
             ->where('dentist_id', $dentistId)
             ->where('appointment_date', $date)
             ->whereIn('status', self::OCCUPYING_STATUSES)
+            // Staff can explicitly release a still-pending_verification
+            // appointment's hold on its slot once that request has lapsed
+            // (see Appointment::slot_released_at) — the original request
+            // stays on file, it just stops blocking this date+time for
+            // anyone else.
+            ->whereNull('slot_released_at')
             ->with('service:id,duration_minutes')
             ->lockForUpdate();
 

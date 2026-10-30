@@ -37,6 +37,7 @@ class ActivityLogController extends Controller
         'hmo_verified' => 'HMO Coverage Verified',
         'hmo_info_updated' => 'HMO Info Updated',
         'hmo_status_update' => 'HMO Status Update Sent',
+        'hmo_slot_released' => 'HMO Slot Released',
         'account_restricted' => 'Account Restricted',
         'restriction_lifted' => 'Restriction Lifted',
         'account_activated' => 'Account Activated',

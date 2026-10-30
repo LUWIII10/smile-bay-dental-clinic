@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Mail\AppointmentConfirmedMail;
 use App\Mail\AppointmentRejectedMail;
+use App\Mail\AppointmentRescheduledMail;
 use App\Mail\HmoBookingSubmittedMail;
 use App\Mail\PediatricBookingSubmittedMail;
 use App\Models\ActivityLog;
@@ -325,6 +326,98 @@ class StaffAppointmentController extends Controller
         );
 
         return response()->json(['message' => 'Appointment cancelled.', 'data' => $appointment]);
+    }
+
+    /**
+     * Staff-initiated reschedule of ANY confirmed/pending appointment,
+     * clinic-wide — not scoped to one dentist's own, unlike
+     * AppointmentController::reschedule(). Meant for the "patient is
+     * running late" case: a confirmed patient still hasn't arrived and the
+     * time left before the dentist's next booked appointment won't fit the
+     * procedure, so staff move them to a genuinely open slot later the same
+     * day (or another day) instead of risking a collision with whoever's
+     * next. The status itself never changes here (stays 'confirmed' or
+     * 'pending_verification') — only the date/time does, same as the
+     * dentist's own reschedule. Same re-check-before-commit pattern as
+     * every other slot-consuming action in this app: never trust that the
+     * date/time staff picked client-side is still actually free.
+     */
+    public function reschedule(Request $request, Appointment $appointment)
+    {
+        if (! in_array($appointment->status, ['confirmed', 'pending_verification'], true)) {
+            return response()->json([
+                'message' => 'Only a confirmed or pending appointment can be rescheduled.',
+            ], 422);
+        }
+
+        $validated = $request->validate([
+            'appointment_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:today'],
+            'appointment_time' => ['required', 'date_format:H:i'],
+        ]);
+
+        $appointment->load('service:id,duration_minutes');
+        $oldDate = $appointment->appointment_date->toDateString();
+        $oldTime = $appointment->appointment_time;
+
+        $rescheduled = DB::transaction(function () use ($appointment, $validated) {
+            $available = $this->slots->isSlotAvailable(
+                $appointment->dentist_id,
+                $validated['appointment_date'],
+                $validated['appointment_time'],
+                $appointment->service->duration_minutes,
+                $appointment->id,
+            );
+
+            if (! $available) {
+                return false;
+            }
+
+            $appointment->update([
+                'appointment_date' => $validated['appointment_date'],
+                'appointment_time' => $validated['appointment_time'],
+            ]);
+
+            return true;
+        });
+
+        if (! $rescheduled) {
+            return response()->json([
+                'message' => 'This time slot is no longer available. Please choose another.',
+            ], 409);
+        }
+
+        AppointmentStatusLog::create([
+            'appointment_id' => $appointment->id,
+            'old_status' => $appointment->status,
+            'new_status' => $appointment->status,
+            'changed_by' => $request->user()->id,
+            'note' => "Rescheduled by staff from {$oldDate} {$oldTime} to {$validated['appointment_date']} {$validated['appointment_time']}.",
+        ]);
+
+        $appointment->load(['service:id,name,duration_minutes', 'patient.user', 'dentist:id,name']);
+        try {
+            Mail::to($appointment->patient->user->email)->send(new AppointmentRescheduledMail($appointment, $oldDate, $oldTime));
+        } catch (\Throwable $e) {
+            Log::warning('Appointment email failed to send', [
+                'mailable' => AppointmentRescheduledMail::class,
+                'appointment_id' => $appointment->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+        Notification::notifyUser(
+            $appointment->patient->user_id,
+            'Appointment rescheduled',
+            "Your {$appointment->service->name} appointment moved to {$validated['appointment_date']} at {$validated['appointment_time']}.",
+            '/patient/appointments'
+        );
+
+        ActivityLog::record(
+            $request->user()->id,
+            'appointment_rescheduled',
+            "{$request->user()->name} rescheduled {$appointment->patient->first_name} {$appointment->patient->last_name}'s {$appointment->service->name} appointment to {$validated['appointment_date']}."
+        );
+
+        return response()->json(['message' => 'Appointment rescheduled.', 'data' => $appointment]);
     }
 
     /**

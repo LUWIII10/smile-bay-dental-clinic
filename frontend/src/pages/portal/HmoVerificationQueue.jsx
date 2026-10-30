@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import api from '../../api';
 import {
   getHmoQueue, verifyHmoAppointment, sendHmoStatusUpdate, updatePatientHmoInfo,
-  getServices, getDentists, getStaffEditAvailableSlots, proposeHmoNewDate,
+  getServices, getDentists, getStaffEditAvailableSlots, proposeHmoNewDate, releaseHmoSlot,
 } from '../../api/appointments';
 import StatusBadge from './components/StatusBadge';
 import RejectionModal from './components/RejectionModal';
@@ -12,7 +12,7 @@ import PageHeader from './components/PageHeader';
 import AvailableSlotPicker from './components/AvailableSlotPicker';
 import FilterDropdown from './components/FilterDropdown';
 import DateRangePicker from './components/DateRangePicker';
-import { ShieldIcon, CheckCircleIcon, MailIcon, CalendarIcon, AlertIcon, UserIcon, ToothIcon, FileIcon, EditIcon } from './icons';
+import { ShieldIcon, CheckCircleIcon, MailIcon, CalendarIcon, AlertIcon, UserIcon, ToothIcon, FileIcon, EditIcon, SwapIcon } from './icons';
 import { formatDateLong, formatTime12h, toLocalDate } from './dateTimeUtils';
 import { showSuccessToast } from '../../utils/toast';
 import './dashboards.css';
@@ -61,18 +61,38 @@ function isOverdue(appointment) {
   return toLocalDate(appointment.appointment_date) < today;
 }
 
+// Finer-grained than isOverdue() above: also true the moment TODAY'S own
+// requested time has already passed, not just once the whole day has. Only
+// drives the "Release Slot" action and its note — never the Approve vs.
+// Approve & Reschedule button swap above, which must stay in exact sync
+// with StaffVerificationController::verify()'s own day-level guard (it
+// still accepts a plain same-day Approve, so the button can't disagree).
+function isLapsed(appointment) {
+  if (isOverdue(appointment)) return true;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  if (toLocalDate(appointment.appointment_date).getTime() !== today.getTime()) return false;
+  const [h, m] = appointment.appointment_time.split(':').map(Number);
+  const slotMoment = new Date();
+  slotMoment.setHours(h, m, 0, 0);
+  return slotMoment < new Date();
+}
+
 function initials(firstName, lastName) {
   return `${(firstName || '')[0] || ''}${(lastName || '')[0] || ''}`.toUpperCase();
 }
 
-function QueueCard({ appointment, actingId, sendingId, onApprove, onReject, onSendUpdate, onEditHmoInfo, onProposeNewDate }) {
+function QueueCard({ appointment, actingId, sendingId, releasingId, onApprove, onReject, onSendUpdate, onEditHmoInfo, onProposeNewDate, onReleaseSlot }) {
   const isPediatricApproved = appointment.service?.name?.includes('Pediatric') && appointment.pediatric_confirmed_at;
   const hmoProviderName = appointment.patient?.hmo_provider?.name || appointment.patient?.hmo_company_name || 'HMO';
   const isActing = actingId === appointment.id;
   const isSending = sendingId === appointment.id;
+  const isReleasing = releasingId === appointment.id;
   const patientEmail = appointment.patient?.user?.email || '';
   const hasNoEmailOnFile = patientEmail.endsWith(WALKIN_EMAIL_SUFFIX);
   const overdue = isOverdue(appointment);
+  const lapsed = isLapsed(appointment);
+  const slotReleased = !!appointment.slot_released_at;
 
   return (
     <div className="queue-card queue-card--hmo">
@@ -88,6 +108,7 @@ function QueueCard({ appointment, actingId, sendingId, onApprove, onReject, onSe
         </div>
         <div className="queue-card-badges">
           {isPediatricApproved && <StatusBadge status="pediatric_confirmed_pending_hmo" />}
+          {slotReleased && <StatusBadge status="slot_released" />}
           <StatusBadge status="pending_verification" />
         </div>
       </div>
@@ -95,6 +116,18 @@ function QueueCard({ appointment, actingId, sendingId, onApprove, onReject, onSe
       {overdue && (
         <div className="queue-card-overdue-note">
           <AlertIcon /> Requested date already passed — reschedule needed before approving
+        </div>
+      )}
+
+      {!overdue && lapsed && !slotReleased && (
+        <div className="queue-card-overdue-note">
+          <AlertIcon /> Today's requested time already passed, still unapproved — the slot can now be released for another booking
+        </div>
+      )}
+
+      {slotReleased && (
+        <div className="queue-card-overdue-note queue-card-overdue-note--neutral">
+          <SwapIcon /> Slot released — this time is now open to other bookings. {appointment.patient?.first_name} will still be approved-and-rescheduled once resolved.
         </div>
       )}
 
@@ -163,6 +196,17 @@ function QueueCard({ appointment, actingId, sendingId, onApprove, onReject, onSe
         >
           <MailIcon /> {isSending ? 'Sending…' : 'Send Status Update'}
         </button>
+        {lapsed && !slotReleased && (
+          <button
+            type="button"
+            className="dash-btn dash-btn--tint-amber"
+            disabled={isReleasing}
+            title="Free this patient's requested time slot for another booking — their request stays pending, they'll just need a new date once approved"
+            onClick={() => onReleaseSlot(appointment)}
+          >
+            <SwapIcon /> {isReleasing ? 'Releasing…' : 'Release Slot'}
+          </button>
+        )}
       </div>
     </div>
   );
@@ -223,6 +267,15 @@ function HmoVerificationQueue() {
   const [approveTarget, setApproveTarget] = useState(null);
   const [approveCoverageNotes, setApproveCoverageNotes] = useState('');
   const [approveError, setApproveError] = useState('');
+
+  // "Release Slot" — frees a lapsed, still-pending booking's hold on its
+  // own date+time (AppointmentSlotService then stops counting it as
+  // occupied) without rejecting the request itself. Own id-tracking state,
+  // same pattern as sendingId above, since this is a distinct async action
+  // from actingId's approve/reject.
+  const [releaseTarget, setReleaseTarget] = useState(null);
+  const [releasingId, setReleasingId] = useState(null);
+  const [releaseError, setReleaseError] = useState('');
 
   // Full staff-facing catalog (not the patient-bookable-only subset the
   // booking wizard uses) — staff can reassign to anything the clinic
@@ -351,6 +404,27 @@ function HmoVerificationQueue() {
       setApproveError(err.response?.data?.message || 'Could not approve this appointment.');
     } finally {
       setActingId(null);
+    }
+  };
+
+  const openReleaseSlot = (appointment) => {
+    setReleaseError('');
+    setReleaseTarget(appointment);
+  };
+
+  const handleReleaseSlot = async () => {
+    if (!releaseTarget) return;
+    setReleasingId(releaseTarget.id);
+    setReleaseError('');
+    try {
+      const result = await releaseHmoSlot(releaseTarget.id);
+      setAppointments((prev) => prev.map((a) => (a.id === releaseTarget.id ? result.data : a)));
+      setReleaseTarget(null);
+      showSuccessToast('Slot released — it can now be booked by someone else.');
+    } catch (err) {
+      setReleaseError(err.response?.data?.message || 'Could not release this slot.');
+    } finally {
+      setReleasingId(null);
     }
   };
 
@@ -510,11 +584,13 @@ function HmoVerificationQueue() {
             appointment={appointment}
             actingId={actingId}
             sendingId={sendingId}
+            releasingId={releasingId}
             onApprove={openApproveModal}
             onReject={openReject}
             onSendUpdate={openStatusUpdate}
             onEditHmoInfo={openEditHmoInfo}
             onProposeNewDate={openProposeNewDate}
+            onReleaseSlot={openReleaseSlot}
           />
         ))
       )}
@@ -801,6 +877,39 @@ function HmoVerificationQueue() {
               </button>
               <button type="button" className="dash-btn" disabled={actingId === approveTarget.id} onClick={handleApprove}>
                 {actingId === approveTarget.id ? 'Saving…' : 'Approve'}
+              </button>
+            </div>
+          </>
+        )}
+      </Modal>
+
+      <Modal open={!!releaseTarget} onClose={() => setReleaseTarget(null)} title="Release Slot">
+        {releaseTarget && (
+          <>
+            <div className="profile-alert profile-alert--info" style={{ marginBottom: 18 }}>
+              <AlertIcon />
+              <span>
+                This frees {formatDateLong(releaseTarget.appointment_date)} at {formatTime12h(releaseTarget.appointment_time)} with{' '}
+                {releaseTarget.dentist?.name || 'the assigned dentist'} so it can be booked by a walk-in or anyone else.
+              </span>
+            </div>
+
+            <p style={{ margin: '0 0 0', fontSize: '0.85rem', color: 'var(--portal-slate)', lineHeight: 1.6 }}>
+              {releaseTarget.patient?.first_name} {releaseTarget.patient?.last_name}&rsquo;s request is <strong>not cancelled</strong> —
+              it stays in this queue as Pending. Once their HMO coverage is resolved, use <strong>Approve &amp; Reschedule</strong> to
+              give them a new date, since this one is being given up.
+            </p>
+
+            {releaseError && (
+              <p style={{ margin: '10px 0 0', fontSize: '0.82rem', color: 'var(--portal-red-text)' }}>{releaseError}</p>
+            )}
+
+            <div className="modal-actions">
+              <button type="button" className="dash-btn dash-btn--outline" onClick={() => setReleaseTarget(null)}>
+                Cancel
+              </button>
+              <button type="button" className="dash-btn dash-btn--tint-amber" disabled={releasingId === releaseTarget.id} onClick={handleReleaseSlot}>
+                {releasingId === releaseTarget.id ? 'Releasing…' : 'Release Slot'}
               </button>
             </div>
           </>

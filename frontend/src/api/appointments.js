@@ -374,6 +374,28 @@ export async function cancelAppointmentAsStaff(appointmentId, reason) {
   return response.data;
 }
 
+// Staff-wide reschedule (any confirmed/pending appointment, any dentist) —
+// not scoped to a dentist's own schedule like rescheduleAppointment() above.
+// Meant for a patient running late: status never changes, only the date/time.
+export async function rescheduleAppointmentAsStaff(appointmentId, date, time) {
+  await api.get('/sanctum/csrf-cookie');
+  const response = await api.patch(`/api/staff/appointments/${appointmentId}/reschedule`, {
+    appointment_date: date,
+    appointment_time: time,
+  });
+  return response.data;
+}
+
+// Frees a still-pending HMO booking's hold on its own slot once it's
+// lapsed (requested date+time already passed without approval) — does NOT
+// reject the request, it stays pending_verification and can still be
+// approved-and-rescheduled later.
+export async function releaseHmoSlot(appointmentId) {
+  await api.get('/sanctum/csrf-cookie');
+  const response = await api.post(`/api/staff/appointments/${appointmentId}/release-slot`);
+  return response.data;
+}
+
 // appointmentId is the completed visit the recommendation is enabled from,
 // not the future follow-up itself (that doesn't exist yet).
 export async function enableFollowUp(appointmentId, serviceId) {
