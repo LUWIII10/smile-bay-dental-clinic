@@ -407,6 +407,7 @@ function PatientAppointments() {
       minWidth: showDetails ? '19%' : '32%',
       minWidthPx: '170px',
       clampLines: 2,
+      align: 'center',
       render: (row) => <span className="cell-service" title={row.service?.name}>{row.service?.name}</span>,
     },
     {
@@ -414,10 +415,15 @@ function PatientAppointments() {
       label: 'Doctor',
       minWidth: showDetails ? '16%' : '26%',
       minWidthPx: '170px',
+      align: 'center',
       render: (row) => {
         const name = row.dentist?.name || 'Unassigned';
         return (
-          <span className="cell-person">
+          // .cell-person is a flex row that fills the full cell width (it's
+          // shared with other tables that left-align it) — text-align:center
+          // on the td alone wouldn't move a block-level flex child, so this
+          // centers it directly, scoped to just this one usage.
+          <span className="cell-person" style={{ justifyContent: 'center' }}>
             <span className="cell-avatar">{getInitials(row.dentist?.name)}</span>
             <span className="cell-person-text">
               <span className="cell-person-name" title={name}>{name}</span>
@@ -560,7 +566,7 @@ function PatientAppointments() {
       label: 'Action',
       minWidth: '14%',
       minWidthPx: '140px',
-      align: 'right',
+      align: 'center',
       render: (row) => {
         if (row.dentist_proposed_new_date_at && !isAwaitingStaffReview(row)) {
           return (
