@@ -55,6 +55,14 @@ function NotificationBell() {
   const { open, setOpen, position, triggerRef, dropdownRef, toggle } = useDropdownPosition();
   const navigate = useNavigate();
 
+  // The panel only ever shows what's still unread — the backend's own
+  // index() returns the most recent 20 regardless of read status (so the
+  // badge count and a "did this fire" check elsewhere stay accurate), but
+  // showing already-read ones here read as a stale log instead of an
+  // actionable queue. Marking one read (individually or via "Mark all as
+  // read") removes it from view instead of just losing its unread styling.
+  const unreadNotifications = notifications.filter((n) => !n.read_at);
+
   const load = useCallback(async () => {
     try {
       const result = await getNotifications();
@@ -133,15 +141,15 @@ function NotificationBell() {
           <div className="notif-panel-list">
             {loading ? (
               <div className="notif-panel-empty">Loading…</div>
-            ) : notifications.length === 0 ? (
+            ) : unreadNotifications.length === 0 ? (
               <div className="notif-panel-empty">
                 <CheckCircleIcon />
                 <span>You're all caught up</span>
               </div>
             ) : (
               [
-                { label: 'Today', items: notifications.filter((n) => isToday(n.created_at)) },
-                { label: 'Earlier', items: notifications.filter((n) => !isToday(n.created_at)) },
+                { label: 'Today', items: unreadNotifications.filter((n) => isToday(n.created_at)) },
+                { label: 'Earlier', items: unreadNotifications.filter((n) => !isToday(n.created_at)) },
               ].map(({ label, items }) => items.length > 0 && (
                 <div key={label}>
                   <div className="notif-section-label">{label}</div>
@@ -152,7 +160,7 @@ function NotificationBell() {
                       <button
                         key={n.id}
                         type="button"
-                        className={`notif-item${n.read_at ? '' : ' notif-item--unread'}`}
+                        className="notif-item notif-item--unread"
                         onClick={() => handleSelect(n)}
                       >
                         <span className={`notif-item-icon notif-item-icon--${type.tone}`} aria-hidden="true">
