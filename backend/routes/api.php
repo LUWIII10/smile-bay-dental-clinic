@@ -90,6 +90,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::patch('/patient/appointments/{appointment}/request-different-date', [PatientAppointmentController::class, 'requestDifferentDate']);
         Route::patch('/patient/appointments/{appointment}/accept-staff-date', [PatientAppointmentController::class, 'acceptStaffProposedDate']);
         Route::patch('/patient/appointments/{appointment}/request-different-hmo-date', [PatientAppointmentController::class, 'requestDifferentDateForVerifiedHmo']);
+        Route::patch('/patient/appointments/{appointment}/accept-reschedule', [PatientAppointmentController::class, 'acceptReschedule']);
+        Route::patch('/patient/appointments/{appointment}/request-different-reschedule-date', [PatientAppointmentController::class, 'requestDifferentRescheduleDate']);
         Route::get('/patient/dental-record', [PatientDentalRecordController::class, 'show']);
         Route::get('/patient/dashboard-summary', [PatientAppointmentController::class, 'summary']);
     });
@@ -100,7 +102,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/dentist/completed-patients', [DentistScheduleController::class, 'completedPatients']);
         Route::patch('/appointments/{appointment}/complete', [AppointmentController::class, 'complete']);
         Route::patch('/appointments/{appointment}/backfill-record', [AppointmentController::class, 'backfillRecord']);
-        Route::patch('/appointments/{appointment}/reschedule', [AppointmentController::class, 'reschedule']);
+        Route::patch('/appointments/{appointment}/reschedule', [AppointmentController::class, 'proposeReschedule']);
         Route::patch('/appointments/{appointment}/cancel', [AppointmentController::class, 'cancel']);
 
         // "My Availability" — scoped to the authenticated dentist inside the

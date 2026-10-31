@@ -585,4 +585,167 @@ class PatientAppointmentController extends Controller
 
         return response()->json(['message' => 'Appointment confirmed.', 'data' => $appointment]);
     }
+
+    /**
+     * Patient confirms the date the dentist proposed for an already-CONFIRMED
+     * appointment (AppointmentController::proposeReschedule() — the dentist's
+     * own "Reschedule" button, My Schedule). Scoped to status === 'confirmed'
+     * specifically (not 'pending_verification') so this can never collide
+     * with acceptProposedDate()/acceptStaffProposedDate() above, which guard
+     * the opposite status on purpose. Nothing else needs to change on accept
+     * — the appointment was already fully confirmed before the dentist
+     * proposed moving it, so confirming just clears the pending proposal.
+     */
+    public function acceptReschedule(Request $request, Appointment $appointment)
+    {
+        $patient = $request->user()->patient;
+
+        if (! $patient || $appointment->patient_id !== $patient->id) {
+            return response()->json(['message' => 'This appointment does not belong to you.'], 403);
+        }
+
+        if ($appointment->status !== 'confirmed' || $appointment->dentist_proposed_new_date_at === null) {
+            return response()->json(['message' => 'There is no proposed date to confirm for this appointment.'], 422);
+        }
+
+        $appointment->load('service:id,duration_minutes');
+
+        $confirmed = DB::transaction(function () use ($appointment) {
+            $available = $this->slots->isSlotAvailable(
+                $appointment->dentist_id,
+                $appointment->appointment_date->toDateString(),
+                substr($appointment->appointment_time, 0, 5),
+                $appointment->service->duration_minutes,
+                $appointment->id,
+            );
+
+            if (! $available) {
+                return false;
+            }
+
+            $appointment->update([
+                'dentist_proposed_new_date_at' => null,
+                'dentist_reschedule_reason' => null,
+            ]);
+
+            return true;
+        });
+
+        if (! $confirmed) {
+            return response()->json([
+                'message' => 'That time is no longer available — please request a different date instead.',
+            ], 409);
+        }
+
+        AppointmentStatusLog::create([
+            'appointment_id' => $appointment->id,
+            'old_status' => 'confirmed',
+            'new_status' => 'confirmed',
+            'changed_by' => $request->user()->id,
+            'note' => 'Patient confirmed the dentist-proposed new date.',
+        ]);
+
+        $appointment->load(['service:id,name,duration_minutes', 'patient', 'dentist:id,name']);
+        try {
+            Mail::to($request->user()->email)->send(new AppointmentConfirmedMail($appointment));
+        } catch (\Throwable $e) {
+            Log::warning('Appointment email failed to send', [
+                'mailable' => AppointmentConfirmedMail::class,
+                'appointment_id' => $appointment->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+        Notification::notifyUser(
+            $request->user()->id,
+            'Appointment confirmed',
+            "Your {$appointment->service->name} appointment is confirmed.",
+            '/patient/appointments'
+        );
+
+        return response()->json(['message' => 'Appointment confirmed.', 'data' => $appointment]);
+    }
+
+    /**
+     * Patient counters the dentist-proposed date (for an already-CONFIRMED
+     * appointment) with a different one of their own. Same "no further
+     * approval needed" reasoning as acceptReschedule() above — the
+     * appointment was already fully confirmed before this proposal, so once
+     * the new slot checks out it goes straight back to 'confirmed', never to
+     * a review queue.
+     */
+    public function requestDifferentRescheduleDate(Request $request, Appointment $appointment)
+    {
+        $patient = $request->user()->patient;
+
+        if (! $patient || $appointment->patient_id !== $patient->id) {
+            return response()->json(['message' => 'This appointment does not belong to you.'], 403);
+        }
+
+        if ($appointment->status !== 'confirmed' || $appointment->dentist_proposed_new_date_at === null) {
+            return response()->json(['message' => 'This appointment has no proposed date to change.'], 422);
+        }
+
+        $validated = $request->validate([
+            'appointment_date' => ['required', 'date_format:Y-m-d', 'after:today'],
+            'appointment_time' => ['required', 'date_format:H:i'],
+        ]);
+
+        $appointment->load('service:id,duration_minutes');
+
+        $confirmed = DB::transaction(function () use ($appointment, $validated) {
+            $available = $this->slots->isSlotAvailable(
+                $appointment->dentist_id,
+                $validated['appointment_date'],
+                $validated['appointment_time'],
+                $appointment->service->duration_minutes,
+                $appointment->id,
+            );
+
+            if (! $available) {
+                return false;
+            }
+
+            $appointment->update([
+                'appointment_date' => $validated['appointment_date'],
+                'appointment_time' => $validated['appointment_time'],
+                'dentist_proposed_new_date_at' => null,
+                'dentist_reschedule_reason' => null,
+            ]);
+
+            return true;
+        });
+
+        if (! $confirmed) {
+            return response()->json([
+                'message' => 'That time is no longer available. Please choose another.',
+            ], 409);
+        }
+
+        AppointmentStatusLog::create([
+            'appointment_id' => $appointment->id,
+            'old_status' => 'confirmed',
+            'new_status' => 'confirmed',
+            'changed_by' => $request->user()->id,
+            'note' => "Patient chose a different date than the dentist proposed, to {$validated['appointment_date']} {$validated['appointment_time']}.",
+        ]);
+
+        $appointment->load(['service:id,name,duration_minutes', 'patient', 'dentist:id,name']);
+        try {
+            Mail::to($request->user()->email)->send(new AppointmentConfirmedMail($appointment));
+        } catch (\Throwable $e) {
+            Log::warning('Appointment email failed to send', [
+                'mailable' => AppointmentConfirmedMail::class,
+                'appointment_id' => $appointment->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+        Notification::notifyUser(
+            $request->user()->id,
+            'Appointment confirmed',
+            "Your {$appointment->service->name} appointment is confirmed.",
+            '/patient/appointments'
+        );
+
+        return response()->json(['message' => 'Appointment confirmed.', 'data' => $appointment]);
+    }
 }

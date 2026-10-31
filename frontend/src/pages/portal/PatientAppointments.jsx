@@ -8,6 +8,8 @@ import {
   requestDifferentPediatricDate,
   acceptStaffProposedDate,
   requestDifferentDateForVerifiedHmo,
+  acceptReschedule,
+  requestDifferentRescheduleDate,
   getPatientDashboardSummary,
 } from '../../api/appointments';
 import StatusBadge from './components/StatusBadge';
@@ -121,6 +123,26 @@ function isOverdueUnresolved(appointment) {
 // straight to 'confirmed', not another review step).
 function isStaffProposal(appointment) {
   return !!appointment.dentist_proposed_new_date_at && !!appointment.verified_at;
+}
+
+// A THIRD "someone proposed a new date, please respond" situation: the
+// dentist moving one of their own already-CONFIRMED appointments
+// (AppointmentController::proposeReschedule(), "Reschedule" on My Schedule)
+// — distinct from the two above, which both only ever apply to a
+// pending_verification appointment. Checking status === 'confirmed' keeps
+// this from ever overlapping with isStaffProposal()/the pediatric case.
+function isConfirmedReschedule(appointment) {
+  return !!appointment.dentist_proposed_new_date_at && appointment.status === 'confirmed';
+}
+
+// Staff's "Move to Next Open Slot" (StaffAppointmentController::reschedule())
+// still applies instantly — no patient confirmation, since it's same-day and
+// time critical for a running-late patient. This is what lets the patient
+// see it happened without checking the notification bell or email first.
+// Only while still upcoming — once completed/cancelled, what it used to be
+// stops being useful information.
+function wasJustRescheduled(appointment) {
+  return !!appointment.last_rescheduled_at && UPCOMING_STATUSES.includes(appointment.status);
 }
 
 function getInitials(name) {
@@ -272,15 +294,18 @@ function PatientAppointments() {
   const handleAcceptProposedDate = async () => {
     if (!proposalTarget) return;
     const staffProposal = isStaffProposal(proposalTarget);
+    const confirmedReschedule = isConfirmedReschedule(proposalTarget);
     setResponding(true);
     setRespondError('');
     try {
-      const response = staffProposal
-        ? await acceptStaffProposedDate(proposalTarget.id)
-        : await acceptProposedPediatricDate(proposalTarget.id);
+      const response = confirmedReschedule
+        ? await acceptReschedule(proposalTarget.id)
+        : staffProposal
+          ? await acceptStaffProposedDate(proposalTarget.id)
+          : await acceptProposedPediatricDate(proposalTarget.id);
       setAppointments((prev) => prev.map((a) => (a.id === proposalTarget.id ? response.data : a)));
       setProposalTarget(null);
-      showSuccessToast(staffProposal ? 'Appointment confirmed.' : 'Date confirmed.');
+      showSuccessToast(staffProposal || confirmedReschedule ? 'Appointment confirmed.' : 'Date confirmed.');
     } catch (err) {
       setRespondError(err.response?.data?.message || 'Could not confirm this date.');
     } finally {
@@ -295,15 +320,18 @@ function PatientAppointments() {
       return;
     }
     const staffProposal = isStaffProposal(proposalTarget);
+    const confirmedReschedule = isConfirmedReschedule(proposalTarget);
     setResponding(true);
     setRespondError('');
     try {
-      const response = staffProposal
-        ? await requestDifferentDateForVerifiedHmo(proposalTarget.id, newDate, newTime)
-        : await requestDifferentPediatricDate(proposalTarget.id, newDate, newTime);
+      const response = confirmedReschedule
+        ? await requestDifferentRescheduleDate(proposalTarget.id, newDate, newTime)
+        : staffProposal
+          ? await requestDifferentDateForVerifiedHmo(proposalTarget.id, newDate, newTime)
+          : await requestDifferentPediatricDate(proposalTarget.id, newDate, newTime);
       setAppointments((prev) => prev.map((a) => (a.id === proposalTarget.id ? response.data : a)));
       setProposalTarget(null);
-      showSuccessToast(staffProposal ? 'Appointment confirmed.' : 'New date sent for review.');
+      showSuccessToast(staffProposal || confirmedReschedule ? 'Appointment confirmed.' : 'New date sent for review.');
     } catch (err) {
       setRespondError(err.response?.data?.message || 'Could not send this date.');
     } finally {
@@ -343,6 +371,11 @@ function PatientAppointments() {
         <span className="cell-appointment">
           <span className="cell-appointment-date">{formatDateShort(row.appointment_date)}</span>
           <span className="cell-appointment-time">{formatTime12h(row.appointment_time)}</span>
+          {wasJustRescheduled(row) && (
+            <span className="cell-rescheduled-note">
+              was {formatDateShort(row.previous_appointment_date)}, {formatTime12h(row.previous_appointment_time)}
+            </span>
+          )}
         </span>
       ),
     },
@@ -382,8 +415,12 @@ function PatientAppointments() {
       minWidthPx: '150px',
       align: 'center',
       render: (row) =>
-        isStaffProposal(row) ? (
+        isConfirmedReschedule(row) ? (
+          <StatusBadge status="reschedule_awaiting_confirmation" icon={CalendarIcon} />
+        ) : isStaffProposal(row) ? (
           <StatusBadge status="hmo_awaiting_date_confirmation" icon={ShieldIcon} />
+        ) : wasJustRescheduled(row) ? (
+          <StatusBadge status="Rescheduled" tone="amber" icon={AlertIcon} />
         ) : isOverdueUnresolved(row) ? (
           <StatusBadge status="Awaiting Update" tone="amber" icon={AlertIcon} />
         ) : row.status === 'completed' ? (
@@ -400,6 +437,21 @@ function PatientAppointments() {
       minWidth: '18%',
       minWidthPx: '150px',
       render: (row) => {
+        if (isConfirmedReschedule(row)) {
+          return (
+            <div className="appt-hmo-status" style={{ margin: 0 }}>
+              <span className="appt-hmo-status-label">New time proposed — awaiting your confirmation</span>
+              <span className="appt-hmo-status-note">
+                Proposed: {formatDateLong(row.appointment_date)} at {formatTime12h(row.appointment_time)}.
+              </span>
+              {row.dentist_reschedule_reason && (
+                <span className="appt-hmo-status-note" style={{ fontStyle: 'italic' }}>
+                  "{row.dentist_reschedule_reason}"
+                </span>
+              )}
+            </div>
+          );
+        }
         if (isStaffProposal(row)) {
           return (
             <div className="appt-hmo-status" style={{ margin: 0 }}>
@@ -463,7 +515,9 @@ function PatientAppointments() {
           return (
             <button
               type="button"
-              className={`dash-btn row-btn ${isStaffProposal(row) ? 'dash-btn--success' : 'dash-btn--amber'}`}
+              className={`dash-btn row-btn ${
+                isConfirmedReschedule(row) ? 'dash-btn' : isStaffProposal(row) ? 'dash-btn--success' : 'dash-btn--amber'
+              }`}
               onClick={() => openProposal(row)}
             >
               <ReplyIcon /> Respond
@@ -677,11 +731,26 @@ function PatientAppointments() {
       <Modal
         open={!!proposalTarget}
         onClose={() => setProposalTarget(null)}
-        title={proposalTarget && isStaffProposal(proposalTarget) ? 'Confirm Your Visit Date' : 'New Date Proposed'}
+        title={
+          proposalTarget && isConfirmedReschedule(proposalTarget)
+            ? 'Confirm Your New Time'
+            : proposalTarget && isStaffProposal(proposalTarget)
+              ? 'Confirm Your Visit Date'
+              : 'New Date Proposed'
+        }
       >
         {proposalTarget && (
           <>
-            {isStaffProposal(proposalTarget) ? (
+            {isConfirmedReschedule(proposalTarget) ? (
+              <div className="profile-alert profile-alert--success" style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                <CheckCircleIcon />
+                <span>
+                  {proposalTarget.dentist?.name || 'Your dentist'} requested to move your already-confirmed visit to
+                  a new time below. Nothing is wrong with your booking — we just need you to confirm it still works
+                  for you, or pick a different time.
+                </span>
+              </div>
+            ) : isStaffProposal(proposalTarget) ? (
               <div className="profile-alert profile-alert--success" style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
                 <CheckCircleIcon />
                 <span>
@@ -712,7 +781,41 @@ function PatientAppointments() {
                 {respondError && (
                   <p style={{ margin: '0 0 10px', fontSize: '0.82rem', color: 'var(--portal-red-text)' }}>{respondError}</p>
                 )}
-                {isStaffProposal(proposalTarget) ? (
+                {isConfirmedReschedule(proposalTarget) ? (
+                  <>
+                    <button
+                      type="button"
+                      className="dash-btn"
+                      disabled={responding}
+                      style={{ width: '100%', marginBottom: 10 }}
+                      onClick={handleAcceptProposedDate}
+                    >
+                      <CheckCircleIcon /> {responding ? 'Confirming…' : 'Yes, This Time Works — Confirm'}
+                    </button>
+                    <button
+                      type="button"
+                      className="dash-btn dash-btn--outline-blue"
+                      disabled={responding}
+                      style={{ width: '100%', marginBottom: 10 }}
+                      onClick={() => setRequestingDifferent(true)}
+                    >
+                      Pick a Different Time Instead
+                    </button>
+                    <button
+                      type="button"
+                      className="dash-btn dash-btn--outline-danger"
+                      disabled={responding}
+                      style={{ width: '100%' }}
+                      onClick={() => {
+                        const target = proposalTarget;
+                        setProposalTarget(null);
+                        openCancel(target);
+                      }}
+                    >
+                      Cancel This Appointment Instead
+                    </button>
+                  </>
+                ) : isStaffProposal(proposalTarget) ? (
                   <>
                     <button
                       type="button"

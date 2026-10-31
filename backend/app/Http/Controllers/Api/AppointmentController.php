@@ -503,15 +503,28 @@ class AppointmentController extends Controller
     }
 
     /**
-     * Dentist moves one of their own appointments to a new date/time.
-     * Ownership-scoped exactly like complete() above. Re-validates via
+     * Dentist proposes moving one of their own appointments to a new
+     * date/time — does NOT apply it directly. Unlike
+     * StaffAppointmentController::reschedule() ("Move to Next Open Slot",
+     * same-day and time-critical for a running-late patient, so it still
+     * commits instantly), this one is typically not urgent, so the patient
+     * gets a say: it sets the same dentist_proposed_new_date_at/
+     * dentist_reschedule_reason columns PediatricVerificationController/
+     * StaffVerificationController's own proposeNewDate() use, optimistically
+     * writing the proposed date/time onto the appointment exactly like those
+     * do. Ownership-scoped exactly like complete() above. Re-validates via
      * AppointmentSlotService::isSlotAvailable(), excluding the appointment's
      * own current slot (it always "conflicts" with itself otherwise) — same
      * lockForUpdate-protected re-check every other slot-consuming action in
      * this app does, never trusting that the slot the dentist picked client-
-     * side is still actually free.
+     * side is still actually free. See
+     * PatientAppointmentController::acceptReschedule()/
+     * requestDifferentRescheduleDate() for what happens once the patient
+     * responds — both are scoped to status === 'confirmed' specifically, so
+     * they can never collide with the pending_verification-only propose
+     * flows above.
      */
-    public function reschedule(Request $request, Appointment $appointment)
+    public function proposeReschedule(Request $request, Appointment $appointment)
     {
         if ($appointment->dentist_id !== $request->user()->id) {
             return response()->json(['message' => 'This appointment is not assigned to you.'], 403);
@@ -526,13 +539,14 @@ class AppointmentController extends Controller
         $validated = $request->validate([
             'appointment_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:today'],
             'appointment_time' => ['required', 'date_format:H:i'],
+            'reason' => ['nullable', 'string', 'max:1000'],
         ]);
 
         $appointment->load('service:id,duration_minutes');
         $oldDate = $appointment->appointment_date->toDateString();
         $oldTime = $appointment->appointment_time;
 
-        $rescheduled = DB::transaction(function () use ($appointment, $validated) {
+        $proposed = DB::transaction(function () use ($appointment, $validated) {
             $available = $this->slots->isSlotAvailable(
                 $appointment->dentist_id,
                 $validated['appointment_date'],
@@ -548,12 +562,14 @@ class AppointmentController extends Controller
             $appointment->update([
                 'appointment_date' => $validated['appointment_date'],
                 'appointment_time' => $validated['appointment_time'],
+                'dentist_proposed_new_date_at' => now(),
+                'dentist_reschedule_reason' => $validated['reason'] ?? null,
             ]);
 
             return true;
         });
 
-        if (! $rescheduled) {
+        if (! $proposed) {
             return response()->json([
                 'message' => 'This time slot is no longer available. Please choose another.',
             ], 409);
@@ -564,7 +580,8 @@ class AppointmentController extends Controller
             'old_status' => $appointment->status,
             'new_status' => $appointment->status,
             'changed_by' => $request->user()->id,
-            'note' => "Rescheduled by dentist from {$oldDate} {$oldTime} to {$validated['appointment_date']} {$validated['appointment_time']}.",
+            'note' => "Dentist proposed a new date, from {$oldDate} {$oldTime} to {$validated['appointment_date']} {$validated['appointment_time']} — awaiting patient confirmation."
+                .(! empty($validated['reason']) ? ' Reason: '.$validated['reason'] : ''),
         ]);
 
         $appointment->load(['service:id,name,duration_minutes', 'patient.user', 'dentist:id,name']);
@@ -579,18 +596,18 @@ class AppointmentController extends Controller
         }
         Notification::notifyUser(
             $appointment->patient->user_id,
-            'Appointment rescheduled',
-            "Your {$appointment->service->name} appointment moved to {$validated['appointment_date']} at {$validated['appointment_time']}.",
+            'New time proposed',
+            "Dr. {$appointment->dentist->name} proposed moving your {$appointment->service->name} appointment to {$validated['appointment_date']} at {$validated['appointment_time']} — please confirm.",
             '/patient/appointments'
         );
 
         ActivityLog::record(
             $request->user()->id,
             'appointment_rescheduled',
-            "{$request->user()->name} rescheduled {$appointment->patient->first_name} {$appointment->patient->last_name}'s {$appointment->service->name} appointment to {$validated['appointment_date']}."
+            "{$request->user()->name} proposed a new date for {$appointment->patient->first_name} {$appointment->patient->last_name}'s {$appointment->service->name} appointment."
         );
 
-        return response()->json(['message' => 'Appointment rescheduled.', 'data' => $appointment]);
+        return response()->json(['message' => 'New date sent to the patient for confirmation.', 'data' => $appointment]);
     }
 
     /**

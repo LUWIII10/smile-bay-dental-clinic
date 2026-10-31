@@ -18,11 +18,21 @@ function todayDateKey() {
 // dentist-only API) so staff's clinic-wide "Move to Next Open Slot" action
 // (AllAppointments.jsx) can reuse this same modal with its own staff-wide
 // endpoint — every other existing caller is unaffected.
-function RescheduleModal({ open, onClose, appointment, onSuccess, rescheduleFn = rescheduleAppointment }) {
+//
+// `needsConfirmation` (default true, matching the default rescheduleFn)
+// controls whether this is a proposal the patient must confirm before it's
+// final, or an instant apply. The dentist's own "Reschedule" isn't usually
+// urgent, so the patient gets a say; staff's "Move to Next Open Slot" is for
+// a running-late patient the SAME day, so it stays instant — AllAppointments
+// passes needsConfirmation={false} alongside its own rescheduleFn.
+function RescheduleModal({
+  open, onClose, appointment, onSuccess, rescheduleFn = rescheduleAppointment, needsConfirmation = true,
+}) {
   const [date, setDate] = useState(todayDateKey());
   const [timeSlots, setTimeSlots] = useState([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [time, setTime] = useState('');
+  const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -30,6 +40,7 @@ function RescheduleModal({ open, onClose, appointment, onSuccess, rescheduleFn =
     if (!open || !appointment) return;
     setDate(appointment.appointment_date.slice(0, 10));
     setTime('');
+    setReason('');
     setError('');
     setSubmitting(false);
   }, [open, appointment]);
@@ -59,7 +70,11 @@ function RescheduleModal({ open, onClose, appointment, onSuccess, rescheduleFn =
     setSubmitting(true);
     setError('');
     try {
-      await rescheduleFn(appointment.id, date, time);
+      if (needsConfirmation) {
+        await rescheduleFn(appointment.id, date, time, reason.trim() || undefined);
+      } else {
+        await rescheduleFn(appointment.id, date, time);
+      }
       onSuccess();
     } catch (err) {
       setError(err.response?.data?.message || 'Could not reschedule this appointment.');
@@ -69,10 +84,15 @@ function RescheduleModal({ open, onClose, appointment, onSuccess, rescheduleFn =
   };
 
   return (
-    <Modal open={open} onClose={onClose} title="Reschedule Appointment">
+    <Modal open={open} onClose={onClose} title={needsConfirmation ? 'Propose a New Time' : 'Reschedule Appointment'}>
       <p style={{ margin: '0 0 16px', fontSize: '0.85rem', color: 'var(--portal-muted)' }}>
         {patientName} &middot; {appointment.service?.name}
       </p>
+      {needsConfirmation && (
+        <p style={{ margin: '-8px 0 16px', fontSize: '0.8rem', color: 'var(--portal-muted)' }}>
+          This won&rsquo;t apply right away — the patient will need to confirm it first.
+        </p>
+      )}
 
       <label className="modal-field-label">New Date</label>
       <DateRangePicker
@@ -103,6 +123,23 @@ function RescheduleModal({ open, onClose, appointment, onSuccess, rescheduleFn =
         </div>
       )}
 
+      {needsConfirmation && (
+        <>
+          <label className="modal-field-label" htmlFor="reschedule-reason" style={{ marginTop: 14, display: 'block' }}>
+            Reason <span style={{ fontWeight: 400, color: 'var(--portal-muted)' }}>(optional, shown to the patient)</span>
+          </label>
+          <textarea
+            id="reschedule-reason"
+            className="form-input"
+            rows={2}
+            maxLength={1000}
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="e.g. Need to move this — I have a half-day training that morning."
+          />
+        </>
+      )}
+
       {error && (
         <p style={{ margin: '12px 0 0', fontSize: '0.82rem', color: 'var(--portal-red-text)' }}>{error}</p>
       )}
@@ -112,7 +149,7 @@ function RescheduleModal({ open, onClose, appointment, onSuccess, rescheduleFn =
           Cancel
         </button>
         <button type="button" className="dash-btn" disabled={!time || submitting} onClick={handleSubmit}>
-          {submitting ? 'Saving…' : 'Confirm Reschedule'}
+          {submitting ? 'Saving…' : needsConfirmation ? 'Send for Confirmation' : 'Confirm Reschedule'}
         </button>
       </div>
     </Modal>

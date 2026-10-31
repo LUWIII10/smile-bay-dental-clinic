@@ -32,6 +32,9 @@ class Appointment extends Model
         'fulfills_appointment_id',
         'appointment_date',
         'appointment_time',
+        'previous_appointment_date',
+        'previous_appointment_time',
+        'last_rescheduled_at',
         'status',
         'patient_type_snapshot',
         'verified_by',
@@ -51,6 +54,8 @@ class Appointment extends Model
     {
         return [
             'appointment_date' => 'date:Y-m-d',
+            'previous_appointment_date' => 'date:Y-m-d',
+            'last_rescheduled_at' => 'datetime',
             'verified_at' => 'datetime',
             'pediatric_confirmed_at' => 'datetime',
             'dentist_proposed_new_date_at' => 'datetime',

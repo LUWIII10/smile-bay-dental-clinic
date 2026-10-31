@@ -141,6 +141,26 @@ export async function requestDifferentDateForVerifiedHmo(appointmentId, date, ti
   return response.data;
 }
 
+// Patient confirms the date the DENTIST proposed for an already-confirmed
+// appointment (AppointmentController::proposeReschedule() — the dentist's
+// own "Reschedule" button). Distinct pair from the two above: those guard
+// status === 'pending_verification', these guard status === 'confirmed', so
+// they can never be mixed up server-side.
+export async function acceptReschedule(appointmentId) {
+  await api.get('/sanctum/csrf-cookie');
+  const response = await api.patch(`/api/patient/appointments/${appointmentId}/accept-reschedule`);
+  return response.data;
+}
+
+export async function requestDifferentRescheduleDate(appointmentId, date, time) {
+  await api.get('/sanctum/csrf-cookie');
+  const response = await api.patch(`/api/patient/appointments/${appointmentId}/request-different-reschedule-date`, {
+    appointment_date: date,
+    appointment_time: time,
+  });
+  return response.data;
+}
+
 export async function getDentistSchedule() {
   const response = await api.get('/api/dentist/schedule');
   return response.data.data;
@@ -184,11 +204,17 @@ export async function backfillTreatmentRecord(appointmentId, { procedureName, to
   return response.data;
 }
 
-export async function rescheduleAppointment(appointmentId, date, time) {
+// Dentist's own "Reschedule" (My Schedule) — proposes a new date/time, it
+// does not apply immediately. The patient must confirm it (or counter with
+// a different time) via acceptReschedule()/requestDifferentRescheduleDate()
+// above before it's final. Distinct from rescheduleAppointmentAsStaff()
+// below ("Move to Next Open Slot"), which still applies instantly.
+export async function rescheduleAppointment(appointmentId, date, time, reason) {
   await api.get('/sanctum/csrf-cookie');
   const response = await api.patch(`/api/appointments/${appointmentId}/reschedule`, {
     appointment_date: date,
     appointment_time: time,
+    reason: reason || null,
   });
   return response.data;
 }

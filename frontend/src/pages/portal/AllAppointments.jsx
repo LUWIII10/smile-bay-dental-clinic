@@ -760,6 +760,7 @@ function AllAppointments() {
         onClose={() => setRescheduleTarget(null)}
         appointment={rescheduleTarget}
         rescheduleFn={rescheduleAppointmentAsStaff}
+        needsConfirmation={false}
         onSuccess={() => {
           setRescheduleTarget(null);
           load();

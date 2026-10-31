@@ -31,6 +31,11 @@ const STATUS_TONE = {
   // pending_verification here too, but verified_at IS already set: coverage
   // cleared, only the date needs the patient's own confirmation.
   hmo_awaiting_date_confirmation: 'blue',
+  // My Appointments — dentist proposed a new time for an already-CONFIRMED
+  // appointment (AppointmentController::proposeReschedule(), "Reschedule" on
+  // My Schedule) and it's waiting on the patient's own confirmation, same
+  // blue tone as the HMO equivalent above since nothing went wrong either.
+  reschedule_awaiting_confirmation: 'blue',
   // HMO Verification Queue — this request's own slot was explicitly
   // released (Appointment.slot_released_at set) so someone else can book
   // it; the request itself stays pending_verification, unaffected.
@@ -53,6 +58,7 @@ const CUSTOM_LABELS = {
   pediatric_review_required: '👶 Pediatric Slot Review Required',
   pediatric_confirmed_pending_hmo: '👶 Pediatric Slot Confirmed — Pending HMO Verification',
   hmo_awaiting_date_confirmation: 'Coverage Verified — Awaiting Your Date',
+  reschedule_awaiting_confirmation: 'New Time Proposed — Awaiting Your Confirmation',
 };
 
 // icon is optional (a component reference, e.g. CheckCircleIcon) — every

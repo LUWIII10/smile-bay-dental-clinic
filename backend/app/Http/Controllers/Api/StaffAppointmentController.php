@@ -392,6 +392,9 @@ class StaffAppointmentController extends Controller
             $appointment->update([
                 'appointment_date' => $validated['appointment_date'],
                 'appointment_time' => $validated['appointment_time'],
+                'previous_appointment_date' => $oldDate,
+                'previous_appointment_time' => $oldTime,
+                'last_rescheduled_at' => now(),
             ]);
 
             return true;

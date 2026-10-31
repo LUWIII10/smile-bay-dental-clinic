@@ -9,6 +9,7 @@ import RejectionModal from './components/RejectionModal';
 import PageHeader from './components/PageHeader';
 import { CalendarIcon, CheckCircleIcon, ClockIcon, MoreIcon, CalendarXIcon, SwapIcon, FileIcon, AlertIcon, ShieldIcon } from './icons';
 import { formatTime12h, toLocalDate } from './dateTimeUtils';
+import { showSuccessToast } from '../../utils/toast';
 import './dashboards.css';
 import './DentistSchedule.css';
 
@@ -594,6 +595,7 @@ function DentistSchedule() {
           setRescheduleTarget(null);
           setExpandedId(null);
           loadSchedule();
+          showSuccessToast('New time sent — waiting for the patient to confirm.');
         }}
       />
 

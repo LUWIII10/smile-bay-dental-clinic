@@ -490,6 +490,16 @@
   white-space: nowrap;
 }
 
+/* Staff instantly moved this appointment (StaffAppointmentController::
+   reschedule() — "Move to Next Open Slot", running-late patient, same day)
+   — no patient confirmation happens first, so this is what makes the change
+   visible in the list itself instead of only in the notification bell. */
+.cell-rescheduled-note {
+  font-size: 0.7rem;
+  color: var(--portal-amber-text);
+  white-space: nowrap;
+}
+
 .cell-service {
   font-size: 0.88rem;
   line-height: 1.4;
