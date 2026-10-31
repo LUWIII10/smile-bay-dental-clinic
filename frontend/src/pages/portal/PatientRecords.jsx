@@ -1801,12 +1801,11 @@ function PatientRecords() {
               {visitErrors.procedure_name && <span className="modal-field-error">{visitErrors.procedure_name}</span>}
 
               <label className="modal-field-label" htmlFor="visit-performed-at">Date performed</label>
-              <input
-                id="visit-performed-at"
-                className="form-input"
-                type="date"
+              <DateRangePicker
+                mode="single"
                 value={visitForm.performed_at}
-                onChange={(e) => setVisitForm((p) => ({ ...p, performed_at: e.target.value }))}
+                onChange={(iso) => setVisitForm((p) => ({ ...p, performed_at: iso }))}
+                placeholder="Pick a date"
               />
               {visitErrors.performed_at && <span className="modal-field-error">{visitErrors.performed_at}</span>}
 

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import Modal from './Modal';
 import { getAvailableSlots, rescheduleAppointment } from '../../../api/appointments';
 import { formatTime12h } from '../dateTimeUtils';
+import DateRangePicker from './DateRangePicker';
 import '../BookAppointment.css';
 
 function todayDateKey() {
@@ -74,12 +75,12 @@ function RescheduleModal({ open, onClose, appointment, onSuccess, rescheduleFn =
       </p>
 
       <label className="modal-field-label">New Date</label>
-      <input
-        type="date"
-        className="form-input"
+      <DateRangePicker
+        mode="single"
         value={date}
-        min={todayDateKey()}
-        onChange={(e) => setDate(e.target.value)}
+        onChange={setDate}
+        minDate={todayDateKey()}
+        placeholder="Pick a date"
       />
 
       <label className="modal-field-label" style={{ marginTop: 14, display: 'block' }}>New Time</label>
