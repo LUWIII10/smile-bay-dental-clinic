@@ -16,6 +16,7 @@ import Skeleton from './components/Skeleton';
 import WalkInBookingModal from './components/WalkInBookingModal';
 import AppointmentDetailModal from './components/AppointmentDetailModal';
 import RescheduleModal from './components/RescheduleModal';
+import ReviewRescheduleModal from './components/ReviewRescheduleModal';
 import ActionMenu from './components/ActionMenu';
 import Pagination from './components/Pagination';
 import RejectionModal from './components/RejectionModal';
@@ -113,6 +114,16 @@ function isRunningLate(row) {
   return slotMoment < new Date();
 }
 
+// Patient countered the dentist's proposed reschedule date with one of
+// their own (PatientAppointmentController::requestDifferentRescheduleDate())
+// and it's waiting on staff to approve or decline
+// (StaffAppointmentController::reviewRescheduleRequest()) — status itself
+// stays 'confirmed' the whole time, same as every other reschedule flag in
+// this app.
+function isAwaitingDateChangeReview(row) {
+  return !!row.patient_requested_new_date_at;
+}
+
 function localTodayKey() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -166,6 +177,7 @@ function AllAppointments() {
   // (rescheduleAppointmentAsStaff) since this isn't scoped to one dentist's
   // own appointments.
   const [rescheduleTarget, setRescheduleTarget] = useState(null);
+  const [reviewTarget, setReviewTarget] = useState(null);
 
   const debounceRef = useRef(null);
 
@@ -545,7 +557,9 @@ function AllAppointments() {
       minWidthPx: '140px',
       align: 'center',
       render: (row) => (
-        isOverdueUnresolved(row) ? (
+        isAwaitingDateChangeReview(row) ? (
+          <StatusBadge status="reschedule_date_change_requested" icon={ClockIcon} />
+        ) : isOverdueUnresolved(row) ? (
           <StatusBadge status="Awaiting Update" tone="amber" icon={ClockIcon} />
         ) : isRunningLate(row) ? (
           <StatusBadge status="Running Late" tone="amber" icon={ClockIcon} />
@@ -567,6 +581,7 @@ function AllAppointments() {
           </button>
           <ActionMenu
             items={[
+              isAwaitingDateChangeReview(row) && { label: 'Review Requested Date', onClick: () => setReviewTarget(row) },
               row.status === 'cancelled' && { label: 'Assign Walk-In', onClick: () => openWalkInForRow(row) },
               isRunningLate(row) && { label: 'Move to Next Open Slot', onClick: () => setRescheduleTarget(row) },
               isOverdueUnresolved(row) && { label: 'Mark No Show', onClick: () => handleNoShow(row), danger: true },
@@ -766,6 +781,18 @@ function AllAppointments() {
           load();
           loadStats();
           showSuccessToast('Appointment moved to a new time.');
+        }}
+      />
+
+      <ReviewRescheduleModal
+        open={!!reviewTarget}
+        onClose={() => setReviewTarget(null)}
+        appointment={reviewTarget}
+        onSuccess={() => {
+          setReviewTarget(null);
+          load();
+          loadStats();
+          showSuccessToast('Decision recorded.');
         }}
       />
     </div>

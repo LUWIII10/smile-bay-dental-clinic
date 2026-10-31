@@ -36,6 +36,14 @@ const STATUS_TONE = {
   // My Schedule) and it's waiting on the patient's own confirmation, same
   // blue tone as the HMO equivalent above since nothing went wrong either.
   reschedule_awaiting_confirmation: 'blue',
+  // My Appointments — patient countered the dentist's proposed date with one
+  // of their own (requestDifferentRescheduleDate()) and it's now waiting on
+  // staff to approve/decline, not the patient — amber, same as any other
+  // "staff needs to act" pending state.
+  reschedule_awaiting_staff_review: 'amber',
+  // All Appointments (staff) — the mirror of the key above, same underlying
+  // patient_requested_new_date_at flag, staff-facing copy instead.
+  reschedule_date_change_requested: 'blue',
   // HMO Verification Queue — this request's own slot was explicitly
   // released (Appointment.slot_released_at set) so someone else can book
   // it; the request itself stays pending_verification, unaffected.
@@ -59,6 +67,8 @@ const CUSTOM_LABELS = {
   pediatric_confirmed_pending_hmo: '👶 Pediatric Slot Confirmed — Pending HMO Verification',
   hmo_awaiting_date_confirmation: 'Coverage Verified — Awaiting Your Date',
   reschedule_awaiting_confirmation: 'New Time Proposed — Awaiting Your Confirmation',
+  reschedule_awaiting_staff_review: 'Awaiting Staff Review',
+  reschedule_date_change_requested: 'Date Change Requested',
 };
 
 // icon is optional (a component reference, e.g. CheckCircleIcon) — every

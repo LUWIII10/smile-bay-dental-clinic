@@ -414,6 +414,20 @@ export async function rescheduleAppointmentAsStaff(appointmentId, date, time) {
   return response.data;
 }
 
+// Staff approves or declines a patient's countered reschedule date
+// (PatientAppointmentController::requestDifferentRescheduleDate() — set
+// patient_requested_date/time/_new_date_at, awaiting review). action is
+// 'approve' or 'decline'; note is optional, shown to the patient only when
+// declining.
+export async function reviewRescheduleRequest(appointmentId, action, note) {
+  await api.get('/sanctum/csrf-cookie');
+  const response = await api.patch(`/api/staff/appointments/${appointmentId}/review-reschedule-request`, {
+    action,
+    note: note || null,
+  });
+  return response.data;
+}
+
 // Frees a still-pending HMO booking's hold on its own slot once it's
 // lapsed (requested date+time already passed without approval) — does NOT
 // reject the request, it stays pending_verification and can still be

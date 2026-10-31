@@ -18,7 +18,7 @@ import DataTable from './components/DataTable';
 import AvailableSlotPicker from './components/AvailableSlotPicker';
 import {
   PlusIcon, CalendarPlusIcon, CheckCircleIcon, CalendarIcon, UserIcon, ToothIcon, FileIcon, AlertIcon,
-  XCircleIcon, ShieldIcon,
+  XCircleIcon, ShieldIcon, ClockIcon,
 } from './icons';
 import { classifyHistoryCategory } from './dentalRecordShared';
 import { formatDateLong, formatDateShort, formatTime12h, toLocalDate } from './dateTimeUtils';
@@ -131,8 +131,24 @@ function isStaffProposal(appointment) {
 // — distinct from the two above, which both only ever apply to a
 // pending_verification appointment. Checking status === 'confirmed' keeps
 // this from ever overlapping with isStaffProposal()/the pediatric case.
+// Excludes a row the patient already responded to by countering
+// (patient_requested_new_date_at set) — see isAwaitingStaffReview() below,
+// which takes over at that point; showing "Respond" again here would let
+// the patient fire a second, conflicting request while staff is deciding.
 function isConfirmedReschedule(appointment) {
-  return !!appointment.dentist_proposed_new_date_at && appointment.status === 'confirmed';
+  return !!appointment.dentist_proposed_new_date_at
+    && appointment.status === 'confirmed'
+    && !appointment.patient_requested_new_date_at;
+}
+
+// Patient already countered the dentist's proposed date
+// (requestDifferentRescheduleDate()) and it's sitting with dental
+// assistant/admin for approve/decline (StaffAppointmentController::
+// reviewRescheduleRequest()) — nothing left for the patient to do but wait,
+// so no "Respond" action renders for this row; dentist_proposed_new_date_at
+// stays set underneath as the fallback if staff declines.
+function isAwaitingStaffReview(appointment) {
+  return !!appointment.patient_requested_new_date_at;
 }
 
 // Staff's "Move to Next Open Slot" (StaffAppointmentController::reschedule())
@@ -331,7 +347,13 @@ function PatientAppointments() {
           : await requestDifferentPediatricDate(proposalTarget.id, newDate, newTime);
       setAppointments((prev) => prev.map((a) => (a.id === proposalTarget.id ? response.data : a)));
       setProposalTarget(null);
-      showSuccessToast(staffProposal || confirmedReschedule ? 'Appointment confirmed.' : 'New date sent for review.');
+      showSuccessToast(
+        confirmedReschedule
+          ? 'Your requested date was sent to staff for review.'
+          : staffProposal
+            ? 'Appointment confirmed.'
+            : 'New date sent for review.'
+      );
     } catch (err) {
       setRespondError(err.response?.data?.message || 'Could not send this date.');
     } finally {
@@ -415,7 +437,9 @@ function PatientAppointments() {
       minWidthPx: '150px',
       align: 'center',
       render: (row) =>
-        isConfirmedReschedule(row) ? (
+        isAwaitingStaffReview(row) ? (
+          <StatusBadge status="reschedule_awaiting_staff_review" icon={ClockIcon} />
+        ) : isConfirmedReschedule(row) ? (
           <StatusBadge status="reschedule_awaiting_confirmation" icon={CalendarIcon} />
         ) : isStaffProposal(row) ? (
           <StatusBadge status="hmo_awaiting_date_confirmation" icon={ShieldIcon} />
@@ -437,6 +461,17 @@ function PatientAppointments() {
       minWidth: '18%',
       minWidthPx: '150px',
       render: (row) => {
+        if (isAwaitingStaffReview(row)) {
+          return (
+            <div className="appt-hmo-status" style={{ margin: 0 }}>
+              <span className="appt-hmo-status-label">Awaiting staff review</span>
+              <span className="appt-hmo-status-note">
+                You requested {formatDateLong(row.patient_requested_date)} at {formatTime12h(row.patient_requested_time)} —
+                staff is checking that it works before it's final.
+              </span>
+            </div>
+          );
+        }
         if (isConfirmedReschedule(row)) {
           return (
             <div className="appt-hmo-status" style={{ margin: 0 }}>
@@ -511,7 +546,7 @@ function PatientAppointments() {
       minWidthPx: '140px',
       align: 'right',
       render: (row) => {
-        if (row.dentist_proposed_new_date_at) {
+        if (row.dentist_proposed_new_date_at && !isAwaitingStaffReview(row)) {
           return (
             <button
               type="button"

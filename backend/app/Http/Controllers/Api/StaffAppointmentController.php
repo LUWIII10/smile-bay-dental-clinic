@@ -441,6 +441,117 @@ class StaffAppointmentController extends Controller
     }
 
     /**
+     * Staff decides on a patient's countered reschedule date
+     * (PatientAppointmentController::requestDifferentRescheduleDate() —
+     * patient_requested_date/time/_new_date_at). approve re-checks the slot
+     * and commits it as the real appointment_date/time, clearing BOTH the
+     * dentist's original proposal and the patient's request — nothing left
+     * pending either side. decline clears only the patient's request,
+     * deliberately leaving dentist_proposed_new_date_at untouched so the
+     * patient lands back on "Respond" to the dentist's original date, able
+     * to accept it or counter again.
+     */
+    public function reviewRescheduleRequest(Request $request, Appointment $appointment)
+    {
+        if ($appointment->patient_requested_new_date_at === null) {
+            return response()->json(['message' => 'There is no requested date awaiting review for this appointment.'], 422);
+        }
+
+        $validated = $request->validate([
+            'action' => ['required', Rule::in(['approve', 'decline'])],
+            'note' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $appointment->load(['service:id,name,duration_minutes', 'patient.user', 'dentist:id,name']);
+        $requestedDate = $appointment->patient_requested_date->toDateString();
+        $requestedTime = $appointment->patient_requested_time;
+
+        if ($validated['action'] === 'decline') {
+            $appointment->update([
+                'patient_requested_date' => null,
+                'patient_requested_time' => null,
+                'patient_requested_new_date_at' => null,
+            ]);
+
+            AppointmentStatusLog::create([
+                'appointment_id' => $appointment->id,
+                'old_status' => 'confirmed',
+                'new_status' => 'confirmed',
+                'changed_by' => $request->user()->id,
+                'note' => "Staff declined the patient's requested date ({$requestedDate} {$requestedTime})."
+                    .(! empty($validated['note']) ? ' Note: '.$validated['note'] : ''),
+            ]);
+
+            Notification::notifyUser(
+                $appointment->patient->user_id,
+                'Requested date not available',
+                "Staff couldn't confirm {$requestedDate} for your {$appointment->service->name} appointment — please accept the original date or pick another.",
+                '/patient/appointments'
+            );
+
+            return response()->json(['message' => 'Requested date declined.', 'data' => $appointment]);
+        }
+
+        $approved = DB::transaction(function () use ($appointment, $requestedDate, $requestedTime) {
+            $available = $this->slots->isSlotAvailable(
+                $appointment->dentist_id,
+                $requestedDate,
+                substr($requestedTime, 0, 5),
+                $appointment->service->duration_minutes,
+                $appointment->id,
+            );
+
+            if (! $available) {
+                return false;
+            }
+
+            $appointment->update([
+                'appointment_date' => $requestedDate,
+                'appointment_time' => $requestedTime,
+                'dentist_proposed_new_date_at' => null,
+                'dentist_reschedule_reason' => null,
+                'patient_requested_date' => null,
+                'patient_requested_time' => null,
+                'patient_requested_new_date_at' => null,
+            ]);
+
+            return true;
+        });
+
+        if (! $approved) {
+            return response()->json([
+                'message' => 'That time is no longer available — decline this request instead.',
+            ], 409);
+        }
+
+        AppointmentStatusLog::create([
+            'appointment_id' => $appointment->id,
+            'old_status' => 'confirmed',
+            'new_status' => 'confirmed',
+            'changed_by' => $request->user()->id,
+            'note' => "Staff approved the patient's requested date: {$requestedDate} {$requestedTime}.",
+        ]);
+
+        try {
+            Mail::to($appointment->patient->user->email)->send(new AppointmentConfirmedMail($appointment));
+        } catch (\Throwable $e) {
+            Log::warning('Appointment email failed to send', [
+                'mailable' => AppointmentConfirmedMail::class,
+                'appointment_id' => $appointment->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+        Notification::notifyUser(
+            $appointment->patient->user_id,
+            'Appointment confirmed',
+            "Your {$appointment->service->name} appointment is confirmed for {$requestedDate} at {$requestedTime}.",
+            '/patient/appointments'
+        );
+
+        return response()->json(['message' => 'Requested date approved.', 'data' => $appointment]);
+    }
+
+    /**
      * Staff marks a past confirmed/pending appointment as a no-show — the
      * resolution for exactly the "Awaiting Update" gap PatientAppointments.jsx
      * surfaces to the patient (a date that's already passed with nobody
