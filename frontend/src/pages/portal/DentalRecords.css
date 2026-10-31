@@ -929,6 +929,16 @@
   border-bottom: none;
 }
 
+/* Brief highlight when "View Treatment" on My Appointments sends the
+   patient straight to this row — fades out on its own after a couple
+   seconds (PatientDentalRecords.jsx's own timeout clears the class). */
+.record-history-row--highlighted {
+  background: var(--portal-blue-tint);
+  border-radius: var(--portal-radius-sm);
+  box-shadow: 0 0 0 2px var(--portal-blue);
+  transition: background 0.4s ease, box-shadow 0.4s ease;
+}
+
 .record-history-date {
   flex-shrink: 0;
   width: 52px;

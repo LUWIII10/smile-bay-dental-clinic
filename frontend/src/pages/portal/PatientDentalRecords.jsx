@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { getMyDentalRecord } from '../../api/dentalRecords';
 import StatusBadge from './components/StatusBadge';
 import Modal from './components/Modal';
@@ -32,12 +33,21 @@ const HISTORY_CATEGORY_DOT = {
 };
 
 function PatientDentalRecords() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [record, setRecord] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [visibleHistoryCount, setVisibleHistoryCount] = useState(HISTORY_PAGE_SIZE);
   const [detailItem, setDetailItem] = useState(null);
+  // "View Treatment" on My Appointments (a completed visit with a real
+  // treatment_history row) sends the patient here with this id instead of
+  // showing its own separate copy of the same detail — this is what opens
+  // the matching row's modal and gives it a brief highlight so it's
+  // findable on arrival instead of buried in the paginated list.
+  const [highlightedId, setHighlightedId] = useState(null);
+  const rowRefs = useRef({});
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -67,6 +77,37 @@ function PatientDentalRecords() {
     setCategoryFilter(key);
     setVisibleHistoryCount(HISTORY_PAGE_SIZE);
   };
+
+  // Deep-link from My Appointments' "View Treatment" — expand pagination far
+  // enough to include the target row, open its detail modal, and flag it to
+  // highlight. Guarded on location.state so this only ever fires once per
+  // navigation, not on every unrelated re-render (history is a fresh array
+  // reference each render).
+  useEffect(() => {
+    const targetId = location.state?.openHistoryId;
+    if (!targetId || history.length === 0) return;
+
+    const index = history.findIndex((h) => h.id === targetId);
+    if (index === -1) return;
+
+    if (index >= visibleHistoryCount) {
+      setVisibleHistoryCount(index + 1);
+    }
+    setDetailItem(history[index]);
+    setHighlightedId(targetId);
+
+    // Consumes the nav state so refreshing or navigating back here again
+    // doesn't re-trigger the same auto-open.
+    navigate(location.pathname, { replace: true, state: {} });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [history, location.state]);
+
+  useEffect(() => {
+    if (!highlightedId) return undefined;
+    rowRefs.current[highlightedId]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const timer = setTimeout(() => setHighlightedId(null), 2500);
+    return () => clearTimeout(timer);
+  }, [highlightedId]);
 
   return (
     <div>
@@ -176,7 +217,11 @@ function PatientDentalRecords() {
                     const category = classifyHistoryCategory(h.procedure_name);
                     const dateParts = formatRecordDateParts(h.performed_at);
                     return (
-                      <li key={h.id} className="record-history-row">
+                      <li
+                        key={h.id}
+                        ref={(el) => { rowRefs.current[h.id] = el; }}
+                        className={`record-history-row${highlightedId === h.id ? ' record-history-row--highlighted' : ''}`}
+                      >
                         <div className="record-history-date">
                           <span className="record-history-date-month">{dateParts.month}</span>
                           <span className="record-history-date-day">{dateParts.day}</span>

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   getPatientAppointments,
   cancelAppointment,
@@ -17,10 +17,9 @@ import Modal from './components/Modal';
 import DataTable from './components/DataTable';
 import AvailableSlotPicker from './components/AvailableSlotPicker';
 import {
-  PlusIcon, CalendarPlusIcon, CheckCircleIcon, CalendarIcon, UserIcon, ToothIcon, FileIcon, AlertIcon,
+  PlusIcon, CalendarPlusIcon, CheckCircleIcon, CalendarIcon, FileIcon, AlertIcon,
   XCircleIcon, ShieldIcon, ClockIcon,
 } from './icons';
-import { classifyHistoryCategory } from './dentalRecordShared';
 import { formatDateLong, formatDateShort, formatTime12h, toLocalDate } from './dateTimeUtils';
 import PageHeader from './components/PageHeader';
 import { showSuccessToast } from '../../utils/toast';
@@ -179,6 +178,7 @@ function ReplyIcon() {
 }
 
 function PatientAppointments() {
+  const navigate = useNavigate();
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -587,13 +587,19 @@ function PatientAppointments() {
             <button
               type="button"
               className="dash-btn dash-btn--tint-green row-btn"
-              onClick={() => setTreatmentDetail(
-                row.treatment_history_entry || {
-                  missingRecord: true,
-                  service_name: row.service?.name,
-                  dentist_name: row.dentist?.name,
-                  appointment_date: row.appointment_date,
-                }
+              onClick={() => (
+                row.treatment_history_entry
+                  // My Dental Records already has its own "View Details"
+                  // modal over the exact same treatment_history row — this
+                  // sends the patient there and opens it directly instead of
+                  // showing a second, separate copy of the same detail here.
+                  ? navigate('/patient/dental-records', { state: { openHistoryId: row.treatment_history_entry.id } })
+                  : setTreatmentDetail({
+                    missingRecord: true,
+                    service_name: row.service?.name,
+                    dentist_name: row.dentist?.name,
+                    appointment_date: row.appointment_date,
+                  })
               )}
             >
               <FileIcon /> View Treatment
@@ -706,15 +712,16 @@ function PatientAppointments() {
         </div>
       </Modal>
 
-      {/* Same "Treatment Details" modal as My Dental Records' own Treatment
-          History section — same content, same look, reachable from here too. */}
+      {/* Only ever opens for a completed visit with NO logged treatment_history
+          row — once one exists, "View Treatment" navigates to My Dental
+          Records and opens that page's own "View Details" modal instead of
+          showing a second copy of the same detail here. */}
       <Modal
         open={!!treatmentDetail}
         onClose={() => setTreatmentDetail(null)}
-        title={treatmentDetail && treatmentDetail.missingRecord ? 'Treatment Details' : undefined}
-        bare={!!treatmentDetail && !treatmentDetail.missingRecord}
+        title="Treatment Details"
       >
-        {treatmentDetail && treatmentDetail.missingRecord && (
+        {treatmentDetail && (
           // A visit marked completed before per-visit records were required,
           // or one the dentist hasn't logged notes for yet — never invent
           // what was done, just say plainly that nothing was recorded.
@@ -728,46 +735,6 @@ function PatientAppointments() {
               but no procedure notes were saved for this visit. Contact the clinic if you'd like this added to
               your record.
             </p>
-          </div>
-        )}
-        {treatmentDetail && !treatmentDetail.missingRecord && (
-          <div className="record-history-detail">
-            <div className={`record-history-detail-banner record-history-detail-banner--${classifyHistoryCategory(treatmentDetail.procedure_name).tone}`}>
-              <span className="record-history-detail-banner-icon"><ToothIcon /></span>
-              <div>
-                <span className="record-history-detail-banner-badge">{classifyHistoryCategory(treatmentDetail.procedure_name).label}</span>
-                <h4 className="record-history-detail-banner-title">{treatmentDetail.procedure_name}</h4>
-              </div>
-            </div>
-            <div className="record-history-detail-complete">
-              <CheckCircleIcon />
-              Procedure Completed
-            </div>
-            <div className="record-history-detail-fields">
-              <div className="record-history-detail-field">
-                <span className="record-field-icon record-field-icon--blue"><CalendarIcon /></span>
-                <div className="record-info-item">
-                  <span className="record-info-label">Date Performed</span>
-                  <span className="record-info-value">{formatDateShort(treatmentDetail.performed_at)}</span>
-                </div>
-              </div>
-              <div className="record-history-detail-field">
-                <span className="record-field-icon record-field-icon--navy"><UserIcon /></span>
-                <div className="record-info-item">
-                  <span className="record-info-label">Attending Dentist</span>
-                  <span className="record-info-value">{treatmentDetail.performed_by?.name || 'Dentist'}</span>
-                </div>
-              </div>
-              {treatmentDetail.tooth_number && (
-                <div className="record-history-detail-field record-history-detail-field--full">
-                  <span className="record-field-icon record-field-icon--teal"><ToothIcon /></span>
-                  <div className="record-info-item">
-                    <span className="record-info-label">Tooth Number</span>
-                    <span className="record-info-value">#{treatmentDetail.tooth_number}</span>
-                  </div>
-                </div>
-              )}
-            </div>
           </div>
         )}
       </Modal>
