@@ -387,7 +387,7 @@ function PatientAppointments() {
     {
       key: 'appointment',
       label: 'Appointment',
-      minWidth: '14%',
+      minWidth: showDetails ? '12%' : '14%',
       minWidthPx: '120px',
       render: (row) => (
         <span className="cell-appointment">
@@ -404,7 +404,7 @@ function PatientAppointments() {
     {
       key: 'service',
       label: 'Service',
-      minWidth: showDetails ? '22%' : '32%',
+      minWidth: showDetails ? '19%' : '32%',
       minWidthPx: '170px',
       clampLines: 2,
       render: (row) => <span className="cell-service" title={row.service?.name}>{row.service?.name}</span>,
@@ -412,7 +412,7 @@ function PatientAppointments() {
     {
       key: 'dentist',
       label: 'Doctor',
-      minWidth: showDetails ? '18%' : '26%',
+      minWidth: showDetails ? '16%' : '26%',
       minWidthPx: '170px',
       render: (row) => {
         const name = row.dentist?.name || 'Unassigned';
@@ -433,16 +433,20 @@ function PatientAppointments() {
       // this redesign made "Awaiting Update"/"Coverage Verified — Awaiting
       // Your Date" wider than the old floor, so the pill was overflowing
       // into the Details column instead of actually centering in its own.
+      // "New Time Proposed — Awaiting Your Confirmation" repeated the same
+      // overflow even at this floor — status-badge--wrap (see UserManagement
+      // .jsx's own "Restricted Account" pill) plus a further bump to 160px
+      // is what actually keeps it inside its own column at any width.
       minWidth: '14%',
-      minWidthPx: '150px',
+      minWidthPx: '160px',
       align: 'center',
       render: (row) =>
         isAwaitingStaffReview(row) ? (
           <StatusBadge status="reschedule_awaiting_staff_review" icon={ClockIcon} />
         ) : isConfirmedReschedule(row) ? (
-          <StatusBadge status="reschedule_awaiting_confirmation" icon={CalendarIcon} />
+          <StatusBadge status="reschedule_awaiting_confirmation" icon={CalendarIcon} className="status-badge--wrap" />
         ) : isStaffProposal(row) ? (
-          <StatusBadge status="hmo_awaiting_date_confirmation" icon={ShieldIcon} />
+          <StatusBadge status="hmo_awaiting_date_confirmation" icon={ShieldIcon} className="status-badge--wrap" />
         ) : wasJustRescheduled(row) ? (
           <StatusBadge status="Rescheduled" tone="amber" icon={AlertIcon} />
         ) : isOverdueUnresolved(row) ? (
@@ -458,12 +462,24 @@ function PatientAppointments() {
     ...(showDetails ? [{
       key: 'details',
       label: 'Details',
-      minWidth: '18%',
-      minWidthPx: '150px',
+      // Widened from 18%/150px — the Status column's badge and this
+      // column's own notice card sit right next to each other, and at that
+      // floor the card had barely any breathing room before the Action
+      // column, especially once the card's own content (date + reason)
+      // wraps to 3-4 lines. Took the extra share from Appointment/Service/
+      // Doctor above instead of Action, which needs its floor to fit the
+      // Respond/Cancel button without wrapping.
+      minWidth: '25%',
+      minWidthPx: '230px',
+      // Centers just the "Details" header label — the notice card below it
+      // already fills the column's full content width (plain block div, no
+      // explicit width), so this has no visible effect on the cards
+      // themselves, only the heading above them.
+      align: 'center',
       render: (row) => {
         if (isAwaitingStaffReview(row)) {
           return (
-            <div className="appt-hmo-status" style={{ margin: 0 }}>
+            <div className="appt-hmo-status" style={{ marginTop: 0, marginBottom: 0 }}>
               <span className="appt-hmo-status-label">Awaiting staff review</span>
               <span className="appt-hmo-status-note">
                 You requested {formatDateLong(row.patient_requested_date)} at {formatTime12h(row.patient_requested_time)} —
@@ -474,7 +490,7 @@ function PatientAppointments() {
         }
         if (isConfirmedReschedule(row)) {
           return (
-            <div className="appt-hmo-status" style={{ margin: 0 }}>
+            <div className="appt-hmo-status" style={{ marginTop: 0, marginBottom: 0 }}>
               <span className="appt-hmo-status-label">New time proposed — awaiting your confirmation</span>
               <span className="appt-hmo-status-note">
                 Proposed: {formatDateLong(row.appointment_date)} at {formatTime12h(row.appointment_time)}.
@@ -489,7 +505,7 @@ function PatientAppointments() {
         }
         if (isStaffProposal(row)) {
           return (
-            <div className="appt-hmo-status" style={{ margin: 0 }}>
+            <div className="appt-hmo-status" style={{ marginTop: 0, marginBottom: 0 }}>
               <span className="appt-hmo-status-label">Coverage verified — awaiting your date</span>
               <span className="appt-hmo-status-note">
                 Proposed: {formatDateLong(row.appointment_date)} at {formatTime12h(row.appointment_time)}.
@@ -504,7 +520,7 @@ function PatientAppointments() {
         }
         if (row.dentist_proposed_new_date_at) {
           return (
-            <div className="appt-hmo-status" style={{ margin: 0 }}>
+            <div className="appt-hmo-status" style={{ marginTop: 0, marginBottom: 0 }}>
               <span className="appt-hmo-status-label">New date proposed</span>
               <span className="appt-hmo-status-note">
                 {row.dentist?.name || 'Your dentist'} moved this visit to {formatDateLong(row.appointment_date)} —
@@ -520,7 +536,7 @@ function PatientAppointments() {
         }
         if (row.status === 'pending_verification' && row.hmo_status_label) {
           return (
-            <div className="appt-hmo-status" style={{ margin: 0 }}>
+            <div className="appt-hmo-status" style={{ marginTop: 0, marginBottom: 0 }}>
               <span className="appt-hmo-status-label">{row.hmo_status_label}</span>
               {row.hmo_status_note && <span className="appt-hmo-status-note">{row.hmo_status_note}</span>}
               {row.hmo_status_updated_at && (

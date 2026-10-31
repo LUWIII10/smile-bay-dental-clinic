@@ -1981,12 +1981,19 @@
    surfaced on the patient's own appointment card — same box shape as
    .appt-reason-note, amber instead of red since this is a normal in-progress
    update, not something gone wrong. */
+/* White card + colored left-accent border (not a full amber fill) —
+   several rows pair this with an amber Status badge right next to it
+   (e.g. "Awaiting Staff Review"), and a solid amber box there used to read
+   as one fused blob with the badge instead of two separate pieces of
+   information, even with margin between them. The accent border keeps the
+   "needs attention" cue without the color collision. */
 .appt-hmo-status {
-  background: var(--portal-amber-bg);
-  border: 1px solid var(--portal-amber-border);
+  background: var(--portal-card);
+  border: 1px solid var(--portal-border-light);
+  border-left: 3px solid var(--portal-amber-text);
   border-radius: var(--portal-radius-sm);
   padding: 8px 12px;
-  margin-top: 6px;
+  margin: 6px 0 6px 12px;
 }
 
 .appt-hmo-status-label {
