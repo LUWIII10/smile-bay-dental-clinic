@@ -78,12 +78,16 @@ function formatDayLabel(dateStr) {
   return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
+// Matches ReportsController::resolveRange()'s own default — last 3 months,
+// not the calendar month-to-date, so the picker's own initial selection
+// isn't a different range than what the backend would've defaulted to
+// anyway. Still just a starting point: the picker lets anyone narrow back
+// down to this month, or pick anything else.
 function defaultRange() {
   const now = new Date();
-  const from = new Date(now.getFullYear(), now.getMonth(), 1);
-  const to = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  const from = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate());
   const toIso = (d) => d.toISOString().slice(0, 10);
-  return { date_from: toIso(from), date_to: toIso(to) };
+  return { date_from: toIso(from), date_to: toIso(now) };
 }
 
 function Reports() {

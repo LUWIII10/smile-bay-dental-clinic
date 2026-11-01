@@ -76,6 +76,15 @@ class ReportsController extends Controller
         return $pdf->download("clinic-operations-report-{$dateFrom}-to-{$dateTo}.pdf");
     }
 
+    /**
+     * Was now()->startOfMonth()/endOfMonth() — looked reset on the 1st of
+     * every month (almost nothing scheduled yet for a brand-new month) even
+     * though nothing was lost, since every figure here is scoped to
+     * whatever range gets resolved. Last 3 months reads as a real snapshot
+     * on any given day without changing a single card, chart, or layout —
+     * the date-range picker (Reports.jsx) still lets anyone narrow back
+     * down to just this month, or widen further, same as before.
+     */
     private function resolveRange(Request $request): array
     {
         $validated = $request->validate([
@@ -84,8 +93,8 @@ class ReportsController extends Controller
         ]);
 
         return [
-            $validated['date_from'] ?? now()->startOfMonth()->toDateString(),
-            $validated['date_to'] ?? now()->endOfMonth()->toDateString(),
+            $validated['date_from'] ?? now()->subMonths(3)->toDateString(),
+            $validated['date_to'] ?? now()->toDateString(),
         ];
     }
 
