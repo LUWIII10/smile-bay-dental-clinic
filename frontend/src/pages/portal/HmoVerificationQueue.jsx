@@ -196,7 +196,15 @@ function QueueCard({ appointment, actingId, sendingId, releasingId, onApprove, o
         >
           <MailIcon /> {isSending ? 'Sending…' : 'Send Status Update'}
         </button>
-        {lapsed && !slotReleased && (
+        {/* !overdue specifically — a date that's an entirely past DAY (not
+            just today's own time) has nothing left to release: nobody can
+            ever book a past date through the normal flow anyway, so the
+            slot was never actually blocking anything. Matches the banner's
+            own distinction above ("reschedule needed" for overdue vs.
+            "slot can now be released" for lapsed-today only) — this button
+            used to key off the broader `lapsed` alone, so it kept showing
+            for a request days or weeks past its own date. */}
+        {!overdue && lapsed && !slotReleased && (
           <button
             type="button"
             className="dash-btn dash-btn--tint-amber"

@@ -666,6 +666,18 @@ class StaffVerificationController extends Controller
             ], 422);
         }
 
+        // Only a lapsed-TODAY request actually has a slot worth releasing —
+        // nobody can book an entirely past date through the normal booking
+        // flow anyway, so an already-overdue (prior day) request was never
+        // really blocking anything. Matches HmoVerificationQueue.jsx's own
+        // !overdue && lapsed gate on the button; this is the server-side
+        // backstop for it.
+        if ($appointment->appointment_date->toDateString() < now()->toDateString()) {
+            return response()->json([
+                'message' => 'This request\'s date has already fully passed — there\'s no slot left to release. Propose a new date instead.',
+            ], 422);
+        }
+
         $appointment->update(['slot_released_at' => now()]);
 
         $appointment->load('patient', 'service');
