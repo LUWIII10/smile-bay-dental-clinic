@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { getAvailableSlots, getDayAvailability } from '../../../api/appointments';
 import { formatDateLong, formatTime12h } from '../dateTimeUtils';
+import { SunIcon, SunsetIcon } from '../icons';
 
 const WEEKDAY_LABELS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 const MONTH_LABELS = [
@@ -93,6 +94,16 @@ function AvailableSlotPicker({ dentistId, serviceId, date, onDateChange, time, o
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [date, dentistId, serviceId]);
+
+  // Same Morning/Afternoon split and .slots-group markup Book Appointment's
+  // own "Pick a Date & Time" step already uses — this component never has
+  // Book Appointment's "Any Available Doctor" suggestion/reduced-group
+  // logic (always one specific already-assigned dentist), so just the
+  // grouping itself, nothing else.
+  const groupedSlots = useMemo(() => ({
+    morning: slots.filter((t) => Number(t.split(':')[0]) < 12),
+    afternoon: slots.filter((t) => Number(t.split(':')[0]) >= 12),
+  }), [slots]);
 
   const calendarCells = useMemo(() => {
     const year = calendarMonth.getFullYear();
@@ -192,18 +203,48 @@ function AvailableSlotPicker({ dentistId, serviceId, date, onDateChange, time, o
             ) : slots.length === 0 ? (
               <p className="booking-empty-note" style={{ padding: 0, textAlign: 'left' }}>No open slots for this date.</p>
             ) : (
-              <div className="slots-grid">
-                {slots.map((t) => (
-                  <button
-                    key={t}
-                    type="button"
-                    className={`slot-card${t === time ? ' slot-card--selected' : ''}`}
-                    onClick={() => onTimeChange(t)}
-                  >
-                    {formatTime12h(t)}
-                  </button>
-                ))}
-              </div>
+              <>
+                {groupedSlots.morning.length > 0 && (
+                  <div className="slots-group">
+                    <div className="slots-group-label">
+                      <span className="slots-group-icon slots-group-icon--morning"><SunIcon /></span>
+                      <span className="slots-group-text">Morning</span>
+                    </div>
+                    <div className="slots-grid">
+                      {groupedSlots.morning.map((t) => (
+                        <button
+                          key={t}
+                          type="button"
+                          className={`slot-card${t === time ? ' slot-card--selected' : ''}`}
+                          onClick={() => onTimeChange(t)}
+                        >
+                          {formatTime12h(t)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {groupedSlots.afternoon.length > 0 && (
+                  <div className="slots-group">
+                    <div className="slots-group-label">
+                      <span className="slots-group-icon slots-group-icon--afternoon"><SunsetIcon /></span>
+                      <span className="slots-group-text">Afternoon</span>
+                    </div>
+                    <div className="slots-grid">
+                      {groupedSlots.afternoon.map((t) => (
+                        <button
+                          key={t}
+                          type="button"
+                          className={`slot-card${t === time ? ' slot-card--selected' : ''}`}
+                          onClick={() => onTimeChange(t)}
+                        >
+                          {formatTime12h(t)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </>
         )}
