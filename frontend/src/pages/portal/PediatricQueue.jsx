@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getPediatricQueue, verifyPediatricAppointment, proposePediatricNewDate, cancelAppointmentAsDentist } from '../../api/appointments';
 import StatusBadge from './components/StatusBadge';
 import RejectionModal from './components/RejectionModal';
+import Modal from './components/Modal';
 import Skeleton from './components/Skeleton';
 import PageHeader from './components/PageHeader';
 import AvailableSlotPicker from './components/AvailableSlotPicker';
@@ -20,78 +21,15 @@ function formatSubmitted(isoTimestamp) {
   });
 }
 
-// Real open-slot picker for a pediatric reschedule — same getAvailableSlots()
-// call and .slots-grid/.slot-card markup the patient booking wizard and the
-// general-dentist RescheduleModal already use, so the dentist sees her own
-// actual availability instead of guessing a date/time blind and finding out
-// only after submitting that it's already taken. Shared by QueueCard (an
-// optional, toggled reschedule) and OverdueQueueCard (always shown, no
-// Cancel — there's nothing to go back to once a slot's date has passed).
-// onSend still gets its own server-side isSlotAvailable() re-check in
-// proposeNewDate() — this is a convenience, not a replacement for that guard.
-function ReschedulePicker({ appointment, actingId, onSend, onCancel }) {
-  const isActing = actingId === appointment.id;
-  const [date, setDate] = useState('');
-  const [time, setTime] = useState('');
-  const [reason, setReason] = useState('');
-  const [error, setError] = useState('');
-
-  const handleSend = async () => {
-    if (!date || !time) {
-      setError('Please pick a date and an available time.');
-      return;
-    }
-    setError('');
-    const result = await onSend(appointment, date, time, reason);
-    if (result?.error) setError(result.error);
-  };
-
-  return (
-    <>
-      <AvailableSlotPicker
-        dentistId={appointment.dentist_id}
-        serviceId={appointment.service_id}
-        date={date}
-        onDateChange={setDate}
-        time={time}
-        onTimeChange={setTime}
-      />
-      <div className="form-field" style={{ marginTop: 12 }}>
-        <label className="form-label" htmlFor={`resched-reason-${appointment.id}`}>Reason (optional)</label>
-        <textarea
-          id={`resched-reason-${appointment.id}`}
-          className="form-textarea"
-          placeholder="Let the patient know why, e.g. an emergency came up that day…"
-          value={reason}
-          onChange={(e) => setReason(e.target.value)}
-        />
-      </div>
-      <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
-        <button type="button" className="dash-btn" disabled={!time || isActing} onClick={handleSend}>
-          {isActing ? 'Sending…' : 'Send New Date'}
-        </button>
-        {onCancel && (
-          <button type="button" className="dash-btn dash-btn--outline" disabled={isActing} onClick={onCancel}>
-            Cancel
-          </button>
-        )}
-      </div>
-      {error && <p className="queue-card-propose-error">{error}</p>}
-    </>
-  );
-}
-
-// onPropose reuses the exact same PediatricVerificationController::
-// proposeNewDate() call the overdue flow already uses below — nothing on
-// the backend requires the original date to have passed first, so a
-// dentist who checks her own real-world availability right away (instead
-// of waiting for the date to lapse) can reschedule a fresh request the
-// same way, still landing on the patient's side as something they accept
-// or counter, not an auto-applied change.
-function QueueCard({ appointment, actingId, onApprove, onReject, onPropose }) {
+// onOpenReschedule opens the one shared "Propose a New Date" modal rendered
+// by PediatricQueue() itself (same AvailableSlotPicker + reason form, same
+// handleSendProposedDate() → proposePediatricNewDate() call either card used
+// to make locally) — keeps every card in both tabs at one consistent height
+// whether or not anyone is actively rescheduling, instead of a picker
+// sprawling inline the moment it's toggled.
+function QueueCard({ appointment, actingId, onApprove, onReject, onOpenReschedule }) {
   const isCash = appointment.patient_type_snapshot === 'cash';
   const isActing = actingId === appointment.id;
-  const [rescheduling, setRescheduling] = useState(false);
 
   return (
     <div className="queue-card">
@@ -118,46 +56,37 @@ function QueueCard({ appointment, actingId, onApprove, onReject, onPropose }) {
         </div>
       </div>
 
-      {!rescheduling ? (
-        <div className="queue-card-actions">
-          <button type="button" className="dash-btn" disabled={isActing} onClick={() => onApprove(appointment)}>
-            <CheckCircleIcon /> {isActing ? 'Saving…' : 'Approve'}
-          </button>
-          <button
-            type="button"
-            className="dash-btn dash-btn--outline"
-            disabled={isActing}
-            onClick={() => setRescheduling(true)}
-          >
-            <SwapIcon /> Reschedule
-          </button>
-          <button type="button" className="dash-btn dash-btn--danger" disabled={isActing} onClick={() => onReject(appointment)}>
-            Reject
-          </button>
-        </div>
-      ) : (
-        <ReschedulePicker
-          appointment={appointment}
-          actingId={actingId}
-          onSend={onPropose}
-          onCancel={() => setRescheduling(false)}
-        />
-      )}
+      <div className="queue-card-actions">
+        <button type="button" className="dash-btn" disabled={isActing} onClick={() => onApprove(appointment)}>
+          <CheckCircleIcon /> {isActing ? 'Saving…' : 'Approve'}
+        </button>
+        <button
+          type="button"
+          className="dash-btn dash-btn--outline"
+          disabled={isActing}
+          onClick={() => onOpenReschedule(appointment)}
+        >
+          <SwapIcon /> Reschedule
+        </button>
+        <button type="button" className="dash-btn dash-btn--danger" disabled={isActing} onClick={() => onReject(appointment)}>
+          Reject
+        </button>
+      </div>
     </div>
   );
 }
 
 // A request whose original date has already passed with no approve/reject
 // decision — same card shell as QueueCard, but the actions are replaced
-// with a "propose a new date" form instead of Approve/Reject (there's
-// nothing left to approve: that slot is gone). Submitting sets
-// dentist_proposed_new_date_at server-side, which is what puts this back
-// in front of the PATIENT for their own Accept/Request Different Date call.
-// onCancelAppointment is the other way out — if she genuinely can't
-// accommodate the patient at all, she's no longer forced to propose SOME
-// date just to clear the card; opens the same reason-capture dialog as
-// Reject/My Schedule's own Cancel.
-function OverdueQueueCard({ appointment, actingId, onPropose, onCancelAppointment }) {
+// with "propose a new date" (opens the same shared modal QueueCard uses)
+// instead of Approve/Reject (there's nothing left to approve: that slot is
+// gone). Sending from the modal sets dentist_proposed_new_date_at
+// server-side, which is what puts this back in front of the PATIENT for
+// their own Accept/Request Different Date call. onCancelAppointment is the
+// other way out — if she genuinely can't accommodate the patient at all,
+// she's no longer forced to propose SOME date just to clear the card; opens
+// the same reason-capture dialog as Reject/My Schedule's own Cancel.
+function OverdueQueueCard({ appointment, actingId, onOpenReschedule, onCancelAppointment }) {
   const isActing = actingId === appointment.id;
 
   return (
@@ -183,13 +112,14 @@ function OverdueQueueCard({ appointment, actingId, onPropose, onCancelAppointmen
       </div>
 
       <div className="queue-card-overdue-note">
-        <AlertIcon /> That date has passed without a decision. Propose a new date below, or cancel it if you can't
+        <AlertIcon /> That date has passed without a decision. Propose a new date, or cancel it if you can't
         accommodate this patient at all.
       </div>
 
-      <ReschedulePicker appointment={appointment} actingId={actingId} onSend={onPropose} />
-
-      <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--portal-border-light)' }}>
+      <div className="queue-card-actions">
+        <button type="button" className="dash-btn" disabled={isActing} onClick={() => onOpenReschedule(appointment)}>
+          <SwapIcon /> Propose New Date
+        </button>
         <button
           type="button"
           className="dash-btn dash-btn--danger"
@@ -219,6 +149,11 @@ function PediatricQueue() {
   const [cancelReason, setCancelReason] = useState('');
   const [actionError, setActionError] = useState('');
   const [activeTab, setActiveTab] = useState('awaiting');
+  const [proposeTarget, setProposeTarget] = useState(null);
+  const [proposeDate, setProposeDate] = useState('');
+  const [proposeTime, setProposeTime] = useState('');
+  const [proposeReason, setProposeReason] = useState('');
+  const [proposeError, setProposeError] = useState('');
 
   // Guards a silent background poll from clobbering state after the
   // component has already unmounted (navigated away mid-request).
@@ -276,6 +211,14 @@ function PediatricQueue() {
     setCancelTarget(appointment);
   };
 
+  const openReschedule = (appointment) => {
+    setProposeError('');
+    setProposeDate('');
+    setProposeTime('');
+    setProposeReason('');
+    setProposeTarget(appointment);
+  };
+
   // Split client-side from one list, same pattern DentistSchedule/
   // PatientAppointments already use for their own today/overdue tabs —
   // no separate endpoint needed, appointment_date is already in the payload.
@@ -290,15 +233,21 @@ function PediatricQueue() {
     return { awaiting, needsNewDate };
   }, [appointments]);
 
-  const handlePropose = async (appointment, date, time, reason) => {
-    setActingId(appointment.id);
+  const handleSendProposedDate = async () => {
+    if (!proposeTarget) return;
+    if (!proposeDate || !proposeTime) {
+      setProposeError('Please pick a date and an available time.');
+      return;
+    }
+    setActingId(proposeTarget.id);
+    setProposeError('');
     try {
-      await proposePediatricNewDate(appointment.id, date, time, reason);
-      setAppointments((prev) => prev.filter((a) => a.id !== appointment.id));
+      await proposePediatricNewDate(proposeTarget.id, proposeDate, proposeTime, proposeReason);
+      setAppointments((prev) => prev.filter((a) => a.id !== proposeTarget.id));
+      setProposeTarget(null);
       showSuccessToast('New date sent to the patient for confirmation.');
-      return {};
     } catch (err) {
-      return { error: err.response?.data?.message || 'Could not send this new date.' };
+      setProposeError(err.response?.data?.message || 'Could not send this new date.');
     } finally {
       setActingId(null);
     }
@@ -390,7 +339,7 @@ function PediatricQueue() {
               actingId={actingId}
               onApprove={handleApprove}
               onReject={openReject}
-              onPropose={handlePropose}
+              onOpenReschedule={openReschedule}
             />
           ))
         )
@@ -406,11 +355,61 @@ function PediatricQueue() {
             key={appointment.id}
             appointment={appointment}
             actingId={actingId}
-            onPropose={handlePropose}
+            onOpenReschedule={openReschedule}
             onCancelAppointment={openCancelAppointment}
           />
         ))
       )}
+
+      <Modal open={!!proposeTarget} onClose={() => setProposeTarget(null)} title="Propose a New Date">
+        {proposeTarget && (
+          <>
+            <p style={{ margin: '0 0 14px', fontSize: '0.82rem', color: 'var(--portal-muted)' }}>
+              For <strong style={{ color: 'var(--portal-navy)' }}>
+                {proposeTarget.patient?.first_name} {proposeTarget.patient?.last_name}
+              </strong>. Pick a date below — it&rsquo;ll be sent to the patient to confirm.
+            </p>
+
+            <AvailableSlotPicker
+              dentistId={proposeTarget.dentist_id}
+              serviceId={proposeTarget.service_id}
+              date={proposeDate}
+              onDateChange={setProposeDate}
+              time={proposeTime}
+              onTimeChange={setProposeTime}
+              compact
+            />
+
+            <label className="modal-field-label" style={{ marginTop: 14, display: 'block' }}>
+              Reason <span style={{ fontWeight: 400, color: 'var(--portal-muted)' }}>(optional)</span>
+            </label>
+            <textarea
+              className="form-textarea"
+              placeholder="Let the patient know why, e.g. an emergency came up that day…"
+              value={proposeReason}
+              onChange={(e) => setProposeReason(e.target.value)}
+            />
+
+            {proposeError && (
+              <p style={{ margin: '10px 0 0', fontSize: '0.82rem', color: 'var(--portal-red-text)' }}>{proposeError}</p>
+            )}
+
+            <div className="modal-actions">
+              <button type="button" className="dash-btn dash-btn--outline" onClick={() => setProposeTarget(null)}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="dash-btn"
+                disabled={actingId === proposeTarget.id || !proposeTime}
+                onClick={handleSendProposedDate}
+              >
+                {actingId === proposeTarget.id ? 'Sending…' : 'Send New Date'}
+              </button>
+            </div>
+          </>
+        )}
+      </Modal>
 
       <RejectionModal
         open={!!rejectTarget}
