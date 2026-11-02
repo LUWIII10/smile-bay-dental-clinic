@@ -27,6 +27,22 @@ function startOfDay(date) {
   return d;
 }
 
+// Hover-tooltip text for a calendar day — same wording rule as
+// BookAppointment.jsx's own slotTooltipText(), trimmed down for this
+// component's simpler context (always one specific already-assigned
+// dentist, never an "Any Available Doctor" union, so no offDentistNames
+// list to fall back to). count/reason come straight from the same
+// getDayAvailability() response BookAppointment.jsx reads.
+function slotTooltipText(status, count, isToday, isPast, reason) {
+  if (status === 'full') return 'Fully booked';
+  if (status === 'limited') return `${count} slot${count === 1 ? '' : 's'} left`;
+  if (status === 'available') return `${count} slot${count === 1 ? '' : 's'} open`;
+  if (isPast) return 'Already passed';
+  if (isToday) return 'Not available same-day';
+  if (reason === 'day_off') return "Doctor's day off";
+  return 'Clinic closed';
+}
+
 // Shared by the pediatric dentist's own reschedule form (PediatricQueue.jsx)
 // and the patient's "Request a Different Date" counter-offer
 // (PatientAppointments.jsx) — same real calendar + slots-grid the patient
@@ -127,13 +143,15 @@ function AvailableSlotPicker({ dentistId, serviceId, date, onDateChange, time, o
             if (!d) return <span key={`blank-${i}`} className="calendar-cell calendar-cell--blank" />;
 
             const key = toDateKey(d);
+            const isToday = d.getTime() === today.getTime();
+            const isPast = d.getTime() < today.getTime();
+            const info = dayAvailability[key] || { status: 'unavailable', count: 0, reason: null };
             // Same-day is never bookable for a pediatric reschedule/counter —
             // forced unavailable here regardless of the fetched status, which
             // only reflects slot capacity, not this rule.
-            const status = d.getTime() <= today.getTime()
-              ? 'unavailable'
-              : (dayAvailability[key]?.status || 'unavailable');
+            const status = (isPast || isToday) ? 'unavailable' : (info.status || 'unavailable');
             const isSelected = key === date;
+            const tipTone = status === 'unavailable' ? '' : ` calendar-cell-tip--${status}`;
 
             return (
               <button
@@ -142,9 +160,11 @@ function AvailableSlotPicker({ dentistId, serviceId, date, onDateChange, time, o
                 className={`calendar-cell calendar-cell--${status}${isSelected ? ' calendar-cell--selected' : ''}`}
                 disabled={status === 'unavailable'}
                 onClick={() => onDateChange(key)}
-                title={DAY_STATUS_LABELS[status]}
               >
                 {d.getDate()}
+                <span className={`calendar-cell-tip${tipTone}`}>
+                  {slotTooltipText(status, info.count, isToday, isPast, info.reason)}
+                </span>
               </button>
             );
           })}
