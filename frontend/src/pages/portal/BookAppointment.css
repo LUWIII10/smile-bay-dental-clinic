@@ -737,7 +737,7 @@
 .calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 5px;
+  gap: 4px 0;
   overflow: visible;
 }
 
@@ -749,18 +749,24 @@
   padding-bottom: 6px;
 }
 
-/* Round cells (a real "calendar app" feel) — position:relative so the
-   hover tooltip below can anchor to each cell individually. */
+/* Compact rounded-square bubble, not a circle stretched to fill its whole
+   grid column — the column stays a flexible 1fr track (so the 7-wide grid
+   still lines up under the weekday headers), but the cell itself is a
+   fixed, modern-sized bubble centered inside it, same proportions as the
+   DateRangePicker's own day bubbles elsewhere in the app. position:relative
+   so the hover tooltip below can still anchor to each cell individually. */
 .calendar-cell {
   position: relative;
-  aspect-ratio: 1;
+  width: 30px;
+  height: 30px;
+  justify-self: center;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
+  border-radius: 9px;
   border: 2px solid transparent;
   background: transparent;
-  font-size: 0.84rem;
+  font-size: 0.78rem;
   font-weight: 600;
   color: var(--portal-slate);
   cursor: pointer;
@@ -865,20 +871,58 @@
   border-top: 1px solid var(--portal-border-light);
 }
 
+/* Lighter "dot + label" reading instead of a solid colored pill per status
+   — four heavy pills in a row read as louder/busier than the legend
+   actually needs to be; a small dot carries the same color-coding with far
+   less visual weight. ::before supplies the dot here so BookAppointment.jsx/
+   BookFollowUp.jsx (which render this exact class, no separate dot element)
+   get it for free — AvailableSlotPicker.jsx's own explicit dot span uses
+   the separate .calendar-legend-dot rules further down instead. */
 .calendar-legend-item {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 10px;
-  border-radius: 999px;
-  font-size: 0.72rem;
+  padding: 0;
+  border-radius: 0;
+  background: none;
+  font-size: 0.7rem;
   font-weight: 600;
+  color: var(--portal-muted);
 }
 
-.calendar-legend-item--available { background: var(--portal-green-bg); color: var(--portal-green-text); }
-.calendar-legend-item--limited { background: var(--portal-amber-bg); color: var(--portal-amber-text); }
-.calendar-legend-item--full { background: var(--portal-red-bg); color: var(--portal-red-text); }
-.calendar-legend-item--unavailable { background: var(--portal-gray-bg); color: var(--portal-muted); }
+.calendar-legend-item--available::before,
+.calendar-legend-item--limited::before,
+.calendar-legend-item--full::before,
+.calendar-legend-item--unavailable::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.calendar-legend-item--available::before { background: var(--portal-green-text); }
+.calendar-legend-item--limited::before { background: var(--portal-amber-text); }
+.calendar-legend-item--full::before { background: var(--portal-red-text); }
+.calendar-legend-item--unavailable::before { background: #cbd5e1; }
+
+/* AvailableSlotPicker.jsx's own legend renders an explicit dot span
+   (calendar-legend-dot calendar-legend-dot--available, etc.) instead of
+   relying on ::before — these classes had no rule at all before this pass,
+   so its legend dots were invisible (zero-size); same colors as the
+   ::before dots above, just targeting a real element instead. */
+.calendar-legend-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.calendar-legend-dot--available { background: var(--portal-green-text); }
+.calendar-legend-dot--limited { background: var(--portal-amber-text); }
+.calendar-legend-dot--full { background: var(--portal-red-text); }
+.calendar-legend-dot--unavailable { background: #cbd5e1; }
 
 .calendar-legend-hint {
   font-size: 0.74rem;
