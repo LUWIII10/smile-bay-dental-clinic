@@ -2266,6 +2266,113 @@
   white-space: nowrap;
 }
 
+/* "Approve & Reschedule" modal's own 2-step header (ProposeStepper) — same
+   numbered-circle/connector language as BookAppointment.jsx's own
+   .wizard-step* classes, re-scaled to fit a modal instead of a full page. */
+.propose-stepper {
+  display: flex;
+  align-items: center;
+  margin-bottom: 22px;
+}
+
+.propose-stepper-step {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-shrink: 0;
+}
+
+.propose-stepper-circle {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--portal-gray-bg);
+  color: var(--portal-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-weight: 700;
+  font-size: 0.82rem;
+}
+
+.propose-stepper-circle svg {
+  width: 14px;
+  height: 14px;
+}
+
+.propose-stepper-label-group {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+
+.propose-stepper-eyebrow {
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--portal-muted);
+}
+
+.propose-stepper-label {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--portal-muted);
+}
+
+.propose-stepper-step--active .propose-stepper-circle {
+  background: var(--portal-blue);
+  color: #ffffff;
+  box-shadow: 0 0 0 5px var(--portal-blue-bg);
+}
+
+.propose-stepper-step--active .propose-stepper-label {
+  color: var(--portal-navy);
+}
+
+.propose-stepper-step--complete .propose-stepper-circle {
+  background: #16a34a;
+  color: #ffffff;
+}
+
+.propose-stepper-step--complete .propose-stepper-label {
+  color: var(--portal-slate);
+}
+
+.propose-stepper-line {
+  flex: 1;
+  height: 2px;
+  background: var(--portal-border-light);
+  margin: 0 12px;
+  border-radius: 2px;
+}
+
+.propose-stepper-line--done {
+  background: #16a34a;
+}
+
+/* Step 2's reminder of the date/time picked on Step 1 — stays visible so
+   switching focus to the note/coverage fields doesn't lose track of it. */
+.propose-confirmed-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--portal-blue-bg);
+  color: var(--portal-blue-text);
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: 10px;
+  margin-bottom: 18px;
+}
+
+.propose-confirmed-pill svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
 /* ============ Responsive grid breakpoints ============ */
 
 @media (max-width: 1024px) {

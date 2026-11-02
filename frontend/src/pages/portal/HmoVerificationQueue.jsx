@@ -99,6 +99,33 @@ function CoverageNotesField({ value, onChange, lastVerifiedAt }) {
   );
 }
 
+// Two-step header for the "Approve & Reschedule" modal only — Date & Time,
+// then Note & Coverage, so the calendar/slots/note/coverage fields don't all
+// have to scroll in one long list. Purely a display grouping of the same
+// proposeDate/proposeTime/proposeReason/proposeCoverageNotes state; nothing
+// resets when moving between steps.
+function ProposeStepper({ step }) {
+  return (
+    <div className="propose-stepper">
+      <div className={`propose-stepper-step${step === 1 ? ' propose-stepper-step--active' : ' propose-stepper-step--complete'}`}>
+        <span className="propose-stepper-circle">{step === 1 ? <CalendarIcon /> : <CheckCircleIcon />}</span>
+        <div className="propose-stepper-label-group">
+          <span className="propose-stepper-eyebrow">Step 1</span>
+          <span className="propose-stepper-label">Date &amp; Time</span>
+        </div>
+      </div>
+      <div className={`propose-stepper-line${step === 2 ? ' propose-stepper-line--done' : ''}`} />
+      <div className={`propose-stepper-step${step === 2 ? ' propose-stepper-step--active' : ''}`}>
+        <span className="propose-stepper-circle">{step === 2 ? <FileIcon /> : '2'}</span>
+        <div className="propose-stepper-label-group">
+          <span className="propose-stepper-eyebrow">Step 2</span>
+          <span className="propose-stepper-label">Note &amp; Coverage</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // HMO verification routinely takes days — a booking whose requested date
 // has already passed by the time staff get to it isn't an edge case, it's
 // routine. Confirming onto a date that's already gone would just quietly
@@ -317,6 +344,9 @@ function HmoVerificationQueue() {
   const [proposeCoverageNotes, setProposeCoverageNotes] = useState('');
   const [proposing, setProposing] = useState(false);
   const [proposeError, setProposeError] = useState('');
+  // 1 = Date & Time, 2 = Note & Coverage — purely a display toggle, doesn't
+  // touch any of the state above, so Back/Next never lose what's filled in.
+  const [proposeStep, setProposeStep] = useState(1);
 
   // Plain "Approve" (the routine case — requested date hasn't passed) used
   // to confirm outright with no way to record coverage, so a patient's own
@@ -586,6 +616,7 @@ function HmoVerificationQueue() {
     setProposeTime('');
     setProposeReason('');
     setProposeCoverageNotes(appointment.patient?.hmo_coverage_notes || '');
+    setProposeStep(1);
     setProposeTarget(appointment);
   };
 
@@ -844,55 +875,81 @@ function HmoVerificationQueue() {
       <Modal open={!!proposeTarget} onClose={() => setProposeTarget(null)} title="Approve & Reschedule">
         {proposeTarget && (
           <>
-            <div className="profile-alert profile-alert--success" style={{ marginBottom: 18, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-              <CheckCircleIcon />
-              <span>
-                Approving marks {proposeTarget.patient?.first_name}&rsquo;s HMO coverage as verified. Their original
-                date already passed, so pick a new one below — it&rsquo;ll be sent to the patient to confirm, no
-                further HMO verification needed.
-              </span>
-            </div>
+            <ProposeStepper step={proposeStep} />
 
-            <AvailableSlotPicker
-              dentistId={proposeTarget.dentist_id}
-              serviceId={proposeTarget.service_id}
-              date={proposeDate}
-              onDateChange={setProposeDate}
-              time={proposeTime}
-              onTimeChange={setProposeTime}
-              compact
-            />
+            {proposeStep === 1 ? (
+              <>
+                <div className="profile-alert profile-alert--success" style={{ marginBottom: 18, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                  <CheckCircleIcon />
+                  <span>
+                    Approving marks {proposeTarget.patient?.first_name}&rsquo;s HMO coverage as verified. Their
+                    original date already passed, so pick a new one below — it&rsquo;ll be sent to the patient to
+                    confirm, no further HMO verification needed.
+                  </span>
+                </div>
 
-            <label className="modal-field-label" style={{ marginTop: 14, display: 'block' }}>
-              Note to Patient <span style={{ fontWeight: 400, color: 'var(--portal-muted)' }}>(optional)</span>
-            </label>
-            <textarea
-              className="form-textarea"
-              placeholder="e.g. Sorry for the delay verifying your coverage — here's the next open slot."
-              value={proposeReason}
-              onChange={(e) => setProposeReason(e.target.value)}
-            />
+                <AvailableSlotPicker
+                  dentistId={proposeTarget.dentist_id}
+                  serviceId={proposeTarget.service_id}
+                  date={proposeDate}
+                  onDateChange={setProposeDate}
+                  time={proposeTime}
+                  onTimeChange={setProposeTime}
+                  compact
+                />
 
-            <div style={{ height: 1, background: 'var(--portal-border-light)', margin: '18px 0' }} />
+                {proposeError && (
+                  <p style={{ margin: '10px 0 0', fontSize: '0.82rem', color: 'var(--portal-red-text)' }}>{proposeError}</p>
+                )}
 
-            <CoverageNotesField
-              value={proposeCoverageNotes}
-              onChange={setProposeCoverageNotes}
-              lastVerifiedAt={proposeTarget.patient?.hmo_coverage_verified_at}
-            />
+                <div className="modal-actions">
+                  <button type="button" className="dash-btn dash-btn--outline" onClick={() => setProposeTarget(null)}>
+                    Cancel
+                  </button>
+                  <button type="button" className="dash-btn" disabled={!proposeTime} onClick={() => setProposeStep(2)}>
+                    Next
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="propose-confirmed-pill">
+                  <CalendarIcon />
+                  {formatDateLong(proposeDate)} &middot; {formatTime12h(proposeTime)}
+                </div>
 
-            {proposeError && (
-              <p style={{ margin: '10px 0 0', fontSize: '0.82rem', color: 'var(--portal-red-text)' }}>{proposeError}</p>
+                <label className="modal-field-label" style={{ display: 'block' }}>
+                  Note to Patient <span style={{ fontWeight: 400, color: 'var(--portal-muted)' }}>(optional)</span>
+                </label>
+                <textarea
+                  className="form-textarea"
+                  placeholder="e.g. Sorry for the delay verifying your coverage — here's the next open slot."
+                  value={proposeReason}
+                  onChange={(e) => setProposeReason(e.target.value)}
+                />
+
+                <div style={{ height: 1, background: 'var(--portal-border-light)', margin: '18px 0' }} />
+
+                <CoverageNotesField
+                  value={proposeCoverageNotes}
+                  onChange={setProposeCoverageNotes}
+                  lastVerifiedAt={proposeTarget.patient?.hmo_coverage_verified_at}
+                />
+
+                {proposeError && (
+                  <p style={{ margin: '10px 0 0', fontSize: '0.82rem', color: 'var(--portal-red-text)' }}>{proposeError}</p>
+                )}
+
+                <div className="modal-actions">
+                  <button type="button" className="dash-btn dash-btn--outline" onClick={() => setProposeStep(1)}>
+                    Back
+                  </button>
+                  <button type="button" className="dash-btn" disabled={proposing || !proposeTime} onClick={handleProposeNewDate}>
+                    {proposing ? 'Sending…' : 'Send New Date to Patient'}
+                  </button>
+                </div>
+              </>
             )}
-
-            <div className="modal-actions">
-              <button type="button" className="dash-btn dash-btn--outline" onClick={() => setProposeTarget(null)}>
-                Cancel
-              </button>
-              <button type="button" className="dash-btn" disabled={proposing || !proposeTime} onClick={handleProposeNewDate}>
-                {proposing ? 'Sending…' : 'Send New Date to Patient'}
-              </button>
-            </div>
           </>
         )}
       </Modal>
