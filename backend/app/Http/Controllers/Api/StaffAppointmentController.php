@@ -78,7 +78,7 @@ class StaffAppointmentController extends Controller
 
         $query = Appointment::query()->with([
             'patient:id,user_id,patient_number,first_name,last_name,hmo_number',
-            'patient.user:id,email,mobile_number',
+            'patient.user:id,email,mobile_number,avatar_path',
             'dentist:id,name',
             'dentist.dentistProfile:id,user_id,photo_path',
             'service:id,name,duration_minutes',

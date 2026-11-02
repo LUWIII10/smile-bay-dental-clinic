@@ -10,6 +10,7 @@ import DataTable from './components/DataTable';
 import Skeleton from './components/Skeleton';
 import { CalendarIcon, ShieldIcon, CheckCircleIcon, AlertIcon } from './icons';
 import { formatTime12h, toLocalDate } from './dateTimeUtils';
+import { getAvatarUrl } from './avatarUtils';
 import './dashboards.css';
 import './Appointments.css';
 
@@ -23,9 +24,10 @@ function getInitials(name) {
 
 function patientCell(row) {
   const name = `${row.patient?.first_name || ''} ${row.patient?.last_name || ''}`.trim();
+  const avatarUrl = getAvatarUrl(row.patient?.user);
   return (
     <span className="cell-person">
-      <span className="cell-avatar">{getInitials(name)}</span>
+      <span className="cell-avatar">{avatarUrl ? <img src={avatarUrl} alt="" /> : getInitials(name)}</span>
       <span className="cell-person-name">{name}</span>
     </span>
   );
@@ -55,17 +57,22 @@ function buildTaskColumns(todayDate) {
     {
       key: 'task',
       label: 'Task',
-      render: (row) => (
-        <span className="cell-person">
-          <span className="cell-avatar">{getInitials(`${row.patient?.first_name || ''} ${row.patient?.last_name || ''}`)}</span>
-          <span className="cell-person-text">
-            <span className="cell-person-name">
-              Verify HMO — {row.patient?.first_name} {row.patient?.last_name}
+      render: (row) => {
+        const avatarUrl = getAvatarUrl(row.patient?.user);
+        return (
+          <span className="cell-person">
+            <span className="cell-avatar">
+              {avatarUrl ? <img src={avatarUrl} alt="" /> : getInitials(`${row.patient?.first_name || ''} ${row.patient?.last_name || ''}`)}
             </span>
-            <span className="cell-person-sub">{row.service?.name}</span>
+            <span className="cell-person-text">
+              <span className="cell-person-name">
+                Verify HMO — {row.patient?.first_name} {row.patient?.last_name}
+              </span>
+              <span className="cell-person-sub">{row.service?.name}</span>
+            </span>
           </span>
-        </span>
-      ),
+        );
+      },
     },
     {
       key: 'priority',

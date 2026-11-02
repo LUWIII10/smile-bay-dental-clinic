@@ -28,6 +28,7 @@ import {
 } from './icons';
 import { formatDateShort, formatDateLong, formatTime12h, toLocalDate } from './dateTimeUtils';
 import { showSuccessToast, showErrorToast, confirmAction } from '../../utils/toast';
+import { getAvatarUrl } from './avatarUtils';
 import './dashboards.css';
 import './Appointments.css';
 
@@ -473,9 +474,10 @@ function AllAppointments() {
         // the moment of completion; this is the same signal shown
         // whenever staff happen to be looking at the list already.
         const hasPendingSuggestion = row.dentist_suggested_follow_up_service && !row.recommended_follow_up_service_id;
+        const avatarUrl = getAvatarUrl(row.patient?.user);
         return (
           <span className="cell-person">
-            <span className="cell-avatar">{getInitials(name)}</span>
+            <span className="cell-avatar">{avatarUrl ? <img src={avatarUrl} alt="" /> : getInitials(name)}</span>
             <span className="cell-person-text">
               <span className="cell-person-name" title={name}>{name}</span>
               {subLine && <span className="cell-person-sub" title={subLine}>{subLine}</span>}

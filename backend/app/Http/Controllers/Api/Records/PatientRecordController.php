@@ -40,7 +40,7 @@ class PatientRecordController extends Controller
             'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
         ]);
 
-        $query = Patient::query()->with('user:id,email,mobile_number');
+        $query = Patient::query()->with('user:id,email,mobile_number,avatar_path');
 
         if (! empty($validated['search'])) {
             $search = $validated['search'];
@@ -77,7 +77,8 @@ class PatientRecordController extends Controller
         $appointments = Appointment::whereBetween('appointment_date', [$validated['date_from'], $validated['date_to']])
             ->whereIn('status', ['confirmed', 'pending_verification', 'completed'])
             ->with([
-                'patient:id,patient_number,first_name,last_name',
+                'patient:id,user_id,patient_number,first_name,last_name',
+                'patient.user:id,avatar_path',
                 'service:id,name',
                 'dentist:id,name',
             ])

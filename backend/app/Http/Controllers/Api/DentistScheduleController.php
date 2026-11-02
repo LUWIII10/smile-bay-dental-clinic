@@ -44,7 +44,8 @@ class DentistScheduleController extends Controller
                     });
             })
             ->with([
-                'patient:id,patient_number,first_name,last_name',
+                'patient:id,user_id,patient_number,first_name,last_name',
+                'patient.user:id,avatar_path',
                 'service:id,name,duration_minutes',
                 // Only ever non-null for a completed row saved through the
                 // new Complete-and-record flow — carries the procedure
@@ -123,14 +124,14 @@ class DentistScheduleController extends Controller
 
         $todaysSchedule = $visible(Appointment::where('dentist_id', $dentistId)
             ->where('appointment_date', $today))
-            ->with(['patient:id,patient_number,first_name,last_name', 'service:id,name'])
+            ->with(['patient:id,user_id,patient_number,first_name,last_name', 'patient.user:id,avatar_path', 'service:id,name'])
             ->orderBy('appointment_time')
             ->get();
 
         $upcoming = Appointment::where('dentist_id', $dentistId)
             ->where('status', 'confirmed')
             ->where('appointment_date', '>', $today)
-            ->with(['patient:id,patient_number,first_name,last_name', 'service:id,name'])
+            ->with(['patient:id,user_id,patient_number,first_name,last_name', 'patient.user:id,avatar_path', 'service:id,name'])
             ->orderBy('appointment_date')
             ->orderBy('appointment_time')
             ->limit(5)

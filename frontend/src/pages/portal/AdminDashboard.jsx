@@ -24,6 +24,7 @@ import Skeleton from './components/Skeleton';
 import DataTable from './components/DataTable';
 import StatusBadge from './components/StatusBadge';
 import { UsersIcon, CalendarIcon, UserIcon, ShieldIcon, CheckCircleIcon, ActivityIcon, TrendingUpIcon, ChartIcon, AlertIcon } from './icons';
+import { resolvePhotoUrl } from './avatarUtils';
 import './dashboards.css';
 import './Appointments.css';
 
@@ -89,12 +90,15 @@ const ACTIVITY_COLUMNS = [
   {
     key: 'patient',
     label: 'Patient',
-    render: (row) => (
-      <span className="cell-person">
-        <span className="cell-avatar">{getInitials(row.patient_name)}</span>
-        <span className="cell-person-name">{row.patient_name}</span>
-      </span>
-    ),
+    render: (row) => {
+      const avatarUrl = resolvePhotoUrl(row.patient_avatar_path);
+      return (
+        <span className="cell-person">
+          <span className="cell-avatar">{avatarUrl ? <img src={avatarUrl} alt="" /> : getInitials(row.patient_name)}</span>
+          <span className="cell-person-name">{row.patient_name}</span>
+        </span>
+      );
+    },
   },
   { key: 'service', label: 'Service', render: (row) => row.service_name, noWrap: true },
   { key: 'status', label: 'Status', render: (row) => <StatusBadge status={row.status} /> },

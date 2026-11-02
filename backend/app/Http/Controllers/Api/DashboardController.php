@@ -76,7 +76,8 @@ class DashboardController extends Controller
     public function recentActivity()
     {
         $logs = AppointmentStatusLog::with([
-            'appointment.patient:id,first_name,last_name',
+            'appointment.patient:id,user_id,first_name,last_name',
+            'appointment.patient.user:id,avatar_path',
             'appointment.service:id,name',
             'changedBy:id,name,role',
         ])
@@ -99,6 +100,7 @@ class DashboardController extends Controller
                 // needs to be, without touching the backend again.
                 'description' => "{$patientName}'s {$serviceName} moved to \"{$log->new_status}\" (by {$actorName})",
                 'patient_name' => $patientName,
+                'patient_avatar_path' => $log->appointment?->patient?->user?->avatar_path,
                 'service_name' => $serviceName,
                 'status' => $log->new_status,
                 'changed_by' => $actorName,

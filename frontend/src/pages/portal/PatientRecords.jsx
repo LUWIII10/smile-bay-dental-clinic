@@ -41,6 +41,7 @@ import { SearchIcon, FileIcon, ClockIcon, UserIcon, ShieldIcon, PrinterIcon, Dow
 import { formatDateLong, formatTime12h } from './dateTimeUtils';
 import { formatRangeLabel } from './components/dateRangeUtils';
 import { showSuccessToast, showErrorToast } from '../../utils/toast';
+import { getAvatarUrl } from './avatarUtils';
 import PrintFooter from './components/PrintFooter';
 import './dashboards.css';
 import './Appointments.css';
@@ -770,9 +771,10 @@ function PatientRecords() {
       minWidth: '28%',
       render: (row) => {
         const name = `${row.first_name} ${row.last_name}`.trim();
+        const avatarUrl = getAvatarUrl(row.user);
         return (
           <span className="cell-person">
-            <span className="cell-avatar">{getInitials(name)}</span>
+            <span className="cell-avatar">{avatarUrl ? <img src={avatarUrl} alt="" /> : getInitials(name)}</span>
             <span className="cell-person-text">
               <span className="cell-person-name" title={name}>{name}</span>
               <span className="cell-person-sub">{row.patient_number}</span>
@@ -824,9 +826,10 @@ function PatientRecords() {
       minWidth: '22%',
       render: (row) => {
         const name = `${row.patient?.first_name || ''} ${row.patient?.last_name || ''}`.trim();
+        const avatarUrl = getAvatarUrl(row.patient?.user);
         return (
           <span className="cell-person">
-            <span className="cell-avatar">{getInitials(name)}</span>
+            <span className="cell-avatar">{avatarUrl ? <img src={avatarUrl} alt="" /> : getInitials(name)}</span>
             <span className="cell-person-text">
               <span className="cell-person-name" title={name}>{name}</span>
               <span className="cell-person-sub">{row.patient?.patient_number}</span>
@@ -895,6 +898,7 @@ function PatientRecords() {
     // content, gates the Complete button; length is checked on submit.
     const noteForVisit = notesForVisit[0] || null;
     const patientFullName = patient ? `${patient.first_name} ${patient.last_name}`.trim() : '';
+    const patientAvatarUrl = getAvatarUrl(patient?.user);
 
     // Print-only date filter — performed_at is a plain DATE column (no time
     // component, so a direct string compare against the Y-m-d range bounds
@@ -1259,7 +1263,9 @@ function PatientRecords() {
               </div>
               <div className="record-identity-strip">
                 <div className="record-identity-left">
-                  <span className="record-identity-avatar">{getInitials(patientFullName)}</span>
+                  <span className="record-identity-avatar">
+                    {patientAvatarUrl ? <img src={patientAvatarUrl} alt="" /> : getInitials(patientFullName)}
+                  </span>
                   <div>
                     <div className="record-identity-name">{patient.first_name} {patient.middle_name} {patient.last_name}</div>
                     <div className="record-identity-sub">{patient.patient_number}</div>

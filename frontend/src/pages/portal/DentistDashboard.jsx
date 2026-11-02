@@ -10,6 +10,7 @@ import DataTable from './components/DataTable';
 import Skeleton from './components/Skeleton';
 import { CalendarIcon, ClockIcon, UsersIcon, AlertIcon } from './icons';
 import { formatDateShort, formatTime12h } from './dateTimeUtils';
+import { getAvatarUrl } from './avatarUtils';
 import './dashboards.css';
 import './Appointments.css';
 
@@ -36,9 +37,10 @@ function patientTypeBadge(row) {
 // already use, instead of a bare name string.
 function patientCell(row) {
   const name = `${row.patient.first_name} ${row.patient.last_name}`.trim();
+  const avatarUrl = getAvatarUrl(row.patient.user);
   return (
     <span className="cell-person">
-      <span className="cell-avatar">{getInitials(name)}</span>
+      <span className="cell-avatar">{avatarUrl ? <img src={avatarUrl} alt="" /> : getInitials(name)}</span>
       <span className="cell-person-name">{name}</span>
     </span>
   );

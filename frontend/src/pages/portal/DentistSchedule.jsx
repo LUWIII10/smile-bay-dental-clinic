@@ -10,6 +10,7 @@ import PageHeader from './components/PageHeader';
 import { CalendarIcon, CheckCircleIcon, ClockIcon, MoreIcon, CalendarXIcon, SwapIcon, FileIcon, AlertIcon, ShieldIcon } from './icons';
 import { formatTime12h, toLocalDate } from './dateTimeUtils';
 import { showSuccessToast } from '../../utils/toast';
+import { getAvatarUrl } from './avatarUtils';
 import './dashboards.css';
 import './DentistSchedule.css';
 
@@ -70,6 +71,7 @@ function ScheduleRow({ appointment, expanded, onToggle, completingId, onComplete
   // writing that visit's dental record.
   const canExpand = canAct || isCompleted;
   const [timeValue, timePeriod] = formatTime12h(appointment.appointment_time).split(' ');
+  const avatarUrl = getAvatarUrl(appointment.patient.user);
 
   return (
     <div
@@ -80,7 +82,7 @@ function ScheduleRow({ appointment, expanded, onToggle, completingId, onComplete
           <span className="schedule-row-time-value">{timeValue}</span>
           <span className="schedule-row-time-period">{timePeriod}</span>
         </span>
-        <span className="schedule-row-avatar">{getInitials(patientName)}</span>
+        <span className="schedule-row-avatar">{avatarUrl ? <img src={avatarUrl} alt="" /> : getInitials(patientName)}</span>
         <span className="schedule-row-text">
           <span className="schedule-row-name" title={patientName}>{patientName}</span>
           <span className="schedule-row-meta" title={`${appointment.service.name} · ${isCash ? 'Cash' : 'HMO'}`}>{appointment.service.name} &middot; {isCash ? 'Cash' : 'HMO'}</span>

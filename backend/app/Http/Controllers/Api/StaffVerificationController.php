@@ -43,7 +43,7 @@ class StaffVerificationController extends Controller
                     ->orWhereNotNull('pediatric_confirmed_at');
             })
             ->with([
-                'patient.user:id,email',
+                'patient.user:id,email,avatar_path',
                 'patient:id,user_id,patient_number,first_name,last_name,hmo_provider_id,hmo_number,hmo_company_name',
                 'patient.hmoProvider:id,name',
                 'dentist:id,name',

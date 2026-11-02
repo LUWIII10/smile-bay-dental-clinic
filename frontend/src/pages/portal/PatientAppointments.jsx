@@ -23,6 +23,8 @@ import {
 import { formatDateLong, formatDateShort, formatTime12h, toLocalDate } from './dateTimeUtils';
 import PageHeader from './components/PageHeader';
 import { showSuccessToast } from '../../utils/toast';
+import { KNOWN_DENTIST_PHOTOS } from './dentistPhotos';
+import { resolvePhotoUrl } from './avatarUtils';
 import './dashboards.css';
 import './Appointments.css';
 import './DentalRecords.css';
@@ -418,13 +420,16 @@ function PatientAppointments() {
       align: 'center',
       render: (row) => {
         const name = row.dentist?.name || 'Unassigned';
+        const photo = resolvePhotoUrl(row.dentist?.dentist_profile?.photo_path) || KNOWN_DENTIST_PHOTOS[name];
         return (
           // .cell-person is a flex row that fills the full cell width (it's
           // shared with other tables that left-align it) — text-align:center
           // on the td alone wouldn't move a block-level flex child, so this
           // centers it directly, scoped to just this one usage.
           <span className="cell-person" style={{ justifyContent: 'center' }}>
-            <span className="cell-avatar">{getInitials(row.dentist?.name)}</span>
+            <span className="cell-avatar">
+              {photo ? <img src={photo} alt={name} /> : getInitials(row.dentist?.name)}
+            </span>
             <span className="cell-person-text">
               <span className="cell-person-name" title={name}>{name}</span>
             </span>
