@@ -48,6 +48,57 @@ function formatSubmitted(isoTimestamp) {
   });
 }
 
+// Common benefit types an HMO card's coverage sheet usually lists — tapping
+// one drops a "• Benefit — " stub into the textarea below so staff fills in
+// the amount/frequency instead of typing a full sentence from scratch. Still
+// one free-text field underneath (patients.hmo_coverage_notes), so this is a
+// typing shortcut, not a structured form — no schema change.
+const COVERAGE_PRESETS = ['Tooth Extraction', 'Cleaning', 'Crown', 'Denture', 'Root Canal', 'Orthodontics', 'Annual Limit'];
+
+function insertCoverageStub(current, label) {
+  const stub = `• ${label} — `;
+  if (!current) return stub;
+  return `${current.endsWith('\n') ? current : `${current}\n`}${stub}`;
+}
+
+// Shared by all three places Coverage Details can be entered — Edit Info,
+// Approve & Reschedule, and plain Approve — so the chip row/last-verified
+// hint stay identical everywhere instead of drifting across three
+// hand-copied blocks. lastVerifiedAt is purely informational.
+function CoverageNotesField({ value, onChange, lastVerifiedAt }) {
+  return (
+    <>
+      <label className="modal-field-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+        <span>Coverage Details <span style={{ fontWeight: 400, color: 'var(--portal-muted)' }}>(optional — saved to the patient's account)</span></span>
+        {lastVerifiedAt && (
+          <span className="coverage-last-verified">
+            Last verified {new Date(lastVerifiedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+          </span>
+        )}
+      </label>
+      <p className="coverage-chip-hint">Tap a benefit to add it, then fill in the amount or frequency:</p>
+      <div className="coverage-chip-row">
+        {COVERAGE_PRESETS.map((label) => (
+          <button
+            key={label}
+            type="button"
+            className="coverage-chip"
+            onClick={() => onChange(insertCoverageStub(value, label))}
+          >
+            + {label}
+          </button>
+        ))}
+      </div>
+      <textarea
+        className="form-textarea"
+        placeholder="e.g. 2 tooth extractions/year, 1 cleaning every 6 months, up to ₱5,000 crown allowance — as told by the provider."
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      />
+    </>
+  );
+}
+
 // HMO verification routinely takes days — a booking whose requested date
 // has already passed by the time staff get to it isn't an edge case, it's
 // routine. Confirming onto a date that's already gone would just quietly
@@ -757,14 +808,10 @@ function HmoVerificationQueue() {
           onChange={(e) => setEditForm((p) => ({ ...p, hmoCompanyName: e.target.value }))}
         />
 
-        <label className="modal-field-label">
-          Coverage Details <span style={{ fontWeight: 400, color: 'var(--portal-muted)' }}>(optional — saved to the patient's account)</span>
-        </label>
-        <textarea
-          className="form-textarea"
-          placeholder="e.g. 2 tooth extractions/year, 1 cleaning every 6 months, up to ₱5,000 crown allowance — as told by the provider."
+        <CoverageNotesField
           value={editForm.hmoCoverageNotes}
-          onChange={(e) => setEditForm((p) => ({ ...p, hmoCoverageNotes: e.target.value }))}
+          onChange={(hmoCoverageNotes) => setEditForm((p) => ({ ...p, hmoCoverageNotes }))}
+          lastVerifiedAt={editTarget?.patient?.hmo_coverage_verified_at}
         />
 
         {editError && (
@@ -828,14 +875,10 @@ function HmoVerificationQueue() {
 
             <div style={{ height: 1, background: 'var(--portal-border-light)', margin: '18px 0' }} />
 
-            <label className="modal-field-label" style={{ display: 'block' }}>
-              Coverage Details <span style={{ fontWeight: 400, color: 'var(--portal-muted)' }}>(optional — saved to the patient's account)</span>
-            </label>
-            <textarea
-              className="form-textarea"
-              placeholder="e.g. 2 tooth extractions/year, 1 cleaning every 6 months, up to ₱5,000 crown allowance — as told by the provider."
+            <CoverageNotesField
               value={proposeCoverageNotes}
-              onChange={(e) => setProposeCoverageNotes(e.target.value)}
+              onChange={setProposeCoverageNotes}
+              lastVerifiedAt={proposeTarget.patient?.hmo_coverage_verified_at}
             />
 
             {proposeError && (
@@ -865,14 +908,10 @@ function HmoVerificationQueue() {
               </span>
             </div>
 
-            <label className="modal-field-label" style={{ display: 'block' }}>
-              Coverage Details <span style={{ fontWeight: 400, color: 'var(--portal-muted)' }}>(optional — saved to the patient's account)</span>
-            </label>
-            <textarea
-              className="form-textarea"
-              placeholder="e.g. 2 tooth extractions/year, 1 cleaning every 6 months, up to ₱5,000 crown allowance — as told by the provider."
+            <CoverageNotesField
               value={approveCoverageNotes}
-              onChange={(e) => setApproveCoverageNotes(e.target.value)}
+              onChange={setApproveCoverageNotes}
+              lastVerifiedAt={approveTarget.patient?.hmo_coverage_verified_at}
             />
 
             {approveError && (

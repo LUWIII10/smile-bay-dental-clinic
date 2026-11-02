@@ -44,7 +44,7 @@ class StaffVerificationController extends Controller
             })
             ->with([
                 'patient.user:id,email,avatar_path',
-                'patient:id,user_id,patient_number,first_name,last_name,hmo_provider_id,hmo_number,hmo_company_name',
+                'patient:id,user_id,patient_number,first_name,last_name,hmo_provider_id,hmo_number,hmo_company_name,hmo_coverage_notes,hmo_coverage_verified_at',
                 'patient.hmoProvider:id,name',
                 'dentist:id,name',
                 'service:id,name,duration_minutes',

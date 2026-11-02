@@ -1353,14 +1353,32 @@ function PatientRecords() {
                   </div>
                 )}
                 {patient.patient_type === 'hmo' && (
-                  <div className="record-field">
+                  <div className="record-field record-field--full">
                     <span className="record-field-icon record-field-icon--teal"><ShieldIcon /></span>
-                    <div className="record-info-item">
+                    <div className="record-info-item" style={{ flex: 1 }}>
                       <span className="record-info-label">HMO Coverage</span>
                       <span className="record-info-value">
                         {patient.hmo_provider?.name || patient.hmo_company_name || 'Not on file'}
                         {patient.hmo_number ? ` (#${patient.hmo_number})` : ''}
+                        {'  '}
+                        <StatusBadge status={patient.hmo_coverage_notes ? 'Verified' : 'Not yet verified'} tone={patient.hmo_coverage_notes ? 'green' : 'amber'} />
                       </span>
+                      {/* Staff-side mirror of the same box MyProfile.jsx already
+                          shows the patient — written by HmoVerificationQueue.jsx's
+                          Approve/Approve & Reschedule/Edit Info, read-only here. */}
+                      {patient.hmo_coverage_notes && (
+                        <div className="hmo-coverage-box">
+                          <div className="hmo-coverage-box-header"><ShieldIcon /><span>Verified Coverage</span></div>
+                          <p className="hmo-coverage-box-text">{patient.hmo_coverage_notes}</p>
+                          {patient.hmo_coverage_verified_at && (
+                            <div className="hmo-coverage-box-time">
+                              Last verified {new Date(patient.hmo_coverage_verified_at).toLocaleDateString('en-US', {
+                                month: 'short', day: 'numeric', year: 'numeric',
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}

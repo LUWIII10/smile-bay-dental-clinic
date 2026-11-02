@@ -162,6 +162,49 @@
 .record-field-icon--slate { background: var(--portal-gray-bg); color: var(--portal-gray-text); }
 .record-field-icon--red { background: var(--portal-red-bg); color: var(--portal-red-text); }
 
+/* Staff-side mirror of MyProfile.css's .hmo-coverage-box (same values,
+   duplicated here instead of cross-importing MyProfile.css into this page
+   just for one class) — read-only display of patients.hmo_coverage_notes
+   on the staff-facing Patient Records detail view. */
+.hmo-coverage-box {
+  margin-top: 10px;
+  padding: 14px 16px;
+  background: var(--portal-blue-bg);
+  border: 1px solid var(--portal-blue-border);
+  border-radius: var(--portal-radius-lg);
+}
+
+.hmo-coverage-box-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--portal-blue-text);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.hmo-coverage-box-header svg {
+  width: 15px;
+  height: 15px;
+}
+
+.hmo-coverage-box-text {
+  margin: 0 0 8px;
+  font-size: 0.85rem;
+  color: #1e3a8a;
+  line-height: 1.6;
+  white-space: pre-line;
+}
+
+.hmo-coverage-box-time {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #60a5fa;
+}
+
 .record-field--with-action {
   justify-content: space-between;
   width: 100%;

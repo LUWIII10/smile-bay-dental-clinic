@@ -2220,6 +2220,52 @@
   color: var(--portal-red-text);
 }
 
+/* HMO Verification Queue's "Coverage Details" field (Edit Info, Approve &
+   Reschedule, plain Approve — same shared CoverageNotesField component) —
+   quick-insert chips that drop a "• Benefit — " stub into the textarea so
+   staff fills in the amount/frequency instead of typing a full sentence.
+   Built from the existing tint-pill vocabulary (.dash-btn--tint-indigo),
+   just sized down to read as a chip, not a button. */
+.coverage-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.coverage-chip {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: var(--portal-indigo-bg);
+  color: var(--portal-indigo-text);
+  border: 1px solid var(--portal-indigo-border);
+  cursor: pointer;
+  font-family: 'Poppins', sans-serif;
+}
+
+.coverage-chip:hover {
+  background: #e0e7ff;
+}
+
+.coverage-chip-hint {
+  font-size: 0.74rem;
+  color: var(--portal-muted);
+  margin: 0 0 8px;
+}
+
+.coverage-last-verified {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--portal-muted);
+  background: var(--portal-gray-bg);
+  padding: 2px 8px;
+  border-radius: 20px;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
 /* ============ Responsive grid breakpoints ============ */
 
 @media (max-width: 1024px) {
