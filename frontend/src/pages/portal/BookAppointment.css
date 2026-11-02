@@ -880,6 +880,24 @@
 .calendar-legend-item--full { background: var(--portal-red-bg); color: var(--portal-red-text); }
 .calendar-legend-item--unavailable { background: var(--portal-gray-bg); color: var(--portal-muted); }
 
+/* AvailableSlotPicker.jsx's own legend renders an explicit dot span
+   (calendar-legend-dot calendar-legend-dot--available, etc.) instead of a
+   colored pill like .calendar-legend-item above — these classes had no rule
+   at all, so the dots were invisible (zero size, no fill). Same colors as
+   the matching .calendar-cell--{status} backgrounds/text above. */
+.calendar-legend-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.calendar-legend-dot--available { background: var(--portal-green-text); }
+.calendar-legend-dot--limited { background: var(--portal-amber-text); }
+.calendar-legend-dot--full { background: var(--portal-red-text); }
+.calendar-legend-dot--unavailable { background: #cbd5e1; }
+
 .calendar-legend-hint {
   font-size: 0.74rem;
   color: var(--portal-muted);
