@@ -41,6 +41,7 @@ import { SearchIcon, FileIcon, ClockIcon, UserIcon, ShieldIcon, PrinterIcon, Dow
 import { formatDateLong, formatDateShort, formatTime12h } from './dateTimeUtils';
 import { formatRangeLabel } from './components/dateRangeUtils';
 import { showSuccessToast, showErrorToast } from '../../utils/toast';
+import { printWithTitle } from '../../utils/printWithTitle';
 import { getAvatarUrl } from './avatarUtils';
 import PrintFooter from './components/PrintFooter';
 import './dashboards.css';
@@ -949,19 +950,7 @@ function PatientRecords() {
               <button
                 type="button"
                 className="dash-btn dash-btn--outline"
-                onClick={() => {
-                  // Chromium's "Save as PDF" print destination suggests
-                  // document.title as the filename — same recognizability
-                  // problem as showPdf()'s own download name, just a
-                  // different code path (this is the browser's own Print
-                  // dialog, not the dedicated Download PDF button below).
-                  // window.print() blocks until the dialog closes, so the
-                  // title is safely restored right after.
-                  const prevTitle = document.title;
-                  document.title = `${patient.first_name} ${patient.last_name} - Dental Record`.trim();
-                  window.print();
-                  document.title = prevTitle;
-                }}
+                onClick={() => printWithTitle(`${patient.first_name} ${patient.last_name} - Dental Record`.trim())}
               >
                 <PrinterIcon /> Print Record
               </button>
@@ -2140,15 +2129,7 @@ function PatientRecords() {
             type="button"
             className="dash-btn dash-btn--outline"
             disabled={!dateFilter.from || !dateFilter.to || dateLoading || dateAppointments.length === 0}
-            onClick={() => {
-              // Same "Save as PDF" filename fix as the per-patient record's
-              // own Print button above — document.title is what Chromium
-              // suggests as the filename for this browser-print path.
-              const prevTitle = document.title;
-              document.title = `Patient Appointments Report - ${formatRangeLabel(dateFilter.from, dateFilter.to)}`;
-              window.print();
-              document.title = prevTitle;
-            }}
+            onClick={() => printWithTitle(`Patient Appointments Report - ${formatRangeLabel(dateFilter.from, dateFilter.to)}`)}
           >
             <PrinterIcon /> Print
           </button>

@@ -13,6 +13,7 @@ import {
 } from 'chart.js';
 import { Line, Doughnut } from 'react-chartjs-2';
 import { getReportsOverview, downloadReportsPdf } from '../../api/reports';
+import { printWithTitle } from '../../utils/printWithTitle';
 import { useCountUp, useEntranceReady } from '../../hooks/useEntranceAnimation';
 import { centerTextPlugin } from './chartCenterText';
 import StatCard from './components/StatCard';
@@ -231,15 +232,7 @@ function Reports() {
             type="button"
             className="dash-btn dash-btn--outline"
             disabled={loading || !!error}
-            onClick={() => {
-              // Same "Save as PDF" filename fix as Patient Records' own
-              // Print buttons — document.title is what Chromium suggests
-              // as the filename for this browser-print path.
-              const prevTitle = document.title;
-              document.title = `Clinic Operations Report - ${formatDateShort(range.date_from)} to ${formatDateShort(range.date_to)}`;
-              window.print();
-              document.title = prevTitle;
-            }}
+            onClick={() => printWithTitle(`Clinic Operations Report - ${formatDateShort(range.date_from)} to ${formatDateShort(range.date_to)}`)}
           >
             <PrinterIcon /> Print Report
           </button>
