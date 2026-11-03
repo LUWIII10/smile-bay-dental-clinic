@@ -214,6 +214,25 @@
   line-height: 1.4;
 }
 
+/* Pediatric Service toggle — real booking-rule consequences
+  (AppointmentController::store() HMO/same-day blocks, pediatric review
+  queue), not just a display preference like the toggle above, so it's
+  visually set apart instead of sharing the same plain canvas tint. */
+.service-bookable-field--pediatric {
+  margin-top: 10px;
+  background: var(--portal-amber-bg);
+  border-color: #fde68a;
+}
+
+.service-bookable-field--pediatric .service-bookable-field-title,
+.service-bookable-field--pediatric .service-bookable-field-desc {
+  color: #92400e;
+}
+
+.service-bookable-field--pediatric .toggle-switch--on {
+  background: var(--portal-amber-text);
+}
+
 /* Same .toggle-switch markup/behavior as MyAvailability.css's own — a
    second small copy rather than importing that whole stylesheet here for
    one shared control. */

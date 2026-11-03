@@ -26,7 +26,7 @@ import './Settings.css';
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const SERVICE_CATEGORIES = ['General Dentistry', 'Cosmetic Dentistry', 'Orthodontics', 'Specialist Services'];
-const EMPTY_SERVICE_FORM = { name: '', category: SERVICE_CATEGORIES[0], duration_minutes: 30, description: '', is_patient_bookable: true };
+const EMPTY_SERVICE_FORM = { name: '', category: SERVICE_CATEGORIES[0], duration_minutes: 30, description: '', is_patient_bookable: true, is_pediatric: false };
 
 // Same .toggle-switch markup/CSS as MyAvailability.jsx's own ToggleSwitch —
 // no shared component exists yet for it, so this is a second small copy
@@ -192,6 +192,7 @@ function Settings() {
       duration_minutes: service.duration_minutes,
       description: service.description || '',
       is_patient_bookable: service.is_patient_bookable ?? true,
+      is_pediatric: service.is_pediatric ?? false,
     });
     setServiceError('');
     setServiceModalOpen(true);
@@ -207,6 +208,7 @@ function Settings() {
         duration_minutes: Number(serviceForm.duration_minutes),
         description: serviceForm.description.trim() || null,
         is_patient_bookable: serviceForm.is_patient_bookable,
+        is_pediatric: serviceForm.is_pediatric,
       };
       if (editingService) {
         await updateService(editingService.id, payload);
@@ -325,6 +327,19 @@ function Settings() {
       render: (row) => row.category ? <StatusBadge status={row.category} tone={CATEGORY_TONE[row.category] || 'gray'} /> : '—',
     },
     { key: 'duration', label: 'Duration', minWidth: '12%', render: (row) => `${row.duration_minutes} min` },
+    {
+      key: 'type',
+      label: 'Type',
+      minWidth: '12%',
+      align: 'center',
+      // Same 👶 convention already used for pediatric indicators elsewhere
+      // (StatusBadge's pediatric_review_required/pediatric_confirmed_
+      // pending_hmo labels) — this is the one place an admin can actually
+      // see which services carry the real booking-rule consequences
+      // (HMO block, same-day block, pediatric review queue) the toggle
+      // above sets.
+      render: (row) => (row.is_pediatric ? <StatusBadge status="👶 Pediatric" tone="amber" /> : <span style={{ color: 'var(--portal-muted)' }}>—</span>),
+    },
     {
       key: 'bookable',
       label: 'Bookable Online',
@@ -563,6 +578,26 @@ function Settings() {
             checked={serviceForm.is_patient_bookable}
             onChange={(v) => setServiceForm((p) => ({ ...p, is_patient_bookable: v }))}
             label="Available for online booking"
+          />
+        </div>
+
+        {/* Drives real booking rules (AppointmentController::store()): blocks
+            HMO for this service, blocks same-day booking, and forces every
+            booking through the pediatric dentist's own review queue
+            regardless of payment type. Amber-tinted, not the same plain
+            canvas background as the toggle above, since this one carries
+            real consequences rather than just a display preference. */}
+        <div className="service-bookable-field service-bookable-field--pediatric">
+          <div>
+            <span className="service-bookable-field-title">Pediatric Service</span>
+            <p className="service-bookable-field-desc">
+              Blocks HMO booking for this service and routes every booking through the pediatric dentist's own review queue.
+            </p>
+          </div>
+          <ToggleSwitch
+            checked={serviceForm.is_pediatric}
+            onChange={(v) => setServiceForm((p) => ({ ...p, is_pediatric: v }))}
+            label="Pediatric service"
           />
         </div>
 
