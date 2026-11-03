@@ -193,7 +193,7 @@
 
   .patient-records-print-table th {
     text-align: left;
-    padding: 12px 16px;
+    padding: 12px 18px;
     color: #ffffff;
     font-size: 11px;
     text-transform: uppercase;
@@ -202,9 +202,19 @@
   }
 
   .patient-records-print-table td {
-    padding: 13px 16px;
+    padding: 13px 18px;
     color: #334155;
   }
+
+  /* Fixed-format, short-content columns (an ID, a short date, a time) get
+     just enough width plus real slack to never wrap — calibrated to the
+     page's actual printed width (@page A4, 15mm margins — see
+     DentalRecords.css), not an unconstrained browser window — which frees
+     real space for Patient/Service/Dentist to fit on one line instead of
+     every column wrapping roughly evenly regardless of what it needs. */
+  .patient-records-print-table .prt-col-patno { width: 90px; white-space: nowrap; }
+  .patient-records-print-table .prt-col-date { width: 85px; white-space: nowrap; }
+  .patient-records-print-table .prt-col-time { width: 65px; white-space: nowrap; }
 
   .patient-records-print-table td:first-child {
     color: #0f2557;

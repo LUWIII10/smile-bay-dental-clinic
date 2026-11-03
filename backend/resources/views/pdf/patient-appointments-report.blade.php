@@ -32,11 +32,11 @@
     <thead>
       <tr>
         <th>Patient</th>
-        <th>Patient No.</th>
+        <th class="par-col-patno">Patient No.</th>
         @unless ($isSingleDay)
-          <th>Date</th>
+          <th class="par-col-date">Date</th>
         @endunless
-        <th>Time</th>
+        <th class="par-col-time">Time</th>
         <th>Service</th>
         <th>Dentist</th>
       </tr>
@@ -45,11 +45,11 @@
       @foreach ($appointments as $row)
         <tr>
           <td>{{ trim(($row->patient->first_name ?? '').' '.($row->patient->last_name ?? '')) }}</td>
-          <td>{{ $row->patient->patient_number ?? '' }}</td>
+          <td class="par-col-patno">{{ $row->patient->patient_number ?? '' }}</td>
           @unless ($isSingleDay)
-            <td>{{ $row->appointment_date->format('M j, Y') }}</td>
+            <td class="par-col-date">{{ $row->appointment_date->format('M j, Y') }}</td>
           @endunless
-          <td>{{ \Carbon\Carbon::parse($row->appointment_time)->format('g:i A') }}</td>
+          <td class="par-col-time">{{ \Carbon\Carbon::parse($row->appointment_time)->format('g:i A') }}</td>
           <td>{{ $row->service->name ?? '' }}</td>
           <td>{{ $row->dentist->name ?? 'Unassigned' }}</td>
         </tr>

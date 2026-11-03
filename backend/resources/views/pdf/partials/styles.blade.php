@@ -93,6 +93,17 @@
   .pdf-table-summary td:first-child { color: #334155; }
   .pdf-table-summary td.num { color: #0f2557; font-weight: bold; }
 
+  /* patient-appointments-report.blade.php only — same fix as the on-screen
+     print version of this same report (.prt-col-* in PrintLetterhead.css):
+     fixed-format, short-content columns get just enough width plus real
+     slack to never wrap, freeing real space for Patient/Service/Dentist.
+     Prefixed "par-" (not the generic .pdf-table/.col-* names) so this never
+     touches the Dental Chart/Treatment History/Clinic Operations tables
+     that also share .pdf-table but have entirely different columns. */
+  .par-col-patno { width: 90px; white-space: nowrap; }
+  .par-col-date { width: 85px; white-space: nowrap; }
+  .par-col-time { width: 65px; white-space: nowrap; }
+
   /* table-layout: fixed so these widths actually hold — without it, dompdf
      (like most browsers on an "auto" table) can let a long value's content
      push its column wider than intended, which previously meant both

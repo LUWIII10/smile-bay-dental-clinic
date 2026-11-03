@@ -38,7 +38,7 @@ import {
   formatRecordDateParts,
 } from './dentalRecordShared';
 import { SearchIcon, FileIcon, ClockIcon, UserIcon, ShieldIcon, PrinterIcon, DownloadIcon, AlertIcon, SyringeIcon, ToothIcon, MailIcon, CalendarIcon, UsersIcon, PhoneIcon, MapPinIcon, EditIcon, TrashIcon } from './icons';
-import { formatDateLong, formatTime12h } from './dateTimeUtils';
+import { formatDateLong, formatDateShort, formatTime12h } from './dateTimeUtils';
 import { formatRangeLabel } from './components/dateRangeUtils';
 import { showSuccessToast, showErrorToast } from '../../utils/toast';
 import { getAvatarUrl } from './avatarUtils';
@@ -2206,23 +2206,23 @@ function PatientRecords() {
           <table className="patient-records-print-table">
             <thead>
               <tr>
-                <th>Patient</th>
-                <th>Patient No.</th>
-                {dateFilter.from !== dateFilter.to && <th>Date</th>}
-                <th>Time</th>
-                <th>Service</th>
-                <th>Dentist</th>
+                <th className="prt-col-patient">Patient</th>
+                <th className="prt-col-patno">Patient No.</th>
+                {dateFilter.from !== dateFilter.to && <th className="prt-col-date">Date</th>}
+                <th className="prt-col-time">Time</th>
+                <th className="prt-col-service">Service</th>
+                <th className="prt-col-dentist">Dentist</th>
               </tr>
             </thead>
             <tbody>
               {dateAppointments.map((row) => (
                 <tr key={row.id}>
-                  <td>{`${row.patient?.first_name || ''} ${row.patient?.last_name || ''}`.trim()}</td>
-                  <td>{row.patient?.patient_number}</td>
-                  {dateFilter.from !== dateFilter.to && <td>{formatDateLong(row.appointment_date)}</td>}
-                  <td>{formatTime12h(row.appointment_time)}</td>
-                  <td>{row.service?.name}</td>
-                  <td>{row.dentist?.name || 'Unassigned'}</td>
+                  <td className="prt-col-patient">{`${row.patient?.first_name || ''} ${row.patient?.last_name || ''}`.trim()}</td>
+                  <td className="prt-col-patno">{row.patient?.patient_number}</td>
+                  {dateFilter.from !== dateFilter.to && <td className="prt-col-date">{formatDateShort(row.appointment_date)}</td>}
+                  <td className="prt-col-time">{formatTime12h(row.appointment_time)}</td>
+                  <td className="prt-col-service">{row.service?.name}</td>
+                  <td className="prt-col-dentist">{row.dentist?.name || 'Unassigned'}</td>
                 </tr>
               ))}
             </tbody>
