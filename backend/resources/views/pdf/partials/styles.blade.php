@@ -93,10 +93,16 @@
   .pdf-table-summary td:first-child { color: #334155; }
   .pdf-table-summary td.num { color: #0f2557; font-weight: bold; }
 
-  .pdf-grid { width: 100%; margin-bottom: 4px; }
-  .pdf-grid td { padding: 6px 9px; font-size: 10px; vertical-align: top; }
-  .pdf-grid .g-label { color: #64748b; width: 42%; }
-  .pdf-grid .g-value { color: #0f2557; font-weight: bold; }
+  /* table-layout: fixed so these widths actually hold — without it, dompdf
+     (like most browsers on an "auto" table) can let a long value's content
+     push its column wider than intended, which previously meant both
+     label columns (same .g-label class on each) pulled 42% apiece, leaving
+     the two value columns ~8% each — exactly why long names/addresses were
+     wrapping into 3-4 lines. 19%/31% per label/value pair instead. */
+  .pdf-grid { width: 100%; margin-bottom: 4px; table-layout: fixed; }
+  .pdf-grid td { padding: 6px 9px; font-size: 10px; vertical-align: top; overflow-wrap: break-word; }
+  .pdf-grid .g-label { color: #64748b; width: 19%; }
+  .pdf-grid .g-value { color: #0f2557; font-weight: bold; width: 31%; }
 
   .pdf-empty { font-size: 10px; color: #94a3b8; font-style: italic; margin: 0; padding: 8px 12px; }
 
