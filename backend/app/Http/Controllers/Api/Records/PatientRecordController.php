@@ -15,6 +15,7 @@ use App\Models\TreatmentPlanItem;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 /**
@@ -239,7 +240,14 @@ class PatientRecordController extends Controller
             'generatedAt' => now(),
         ]);
 
-        return $pdf->download("dental-record-{$patient->patient_number}.pdf");
+        // Name-first so it's immediately recognizable in a downloads list
+        // full of same-prefixed files, instead of needing to open each one
+        // (or hover for the full filename) just to tell whose record it is.
+        // patient_number stays appended for guaranteed uniqueness (two
+        // patients can share a name; patient_number never collides).
+        $nameSlug = Str::slug(trim($patient->first_name.' '.$patient->last_name));
+
+        return $pdf->download("{$nameSlug}-dental-record-{$patient->patient_number}.pdf");
     }
 
     /**

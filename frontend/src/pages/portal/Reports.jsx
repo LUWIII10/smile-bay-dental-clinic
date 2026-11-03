@@ -25,7 +25,7 @@ import {
   CalendarIcon, ClockIcon, CheckCircleIcon, XCircleIcon, UsersIcon, PrinterIcon, ChartIcon, AlertIcon, TrendingUpIcon,
   DownloadIcon,
 } from './icons';
-import { formatDateLong } from './dateTimeUtils';
+import { formatDateLong, formatDateShort } from './dateTimeUtils';
 import './dashboards.css';
 import './Appointments.css';
 import './Reports.css';
@@ -231,7 +231,15 @@ function Reports() {
             type="button"
             className="dash-btn dash-btn--outline"
             disabled={loading || !!error}
-            onClick={() => window.print()}
+            onClick={() => {
+              // Same "Save as PDF" filename fix as Patient Records' own
+              // Print buttons — document.title is what Chromium suggests
+              // as the filename for this browser-print path.
+              const prevTitle = document.title;
+              document.title = `Clinic Operations Report - ${formatDateShort(range.date_from)} to ${formatDateShort(range.date_to)}`;
+              window.print();
+              document.title = prevTitle;
+            }}
           >
             <PrinterIcon /> Print Report
           </button>

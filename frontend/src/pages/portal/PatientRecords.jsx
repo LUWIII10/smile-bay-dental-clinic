@@ -946,7 +946,23 @@ function PatientRecords() {
                 value={{ from: printRange.date_from, to: printRange.date_to }}
                 onChange={({ from, to }) => setPrintRange({ date_from: from, date_to: to })}
               />
-              <button type="button" className="dash-btn dash-btn--outline" onClick={() => window.print()}>
+              <button
+                type="button"
+                className="dash-btn dash-btn--outline"
+                onClick={() => {
+                  // Chromium's "Save as PDF" print destination suggests
+                  // document.title as the filename — same recognizability
+                  // problem as showPdf()'s own download name, just a
+                  // different code path (this is the browser's own Print
+                  // dialog, not the dedicated Download PDF button below).
+                  // window.print() blocks until the dialog closes, so the
+                  // title is safely restored right after.
+                  const prevTitle = document.title;
+                  document.title = `${patient.first_name} ${patient.last_name} - Dental Record`.trim();
+                  window.print();
+                  document.title = prevTitle;
+                }}
+              >
                 <PrinterIcon /> Print Record
               </button>
               <button type="button" className="dash-btn" disabled={downloadingRecordPdf} onClick={handleDownloadRecordPdf}>
@@ -2124,7 +2140,15 @@ function PatientRecords() {
             type="button"
             className="dash-btn dash-btn--outline"
             disabled={!dateFilter.from || !dateFilter.to || dateLoading || dateAppointments.length === 0}
-            onClick={() => window.print()}
+            onClick={() => {
+              // Same "Save as PDF" filename fix as the per-patient record's
+              // own Print button above — document.title is what Chromium
+              // suggests as the filename for this browser-print path.
+              const prevTitle = document.title;
+              document.title = `Patient Appointments Report - ${formatRangeLabel(dateFilter.from, dateFilter.to)}`;
+              window.print();
+              document.title = prevTitle;
+            }}
           >
             <PrinterIcon /> Print
           </button>
