@@ -6,13 +6,14 @@ import {
 } from '../../api/appointments';
 import StatusBadge from './components/StatusBadge';
 import RejectionModal from './components/RejectionModal';
+import ReviewHmoDateModal from './components/ReviewHmoDateModal';
 import Modal from './components/Modal';
 import Skeleton from './components/Skeleton';
 import PageHeader from './components/PageHeader';
 import AvailableSlotPicker from './components/AvailableSlotPicker';
 import FilterDropdown from './components/FilterDropdown';
 import DateRangePicker from './components/DateRangePicker';
-import { ShieldIcon, CheckCircleIcon, MailIcon, CalendarIcon, AlertIcon, UserIcon, ToothIcon, FileIcon, EditIcon, SwapIcon } from './icons';
+import { ShieldIcon, CheckCircleIcon, MailIcon, CalendarIcon, AlertIcon, UserIcon, ToothIcon, FileIcon, EditIcon, SwapIcon, ClockIcon } from './icons';
 import { formatDateLong, formatTime12h, toLocalDate } from './dateTimeUtils';
 import { showSuccessToast } from '../../utils/toast';
 import './dashboards.css';
@@ -160,7 +161,7 @@ function initials(firstName, lastName) {
   return `${(firstName || '')[0] || ''}${(lastName || '')[0] || ''}`.toUpperCase();
 }
 
-function QueueCard({ appointment, actingId, sendingId, releasingId, onApprove, onReject, onSendUpdate, onEditHmoInfo, onProposeNewDate, onReleaseSlot }) {
+function QueueCard({ appointment, actingId, sendingId, releasingId, onApprove, onReject, onSendUpdate, onEditHmoInfo, onProposeNewDate, onReleaseSlot, onReviewDateRequest }) {
   const isPediatricApproved = appointment.service?.name?.includes('Pediatric') && appointment.pediatric_confirmed_at;
   const hmoProviderName = appointment.patient?.hmo_provider?.name || appointment.patient?.hmo_company_name || 'HMO';
   const isActing = actingId === appointment.id;
@@ -171,6 +172,12 @@ function QueueCard({ appointment, actingId, sendingId, releasingId, onApprove, o
   const overdue = isOverdue(appointment);
   const lapsed = isLapsed(appointment);
   const slotReleased = !!appointment.slot_released_at;
+  // Patient countered the date staff proposed (requestDifferentDateForVerifiedHmo())
+  // and it's waiting on dental assistant/admin to approve or decline
+  // (reviewHmoDateRequest()) — nothing left to do but decide, so every other
+  // action (Approve/Reject/Edit Info/Send Update/Release Slot) is replaced
+  // with the one review action below.
+  const hasPatientCounter = !!appointment.patient_requested_new_date_at;
 
   return (
     <div className="queue-card queue-card--hmo">
@@ -187,11 +194,22 @@ function QueueCard({ appointment, actingId, sendingId, releasingId, onApprove, o
         <div className="queue-card-badges">
           {isPediatricApproved && <StatusBadge status="pediatric_confirmed_pending_hmo" />}
           {slotReleased && <StatusBadge status="slot_released" />}
-          <StatusBadge status="pending_verification" />
+          {hasPatientCounter ? (
+            <StatusBadge status="reschedule_date_change_requested" icon={ClockIcon} />
+          ) : (
+            <StatusBadge status="pending_verification" />
+          )}
         </div>
       </div>
 
-      {overdue && (
+      {hasPatientCounter && (
+        <div className="queue-card-overdue-note queue-card-overdue-note--neutral">
+          <CalendarIcon /> {appointment.patient?.first_name} can't make the proposed date — they requested{' '}
+          {formatDateLong(appointment.patient_requested_date)} &middot; {formatTime12h(appointment.patient_requested_time)} instead. Review it below.
+        </div>
+      )}
+
+      {!hasPatientCounter && overdue && (
         <div className="queue-card-overdue-note">
           <AlertIcon /> Requested date already passed — reschedule needed before approving
         </div>
@@ -250,48 +268,56 @@ function QueueCard({ appointment, actingId, sendingId, releasingId, onApprove, o
       </div>
 
       <div className="queue-card-actions">
-        {overdue ? (
-          <button type="button" className="dash-btn" disabled={isActing} onClick={() => onProposeNewDate(appointment)}>
-            <CalendarIcon /> Approve &amp; Reschedule
+        {hasPatientCounter ? (
+          <button type="button" className="dash-btn" onClick={() => onReviewDateRequest(appointment)}>
+            <CalendarIcon /> Review Requested Date
           </button>
         ) : (
-          <button type="button" className="dash-btn" disabled={isActing} onClick={() => onApprove(appointment)}>
-            <CheckCircleIcon /> {isActing ? 'Saving…' : 'Approve'}
-          </button>
-        )}
-        <button type="button" className="dash-btn dash-btn--tint-danger" disabled={isActing} onClick={() => onReject(appointment)}>
-          Reject
-        </button>
-        <button type="button" className="dash-btn dash-btn--tint-neutral" disabled={isActing} onClick={() => onEditHmoInfo(appointment)}>
-          Edit Info
-        </button>
-        <button
-          type="button"
-          className="dash-btn dash-btn--tint-indigo"
-          disabled={isSending || hasNoEmailOnFile}
-          title={hasNoEmailOnFile ? 'No email on file for this patient' : 'Email the patient that their HMO verification is still in progress'}
-          onClick={() => onSendUpdate(appointment)}
-        >
-          <MailIcon /> {isSending ? 'Sending…' : 'Send Status Update'}
-        </button>
-        {/* !overdue specifically — a date that's an entirely past DAY (not
-            just today's own time) has nothing left to release: nobody can
-            ever book a past date through the normal flow anyway, so the
-            slot was never actually blocking anything. Matches the banner's
-            own distinction above ("reschedule needed" for overdue vs.
-            "slot can now be released" for lapsed-today only) — this button
-            used to key off the broader `lapsed` alone, so it kept showing
-            for a request days or weeks past its own date. */}
-        {!overdue && lapsed && !slotReleased && (
-          <button
-            type="button"
-            className="dash-btn dash-btn--tint-amber"
-            disabled={isReleasing}
-            title="Free this patient's requested time slot for another booking — their request stays pending, they'll just need a new date once approved"
-            onClick={() => onReleaseSlot(appointment)}
-          >
-            <SwapIcon /> {isReleasing ? 'Releasing…' : 'Release Slot'}
-          </button>
+          <>
+            {overdue ? (
+              <button type="button" className="dash-btn" disabled={isActing} onClick={() => onProposeNewDate(appointment)}>
+                <CalendarIcon /> Approve &amp; Reschedule
+              </button>
+            ) : (
+              <button type="button" className="dash-btn" disabled={isActing} onClick={() => onApprove(appointment)}>
+                <CheckCircleIcon /> {isActing ? 'Saving…' : 'Approve'}
+              </button>
+            )}
+            <button type="button" className="dash-btn dash-btn--tint-danger" disabled={isActing} onClick={() => onReject(appointment)}>
+              Reject
+            </button>
+            <button type="button" className="dash-btn dash-btn--tint-neutral" disabled={isActing} onClick={() => onEditHmoInfo(appointment)}>
+              Edit Info
+            </button>
+            <button
+              type="button"
+              className="dash-btn dash-btn--tint-indigo"
+              disabled={isSending || hasNoEmailOnFile}
+              title={hasNoEmailOnFile ? 'No email on file for this patient' : 'Email the patient that their HMO verification is still in progress'}
+              onClick={() => onSendUpdate(appointment)}
+            >
+              <MailIcon /> {isSending ? 'Sending…' : 'Send Status Update'}
+            </button>
+            {/* !overdue specifically — a date that's an entirely past DAY (not
+                just today's own time) has nothing left to release: nobody can
+                ever book a past date through the normal flow anyway, so the
+                slot was never actually blocking anything. Matches the banner's
+                own distinction above ("reschedule needed" for overdue vs.
+                "slot can now be released" for lapsed-today only) — this button
+                used to key off the broader `lapsed` alone, so it kept showing
+                for a request days or weeks past its own date. */}
+            {!overdue && lapsed && !slotReleased && (
+              <button
+                type="button"
+                className="dash-btn dash-btn--tint-amber"
+                disabled={isReleasing}
+                title="Free this patient's requested time slot for another booking — their request stays pending, they'll just need a new date once approved"
+                onClick={() => onReleaseSlot(appointment)}
+              >
+                <SwapIcon /> {isReleasing ? 'Releasing…' : 'Release Slot'}
+              </button>
+            )}
+          </>
         )}
       </div>
     </div>
@@ -356,6 +382,13 @@ function HmoVerificationQueue() {
   const [approveTarget, setApproveTarget] = useState(null);
   const [approveCoverageNotes, setApproveCoverageNotes] = useState('');
   const [approveError, setApproveError] = useState('');
+
+  // "Review Requested Date" — a patient countered the staff-proposed date
+  // (patient_requested_new_date_at set) and it's awaiting dental assistant/
+  // admin approve or decline (reviewHmoDateRequest()). ReviewHmoDateModal
+  // owns its own note/submitting/error state, same as ReviewRescheduleModal
+  // does for the general-reschedule case — this only tracks which card.
+  const [reviewDateTarget, setReviewDateTarget] = useState(null);
 
   // "Release Slot" — frees a lapsed, still-pending booking's hold on its
   // own date+time (AppointmentSlotService then stops counting it as
@@ -681,6 +714,7 @@ function HmoVerificationQueue() {
             onEditHmoInfo={openEditHmoInfo}
             onProposeNewDate={openProposeNewDate}
             onReleaseSlot={openReleaseSlot}
+            onReviewDateRequest={setReviewDateTarget}
           />
         ))
       )}
@@ -1019,6 +1053,17 @@ function HmoVerificationQueue() {
           </>
         )}
       </Modal>
+
+      <ReviewHmoDateModal
+        open={!!reviewDateTarget}
+        onClose={() => setReviewDateTarget(null)}
+        appointment={reviewDateTarget}
+        onSuccess={() => {
+          setReviewDateTarget(null);
+          load({ silent: true });
+          showSuccessToast('Decision recorded.');
+        }}
+      />
     </div>
   );
 }

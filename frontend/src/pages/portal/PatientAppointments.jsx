@@ -120,10 +120,17 @@ function isOverdueUnresolved(appointment) {
 // coverage on a booking whose original date already passed
 // (StaffVerificationController::proposeNewDate() — coverage IS verified,
 // verified_at is the tell). They need different copy and a different
-// outcome once the patient responds (see acceptStaffProposedDate() —
-// straight to 'confirmed', not another review step).
+// outcome once the patient responds (see acceptStaffProposedDate()/
+// requestDifferentDateForVerifiedHmo() — both land on a staff review step
+// now, like the confirmed-reschedule case below, not an instant confirm).
+// Excludes a row the patient already countered (patient_requested_new_date_at
+// set) — see isAwaitingStaffReview() below, which takes over at that point;
+// showing "Respond" again here would let the patient fire a second,
+// conflicting request while staff is deciding.
 function isStaffProposal(appointment) {
-  return !!appointment.dentist_proposed_new_date_at && !!appointment.verified_at;
+  return !!appointment.dentist_proposed_new_date_at
+    && !!appointment.verified_at
+    && !appointment.patient_requested_new_date_at;
 }
 
 // A THIRD "someone proposed a new date, please respond" situation: the
@@ -350,11 +357,9 @@ function PatientAppointments() {
       setAppointments((prev) => prev.map((a) => (a.id === proposalTarget.id ? response.data : a)));
       setProposalTarget(null);
       showSuccessToast(
-        confirmedReschedule
+        confirmedReschedule || staffProposal
           ? 'Your requested date was sent to staff for review.'
-          : staffProposal
-            ? 'Appointment confirmed.'
-            : 'New date sent for review.'
+          : 'New date sent for review.'
       );
     } catch (err) {
       setRespondError(err.response?.data?.message || 'Could not send this date.');

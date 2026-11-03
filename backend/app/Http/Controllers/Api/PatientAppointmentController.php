@@ -498,12 +498,12 @@ class PatientAppointmentController extends Controller
 
     /**
      * Patient counters the staff-proposed date with a different one of their
-     * own — same "no further verification needed" reasoning as
-     * acceptStaffProposedDate() above, so this also goes straight to
-     * 'confirmed' once the new slot checks out, unlike
-     * requestDifferentDate()'s pediatric equivalent (which lands back in the
-     * dentist's own review queue instead, since that flow's proposer still
-     * has to personally confirm the slot).
+     * own — records the request and notifies staff for review
+     * (StaffVerificationController::reviewHmoDateRequest()), same
+     * record-then-review shape as requestDifferentRescheduleDate() below
+     * (the general confirmed-appointment case) instead of auto-confirming
+     * outright. HMO coverage itself was already verified back when staff
+     * proposed this date, so this step only ever settles the date.
      */
     public function requestDifferentDateForVerifiedHmo(Request $request, Appointment $appointment)
     {
@@ -521,6 +521,10 @@ class PatientAppointmentController extends Controller
             return response()->json(['message' => 'This appointment has no proposed date to change.'], 422);
         }
 
+        if ($appointment->patient_requested_new_date_at !== null) {
+            return response()->json(['message' => 'A requested date is already awaiting staff review.'], 422);
+        }
+
         $validated = $request->validate([
             'appointment_date' => ['required', 'date_format:Y-m-d', 'after:today'],
             'appointment_time' => ['required', 'date_format:H:i'],
@@ -528,62 +532,42 @@ class PatientAppointmentController extends Controller
 
         $appointment->load('service:id,duration_minutes');
 
-        $confirmed = DB::transaction(function () use ($appointment, $validated) {
-            $available = $this->slots->isSlotAvailable(
-                $appointment->dentist_id,
-                $validated['appointment_date'],
-                $validated['appointment_time'],
-                $appointment->service->duration_minutes,
-                $appointment->id,
-            );
+        $available = $this->slots->isSlotAvailable(
+            $appointment->dentist_id,
+            $validated['appointment_date'],
+            $validated['appointment_time'],
+            $appointment->service->duration_minutes,
+            $appointment->id,
+        );
 
-            if (! $available) {
-                return false;
-            }
-
-            $appointment->update([
-                'appointment_date' => $validated['appointment_date'],
-                'appointment_time' => $validated['appointment_time'],
-                'status' => 'confirmed',
-                'dentist_proposed_new_date_at' => null,
-                'dentist_reschedule_reason' => null,
-            ]);
-
-            return true;
-        });
-
-        if (! $confirmed) {
+        if (! $available) {
             return response()->json([
                 'message' => 'That time is no longer available. Please choose another.',
             ], 409);
         }
 
+        $appointment->update([
+            'patient_requested_date' => $validated['appointment_date'],
+            'patient_requested_time' => $validated['appointment_time'],
+            'patient_requested_new_date_at' => now(),
+        ]);
+
         AppointmentStatusLog::create([
             'appointment_id' => $appointment->id,
             'old_status' => 'pending_verification',
-            'new_status' => 'confirmed',
+            'new_status' => 'pending_verification',
             'changed_by' => $request->user()->id,
-            'note' => "Patient chose a different date than staff proposed, to {$validated['appointment_date']} {$validated['appointment_time']} — HMO coverage was already verified, so this fully confirms the appointment.",
+            'note' => "Patient requested {$validated['appointment_date']} {$validated['appointment_time']} instead of the staff-proposed date — awaiting staff review.",
         ]);
 
         $appointment->load(['service:id,name,duration_minutes', 'patient', 'dentist:id,name']);
-        try {
-            Mail::to($request->user()->email)->send(new AppointmentConfirmedMail($appointment));
-        } catch (\Throwable $e) {
-            Log::warning('Appointment email failed to send', [
-                'mailable' => AppointmentConfirmedMail::class,
-                'appointment_id' => $appointment->id,
-                'error' => $e->getMessage(),
-            ]);
-        }
-        Notification::notifyUser(
-            $request->user()->id,
-            'Appointment confirmed',
-            "Your {$appointment->service->name} appointment is confirmed.",
-            '/patient/appointments'
+        Notification::notifyRoles(
+            ['dental_assistant', 'admin'],
+            'HMO date change requested',
+            "{$request->user()->name} requested a different date for their {$appointment->service->name} appointment — needs review."
         );
 
-        return response()->json(['message' => 'Appointment confirmed.', 'data' => $appointment]);
+        return response()->json(['message' => 'Your requested date was sent to staff for review.', 'data' => $appointment]);
     }
 
     /**

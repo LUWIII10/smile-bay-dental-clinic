@@ -156,6 +156,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::patch('/staff/appointments/{appointment}/hmo-info', [StaffVerificationController::class, 'updateHmoInfo']);
         Route::get('/staff/appointments/{appointment}/available-slots', [StaffVerificationController::class, 'availableSlotsForEdit']);
         Route::patch('/staff/appointments/{appointment}/propose-new-date', [StaffVerificationController::class, 'proposeNewDate']);
+        Route::patch('/staff/appointments/{appointment}/review-hmo-date-request', [StaffVerificationController::class, 'reviewHmoDateRequest']);
         Route::post('/staff/appointments/{appointment}/release-slot', [StaffVerificationController::class, 'releaseSlot']);
 
         Route::get('/staff/appointments', [StaffAppointmentController::class, 'index']);

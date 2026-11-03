@@ -428,6 +428,20 @@ export async function reviewRescheduleRequest(appointmentId, action, note) {
   return response.data;
 }
 
+// Staff decides on a patient's countered date for an HMO booking
+// (StaffVerificationController::reviewHmoDateRequest()) — same approve/
+// decline shape as reviewRescheduleRequest() above, for the separate
+// pending_verification/HMO case instead of the general confirmed-appointment
+// reschedule case.
+export async function reviewHmoDateRequest(appointmentId, action, note) {
+  await api.get('/sanctum/csrf-cookie');
+  const response = await api.patch(`/api/staff/appointments/${appointmentId}/review-hmo-date-request`, {
+    action,
+    note: note || null,
+  });
+  return response.data;
+}
+
 // Frees a still-pending HMO booking's hold on its own slot once it's
 // lapsed (requested date+time already passed without approval) — does NOT
 // reject the request, it stays pending_verification and can still be

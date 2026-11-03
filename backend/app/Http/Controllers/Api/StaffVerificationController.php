@@ -347,6 +347,128 @@ class StaffVerificationController extends Controller
         ]);
     }
 
+    /**
+     * Staff decides on a patient's countered date for an HMO booking whose
+     * coverage is already verified — patient_requested_date/time/_new_date_at,
+     * set by PatientAppointmentController::requestDifferentDateForVerifiedHmo()
+     * once that stops auto-confirming. Same approve/decline shape as
+     * StaffAppointmentController::reviewRescheduleRequest() for the general
+     * confirmed-appointment reschedule case, but this one still finalizes
+     * status to 'confirmed' on approve — the appointment is still
+     * pending_verification up to this point (coverage was already verified
+     * back in proposeNewDate() above; this step only settles the date).
+     */
+    public function reviewHmoDateRequest(Request $request, Appointment $appointment)
+    {
+        if ($appointment->patient_requested_new_date_at === null) {
+            return response()->json(['message' => 'There is no requested date awaiting review for this appointment.'], 422);
+        }
+
+        $validated = $request->validate([
+            'action' => ['required', Rule::in(['approve', 'decline'])],
+            'note' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $appointment->load(['service:id,name,duration_minutes', 'patient.user', 'dentist:id,name']);
+        $requestedDate = $appointment->patient_requested_date->toDateString();
+        $requestedTime = $appointment->patient_requested_time;
+
+        if ($validated['action'] === 'decline') {
+            $appointment->update([
+                'patient_requested_date' => null,
+                'patient_requested_time' => null,
+                'patient_requested_new_date_at' => null,
+            ]);
+
+            AppointmentStatusLog::create([
+                'appointment_id' => $appointment->id,
+                'old_status' => 'pending_verification',
+                'new_status' => 'pending_verification',
+                'changed_by' => $request->user()->id,
+                'note' => "Staff declined the patient's requested date ({$requestedDate} {$requestedTime})."
+                    .(! empty($validated['note']) ? ' Note: '.$validated['note'] : ''),
+            ]);
+
+            Notification::notifyUser(
+                $appointment->patient->user_id,
+                'Requested date not available',
+                "Staff couldn't confirm {$requestedDate} for your {$appointment->service->name} appointment — please accept the original date or pick another.",
+                '/patient/appointments'
+            );
+            ActivityLog::record(
+                $request->user()->id,
+                'hmo_date_request_declined',
+                "{$request->user()->name} declined {$appointment->patient->first_name} {$appointment->patient->last_name}'s requested date for {$appointment->service->name}."
+            );
+
+            return response()->json(['message' => 'Requested date declined.', 'data' => $appointment]);
+        }
+
+        $approved = DB::transaction(function () use ($appointment, $requestedDate, $requestedTime) {
+            $available = $this->slots->isSlotAvailable(
+                $appointment->dentist_id,
+                $requestedDate,
+                substr($requestedTime, 0, 5),
+                $appointment->service->duration_minutes,
+                $appointment->id,
+            );
+
+            if (! $available) {
+                return false;
+            }
+
+            $appointment->update([
+                'appointment_date' => $requestedDate,
+                'appointment_time' => $requestedTime,
+                'status' => 'confirmed',
+                'dentist_proposed_new_date_at' => null,
+                'dentist_reschedule_reason' => null,
+                'patient_requested_date' => null,
+                'patient_requested_time' => null,
+                'patient_requested_new_date_at' => null,
+            ]);
+
+            return true;
+        });
+
+        if (! $approved) {
+            return response()->json([
+                'message' => 'That time is no longer available — decline this request instead.',
+            ], 409);
+        }
+
+        AppointmentStatusLog::create([
+            'appointment_id' => $appointment->id,
+            'old_status' => 'pending_verification',
+            'new_status' => 'confirmed',
+            'changed_by' => $request->user()->id,
+            'note' => "Staff approved the patient's requested date: {$requestedDate} {$requestedTime}.",
+        ]);
+
+        try {
+            Mail::to($appointment->patient->user->email)->send(new AppointmentConfirmedMail($appointment));
+        } catch (\Throwable $e) {
+            Log::warning('Appointment email failed to send', [
+                'mailable' => AppointmentConfirmedMail::class,
+                'appointment_id' => $appointment->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+        Notification::notifyUser(
+            $appointment->patient->user_id,
+            'Appointment confirmed',
+            "Your {$appointment->service->name} appointment is confirmed for {$requestedDate} at {$requestedTime}.",
+            '/patient/appointments'
+        );
+        ActivityLog::record(
+            $request->user()->id,
+            'hmo_date_request_approved',
+            "{$request->user()->name} approved {$appointment->patient->first_name} {$appointment->patient->last_name}'s requested date for {$appointment->service->name}."
+        );
+
+        return response()->json(['message' => 'Requested date approved.', 'data' => $appointment]);
+    }
+
     // What "still pending" can actually mean in practice — staff picks the
     // one that's true right now rather than typing the same handful of
     // phrases freehand every time. Kept here (not a DB-backed lookup table)
