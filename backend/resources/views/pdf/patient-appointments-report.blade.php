@@ -21,7 +21,11 @@
         : \Carbon\Carbon::parse($dateFrom)->format('M j').' – '.\Carbon\Carbon::parse($dateTo)->format('M j, Y'),
     ],
     ['label' => 'Generated', 'value' => $generatedAt->format('M j, Y g:i A')],
-    ['label' => 'Total Patients', 'value' => (string) count($appointments)],
+    // This report is deliberately appointment-centric, not patient-centric
+    // (a patient with two visits in range shows up as two rows) — labeled
+    // to match what count($appointments) actually counts, not "Total
+    // Patients", which it isn't.
+    ['label' => 'Total Appointments', 'value' => (string) count($appointments)],
   ],
 ])
 

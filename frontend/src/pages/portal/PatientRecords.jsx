@@ -2200,7 +2200,13 @@ function PatientRecords() {
                   month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit',
                 }),
               },
-              { icon: UsersIcon, label: 'Total Patients', value: String(dateAppointments.length) },
+              {
+                // Deliberately appointment-centric, not patient-centric (a
+                // patient with two visits in range shows up as two rows) —
+                // labeled to match what dateAppointments.length actually
+                // counts, not "Total Patients", which it isn't.
+                icon: UsersIcon, label: 'Total Appointments', value: String(dateAppointments.length),
+              },
             ]}
           />
           <table className="patient-records-print-table">

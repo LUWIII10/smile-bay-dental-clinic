@@ -174,8 +174,14 @@ class PatientRecordController extends Controller
      * practice always a no-op here: by the time this button is clickable
      * the page has already called show() once, which already provisioned
      * it). date_from/date_to scope Treatment History and Clinical Notes
-     * only, matching PatientRecords.jsx's own printRange — everything else
-     * (patient info, dental chart, treatment plans) is always shown in full.
+     * only — everything else (patient info, dental chart, treatment plans)
+     * is always shown in full.
+     *
+     * The fallback below is only ever reached if this endpoint is called
+     * without date_from/date_to — PatientRecords.jsx's own download button
+     * always sends its printRange state (defaultPrintRange(), 1 year back),
+     * so this stays in sync with that default rather than diverging from it
+     * unreachably.
      */
     public function showPdf(Request $request, Patient $patient)
     {
@@ -184,7 +190,7 @@ class PatientRecordController extends Controller
             'date_to' => ['nullable', 'date_format:Y-m-d'],
         ]);
 
-        $dateFrom = $validated['date_from'] ?? now()->subMonths(6)->toDateString();
+        $dateFrom = $validated['date_from'] ?? now()->subYear()->toDateString();
         $dateTo = $validated['date_to'] ?? now()->toDateString();
 
         $patient->load('user', 'hmoProvider:id,name');
