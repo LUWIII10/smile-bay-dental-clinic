@@ -15,6 +15,7 @@
   ],
 ])
 
+<div class="pdf-section-box">
 <div class="pdf-section-title">Table 1 &mdash; Appointment Summary</div>
 <table class="pdf-table pdf-table-summary">
   <tbody>
@@ -33,7 +34,9 @@
     Busiest day: <strong>{{ \Carbon\Carbon::parse($peakDay->date)->format('M j, Y') }}</strong> ({{ $peakDay->count }} appointment{{ $peakDay->count === 1 ? '' : 's' }}).
   @endif
 </p>
+</div>
 
+<div class="pdf-section-box">
 <div class="pdf-section-title">Table 2 &mdash; Payment Type</div>
 <table class="pdf-table">
   <thead><tr><th>Type</th><th class="num">Count</th><th class="num">Share</th></tr></thead>
@@ -43,7 +46,9 @@
   </tbody>
   <tfoot><tr><td>Total</td><td class="num">{{ $paymentTotal }}</td><td class="num">100%</td></tr></tfoot>
 </table>
+</div>
 
+<div class="pdf-section-box">
 <div class="pdf-section-title">Table 3 &mdash; Services Rendered</div>
 @if (count($topServices) === 0)
   <p class="pdf-empty">No data in this range.</p>
@@ -58,7 +63,9 @@
     <tfoot><tr><td>Total</td><td class="num">{{ $servicesTotal }}</td><td class="num">100.0%</td></tr></tfoot>
   </table>
 @endif
+</div>
 
+<div class="pdf-section-box">
 <div class="pdf-section-title">Table 4 &mdash; Appointments by Dentist</div>
 @if (count($byDentist) === 0)
   <p class="pdf-empty">No data in this range.</p>
@@ -73,6 +80,7 @@
     <tfoot><tr><td>Total</td><td class="num">{{ $dentistTotal }}</td><td class="num">100.0%</td></tr></tfoot>
   </table>
 @endif
+</div>
 
 @include('pdf.partials.footer', ['text' => 'Smile Bay Dental Clinic - Clinic Operations Report'])
 

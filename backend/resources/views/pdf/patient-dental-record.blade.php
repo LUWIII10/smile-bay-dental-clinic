@@ -71,6 +71,7 @@
   Patient information and the dental chart are current as of the print date, in full, regardless of that range.
 </p>
 
+<div class="pdf-section-box">
 <div class="pdf-section-title">Patient Information</div>
 <table class="pdf-grid">
   <tr>
@@ -105,7 +106,9 @@
     <td class="g-label">Primary Dentist</td><td class="g-value">{{ $record->primaryDentist->name ?? 'Not yet assigned' }}</td>
   </tr>
 </table>
+</div>
 
+<div class="pdf-section-box">
 <div class="pdf-section-title">Medical &amp; Dental History</div>
 <table class="pdf-grid">
   <tr>
@@ -129,7 +132,9 @@
     <td class="g-label">Dental Concerns</td><td class="g-value">{{ $dentalConcernsSummary }}</td>
   </tr>
 </table>
+</div>
 
+<div class="pdf-section-box">
 <div class="pdf-section-title">Dental Chart Summary</div>
 @if ($record->toothConditions->count() === 0)
   <p class="pdf-empty">No tooth conditions charted yet.</p>
@@ -149,7 +154,9 @@
     </tbody>
   </table>
 @endif
+</div>
 
+<div class="pdf-section-box">
 <div class="pdf-section-title">Treatment Plans</div>
 @if ($record->treatmentPlans->count() === 0)
   <p class="pdf-empty">No treatment plans on file.</p>
@@ -175,7 +182,9 @@
     </tbody>
   </table>
 @endif
+</div>
 
+<div class="pdf-section-box">
 <div class="pdf-section-title">Treatment History</div>
 @if ($printHistory->count() === 0)
   <p class="pdf-empty">No entries in the selected period.</p>
@@ -195,7 +204,9 @@
     </tbody>
   </table>
 @endif
+</div>
 
+<div class="pdf-section-box">
 <div class="pdf-section-title">Clinical Notes</div>
 @if ($printNotes->count() === 0)
   <p class="pdf-empty">No entries in the selected period.</p>
@@ -213,9 +224,11 @@
     </tbody>
   </table>
 @endif
+</div>
 
+<div class="pdf-section-box">
 <div class="pdf-section-title">Consent &amp; Record Verification</div>
-<p class="pdf-summary">
+<p class="pdf-summary" style="padding: 0 12px;">
   I certify that the information in this record is accurate to the best of my knowledge and consent to its use for dental care at Smile Bay Dental Clinic.
 </p>
 <table class="pdf-signature-row">
@@ -224,12 +237,13 @@
     <td><span class="pdf-signature-line">Dentist Signature</span></td>
   </tr>
 </table>
-<table class="pdf-signature-row">
+<table class="pdf-signature-row" style="margin-bottom: 14px;">
   <tr>
     <td><span class="pdf-signature-line">Date</span></td>
     <td><span class="pdf-signature-line">Record Verified By</span></td>
   </tr>
 </table>
+</div>
 
 @include('pdf.partials.footer', ['text' => 'Smile Bay Dental Clinic - Patient Dental Record - Confidential Medical Record'])
 

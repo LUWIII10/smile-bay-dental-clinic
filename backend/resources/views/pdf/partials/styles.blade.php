@@ -6,9 +6,9 @@
      the on-screen @media print versions of these same reports use.
      DejaVu Sans (bundled with dompdf) renders correctly; the app's actual
      'Poppins' web font isn't loaded here. */
-  @page { margin: 30px 34px; }
+  @page { margin: 40px 38px; }
 
-  body { font-family: 'DejaVu Sans', sans-serif; color: #334155; font-size: 10.5px; }
+  body { font-family: 'DejaVu Sans', sans-serif; color: #334155; font-size: 11.5px; }
 
   /* "Smile Bay" in the letterhead is Pacifico everywhere else in the app
      (BrandLogo.css's .sb-title, loaded there from Google Fonts) — dompdf
@@ -24,7 +24,7 @@
 
   table { border-collapse: collapse; width: 100%; }
 
-  .pdf-letterhead { width: 100%; margin-bottom: 16px; padding-bottom: 14px; border-bottom: 3px solid #2952e3; }
+  .pdf-letterhead { width: 100%; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 3px solid #2952e3; }
   .pdf-letterhead td { vertical-align: top; }
 
   /* Same lockup as the real BrandLogo component (BrandLogo.css) — badge
@@ -38,8 +38,8 @@
   .pdf-brand-text-cell { line-height: 1; }
   .pdf-brand-title { font-family: 'Pacifico', 'DejaVu Sans', cursive; font-size: 19px; font-weight: normal; color: #1d4ed8; line-height: 1; }
   .pdf-brand-subtitle { font-size: 8.5px; font-weight: bold; letter-spacing: 1px; text-transform: uppercase; color: #1d4ed8; margin-top: 3px; }
-  .pdf-tagline { font-size: 9px; font-style: italic; color: #64748b; padding-top: 6px; margin-top: 8px; border-top: 1px solid #dbeafe; }
-  .pdf-contact { font-size: 9px; color: #334155; margin-top: 10px; line-height: 1.6; }
+  .pdf-tagline { font-size: 9.5px; font-style: italic; color: #64748b; padding-top: 7px; margin-top: 9px; border-top: 1px solid #dbeafe; }
+  .pdf-contact { font-size: 10px; color: #334155; margin-top: 10px; line-height: 1.7; }
 
   .pdf-doc-col { width: 230px; text-align: right; }
   .pdf-doc-badge {
@@ -51,49 +51,56 @@
     font-weight: bold;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    border-radius: 5px;
   }
   .pdf-meta { width: 100%; margin-top: 10px; }
-  .pdf-meta td { padding: 2px 0; font-size: 9.5px; text-align: right; }
+  .pdf-meta td { padding: 3px 0; font-size: 10px; text-align: right; }
   .pdf-meta-label { color: #64748b; font-weight: bold; }
   .pdf-meta-value { color: #0f2557; font-weight: bold; padding-left: 6px; }
+
+  /* Wraps a .pdf-section-title + its table/empty-state in a visible
+     border — matches the bordered "card" feel the on-screen @media print
+     versions of these same reports already give each section, instead of
+     just a colored title bar with nothing anchoring where it ends. */
+  .pdf-section-box { border: 1px solid #dbeafe; border-radius: 5px; margin: 16px 0; overflow: hidden; }
 
   .pdf-section-title {
     background: #eff6ff;
     color: #0f2557;
     font-size: 10.5px;
     font-weight: bold;
-    padding: 6px 10px;
-    margin: 16px 0 8px;
+    padding: 8px 12px;
+    margin: 0;
     text-transform: uppercase;
     letter-spacing: 0.4px;
   }
 
-  .pdf-summary { font-size: 10px; color: #334155; margin: 6px 0 14px; }
+  .pdf-summary { font-size: 10.5px; color: #334155; margin: 8px 0 16px; }
 
   .pdf-table { width: 100%; margin-bottom: 4px; }
   .pdf-table th {
     background: #1d4ed8;
     color: #ffffff;
     text-align: left;
-    padding: 6px 8px;
-    font-size: 9px;
+    padding: 7px 10px;
+    font-size: 9.5px;
     text-transform: uppercase;
     letter-spacing: 0.3px;
   }
-  .pdf-table td { padding: 6px 8px; font-size: 9.5px; border-bottom: 1px solid #e2e8f0; }
+  .pdf-table td { padding: 7px 10px; font-size: 10px; border-bottom: 1px solid #e2e8f0; }
   .pdf-table .num { text-align: right; }
   .pdf-table tfoot td { font-weight: bold; color: #0f2557; border-top: 1.5px solid #cbd5e1; border-bottom: none; }
   .pdf-table-summary td:first-child { color: #334155; }
   .pdf-table-summary td.num { color: #0f2557; font-weight: bold; }
 
   .pdf-grid { width: 100%; margin-bottom: 4px; }
-  .pdf-grid td { padding: 3px 4px; font-size: 9.5px; vertical-align: top; }
+  .pdf-grid td { padding: 6px 9px; font-size: 10px; vertical-align: top; }
   .pdf-grid .g-label { color: #64748b; width: 42%; }
   .pdf-grid .g-value { color: #0f2557; font-weight: bold; }
 
-  .pdf-empty { font-size: 9.5px; color: #94a3b8; font-style: italic; margin: 0 0 6px; }
+  .pdf-empty { font-size: 10px; color: #94a3b8; font-style: italic; margin: 0; padding: 8px 12px; }
 
-  .pdf-footer { margin-top: 22px; padding-top: 10px; border-top: 1px solid #e2e8f0; text-align: center; font-size: 8.5px; color: #64748b; }
+  .pdf-footer { margin-top: 24px; padding-top: 12px; border-top: 1px solid #e2e8f0; text-align: center; font-size: 9px; color: #64748b; }
 
   .pdf-signature-row { width: 100%; margin-top: 26px; }
   .pdf-signature-row td { width: 50%; padding: 0 10px; }
