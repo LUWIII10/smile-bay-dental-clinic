@@ -6,7 +6,6 @@ import clinicPhoto from '../assets/images/dentalchairbackground.jpg';
 import { getPublicClinicInfo, getPublicDentists, getPublicHmoProviders } from '../api/public';
 import { resolvePhotoUrl } from './portal/avatarUtils';
 import { KNOWN_DENTIST_PHOTOS, KNOWN_DENTIST_CREDENTIALS } from './portal/dentistPhotos';
-import { KNOWN_HMO_PROVIDER_LOGOS } from './portal/hmoProviderLogos';
 import './LandingPage.css';
 
 const NAV_LINKS = [
@@ -475,13 +474,11 @@ function LandingPage() {
           <h2 className="landing-hmo-heading">Accredited HMO Partners</h2>
           <div className="landing-hmo-logos">
             {(hmoProviders || []).map((provider) => {
-              // A real uploaded logo_path wins over the two launch
-              // partners' bundled fallback files; a provider with neither
-              // (added through Settings without a logo yet) falls back to
-              // its plain name instead of a broken-image icon. Width/height
-              // aren't fixed per-provider anymore — .landing-hmo-logo
-              // already normalizes every logo to the same 36px height.
-              const logo = resolvePhotoUrl(provider.logo_path) || KNOWN_HMO_PROVIDER_LOGOS[provider.name];
+              // A provider with no logo uploaded yet falls back to its plain
+              // name instead of a broken-image icon. Width/height aren't
+              // fixed per-provider — .landing-hmo-logo already normalizes
+              // every logo to the same 36px height.
+              const logo = resolvePhotoUrl(provider.logo_path);
               return logo ? (
                 <img
                   key={provider.id}

@@ -18,7 +18,6 @@ import PageHeader from './components/PageHeader';
 import { SettingsIcon, BuildingIcon, ClockIcon, ToothIcon, ShieldIcon } from './icons';
 import { showSuccessToast, showErrorToast, confirmAction } from '../../utils/toast';
 import { resolvePhotoUrl } from './avatarUtils';
-import { KNOWN_HMO_PROVIDER_LOGOS } from './hmoProviderLogos';
 import './dashboards.css';
 import './Appointments.css';
 import './Settings.css';
@@ -250,14 +249,7 @@ function Settings() {
 
   const openEditHmoProvider = (provider) => {
     setEditingHmoProvider(provider);
-    // Same fallback the table's own logo cell already uses (hmoProviderColumns
-    // below) — Medicard/Flexicare have no real logo_path (they predate that
-    // column), so without this the edit modal's preview fell back straight
-    // to the empty-string branch and showed the plain initials badge instead
-    // of their real bundled logo, even though the table right behind it
-    // showed the logo correctly.
-    const logoPreview = resolvePhotoUrl(provider.logo_path) || KNOWN_HMO_PROVIDER_LOGOS[provider.name] || '';
-    setHmoForm({ name: provider.name, logo: null, logoPreview, removeLogo: false });
+    setHmoForm({ name: provider.name, logo: null, logoPreview: resolvePhotoUrl(provider.logo_path) || '', removeLogo: false });
     setHmoError('');
     setHmoModalOpen(true);
   };
@@ -272,10 +264,8 @@ function Settings() {
     });
   };
 
-  // Only meaningful when the provider has a real stored logo_path (gated in
-  // the JSX below) — Medicard/Flexicare's preview can show their bundled
-  // fallback image with nothing actually stored in the database to remove,
-  // so this never fires for them.
+  // Only reachable when the provider has a real stored logo_path (gated in
+  // the JSX below).
   const removeHmoLogo = () => {
     setHmoForm((p) => {
       if (p.logoPreview?.startsWith('blob:')) URL.revokeObjectURL(p.logoPreview);
@@ -394,10 +384,7 @@ function Settings() {
       label: 'HMO Provider',
       minWidth: '46%',
       render: (row) => {
-        // A real uploaded logo_path (any provider added from here on)
-        // wins over the two hardcoded launch-partner assets, which only
-        // exist because Medicard/Flexicare predate this column.
-        const logo = resolvePhotoUrl(row.logo_path) || KNOWN_HMO_PROVIDER_LOGOS[row.name];
+        const logo = resolvePhotoUrl(row.logo_path);
         return (
           <span className="cell-person">
             {logo ? (
@@ -664,10 +651,7 @@ function Settings() {
               hidden
             />
           </label>
-          {/* Only a real stored logo_path is removable — Medicard/Flexicare's
-              preview can be showing their bundled fallback image with
-              nothing actually in the database to clear, so this stays
-              hidden for them. */}
+          {/* Only shown once there's a real stored logo_path to clear. */}
           {editingHmoProvider?.logo_path && hmoForm.logoPreview && (
             <button type="button" className="dash-btn dash-btn--danger hmo-logo-picker-btn" onClick={removeHmoLogo}>
               Remove Logo
