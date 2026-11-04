@@ -250,7 +250,14 @@ function Settings() {
 
   const openEditHmoProvider = (provider) => {
     setEditingHmoProvider(provider);
-    setHmoForm({ name: provider.name, logo: null, logoPreview: resolvePhotoUrl(provider.logo_path) || '' });
+    // Same fallback the table's own logo cell already uses (hmoProviderColumns
+    // below) — Medicard/Flexicare have no real logo_path (they predate that
+    // column), so without this the edit modal's preview fell back straight
+    // to the empty-string branch and showed the plain initials badge instead
+    // of their real bundled logo, even though the table right behind it
+    // showed the logo correctly.
+    const logoPreview = resolvePhotoUrl(provider.logo_path) || KNOWN_HMO_PROVIDER_LOGOS[provider.name] || '';
+    setHmoForm({ name: provider.name, logo: null, logoPreview });
     setHmoError('');
     setHmoModalOpen(true);
   };
