@@ -3,11 +3,10 @@ import { Link } from 'react-router-dom';
 import { FaFacebook, FaInstagram } from 'react-icons/fa';
 import BrandLogo from '../components/common/BrandLogo';
 import clinicPhoto from '../assets/images/dentalchairbackground.jpg';
-import medicardLogo from '../assets/images/medicardlogo.png';
-import flexicareLogo from '../assets/images/flexicarelogo.png';
-import { getPublicClinicInfo, getPublicDentists } from '../api/public';
+import { getPublicClinicInfo, getPublicDentists, getPublicHmoProviders } from '../api/public';
 import { resolvePhotoUrl } from './portal/avatarUtils';
 import { KNOWN_DENTIST_PHOTOS, KNOWN_DENTIST_CREDENTIALS } from './portal/dentistPhotos';
+import { KNOWN_HMO_PROVIDER_LOGOS } from './portal/hmoProviderLogos';
 import './LandingPage.css';
 
 const NAV_LINKS = [
@@ -145,11 +144,6 @@ const STEPS = [
   },
 ];
 
-const HMO_PARTNERS = [
-  { name: 'Medicard', logo: medicardLogo, alt: 'Medicard accredited logo', width: 172, height: 120 },
-  { name: 'Flexicare', logo: flexicareLogo, alt: 'Flexicare accredited logo', width: 247, height: 120 },
-];
-
 const MAP_EMBED_SRC =
   'https://www.google.com/maps?q=Smile+Bay+Dental+Clinic,+Ground+Floor,+Mega+Building,+National+Highway,+Landayan,+San+Pedro,+Laguna,+Philippines+4023&output=embed';
 
@@ -208,10 +202,12 @@ function LandingPage() {
   // ever briefly unreachable.
   const [clinicInfo, setClinicInfo] = useState(null);
   const [dentists, setDentists] = useState(null);
+  const [hmoProviders, setHmoProviders] = useState(null);
 
   useEffect(() => {
     getPublicClinicInfo().then(setClinicInfo).catch(() => {});
     getPublicDentists().then(setDentists).catch(() => {});
+    getPublicHmoProviders().then(setHmoProviders).catch(() => {});
   }, []);
 
   // Esc closes, and body scroll is locked while the modal is open — same
@@ -478,17 +474,26 @@ function LandingPage() {
         <div className="landing-section-inner landing-hmo-inner">
           <h2 className="landing-hmo-heading">Accredited HMO Partners</h2>
           <div className="landing-hmo-logos">
-            {HMO_PARTNERS.map((partner) => (
-              <img
-                key={partner.name}
-                src={partner.logo}
-                alt={partner.alt}
-                width={partner.width}
-                height={partner.height}
-                loading="lazy"
-                className="landing-hmo-logo"
-              />
-            ))}
+            {(hmoProviders || []).map((provider) => {
+              // A real uploaded logo_path wins over the two launch
+              // partners' bundled fallback files; a provider with neither
+              // (added through Settings without a logo yet) falls back to
+              // its plain name instead of a broken-image icon. Width/height
+              // aren't fixed per-provider anymore — .landing-hmo-logo
+              // already normalizes every logo to the same 36px height.
+              const logo = resolvePhotoUrl(provider.logo_path) || KNOWN_HMO_PROVIDER_LOGOS[provider.name];
+              return logo ? (
+                <img
+                  key={provider.id}
+                  src={logo}
+                  alt={`${provider.name} accredited logo`}
+                  loading="lazy"
+                  className="landing-hmo-logo"
+                />
+              ) : (
+                <span key={provider.id} className="landing-hmo-logo-fallback">{provider.name}</span>
+              );
+            })}
           </div>
         </div>
       </section>

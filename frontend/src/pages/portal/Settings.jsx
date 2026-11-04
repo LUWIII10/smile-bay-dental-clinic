@@ -18,8 +18,7 @@ import PageHeader from './components/PageHeader';
 import { SettingsIcon, BuildingIcon, ClockIcon, ToothIcon, ShieldIcon } from './icons';
 import { showSuccessToast, showErrorToast, confirmAction } from '../../utils/toast';
 import { resolvePhotoUrl } from './avatarUtils';
-import medicardLogo from '../../assets/images/medicardlogo.png';
-import flexicareLogo from '../../assets/images/flexicarelogo.png';
+import { KNOWN_HMO_PROVIDER_LOGOS } from './hmoProviderLogos';
 import './dashboards.css';
 import './Appointments.css';
 import './Settings.css';
@@ -52,15 +51,6 @@ const CATEGORY_TONE = {
   'Orthodontics': 'green',
   'Specialist Services': 'amber',
 };
-// Same two real accredited-partner logos LandingPage.jsx's HMO_PARTNERS
-// strip already uses, matched the same way (by name) — any other provider
-// (e.g. "Other", or a future admin-added one) falls back to an initials
-// badge instead of a missing-image icon.
-const HMO_PROVIDER_LOGOS = {
-  Medicard: medicardLogo,
-  Flexicare: flexicareLogo,
-};
-
 function getInitials(name) {
   const parts = String(name || '').trim().split(/\s+/);
   const first = parts[0]?.[0] || '';
@@ -387,7 +377,7 @@ function Settings() {
         // A real uploaded logo_path (any provider added from here on)
         // wins over the two hardcoded launch-partner assets, which only
         // exist because Medicard/Flexicare predate this column.
-        const logo = resolvePhotoUrl(row.logo_path) || HMO_PROVIDER_LOGOS[row.name];
+        const logo = resolvePhotoUrl(row.logo_path) || KNOWN_HMO_PROVIDER_LOGOS[row.name];
         return (
           <span className="cell-person">
             {logo ? (

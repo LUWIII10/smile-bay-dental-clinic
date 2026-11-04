@@ -8,13 +8,16 @@ use App\Models\HmoProvider;
 class HmoProviderController extends Controller
 {
     /**
-     * List active HMO providers for the registration wizard's HMO dropdown.
-     * Public endpoint — needed before the patient has an account.
+     * List active HMO providers for the registration wizard's HMO dropdown
+     * and the landing page's "Accredited HMO Partners" strip. Public
+     * endpoint — needed before the patient has an account. logo_path added
+     * for the landing page's own use; the registration dropdown and other
+     * existing callers already ignore fields they don't need.
      */
     public function index()
     {
         return response()->json([
-            'data' => HmoProvider::where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'data' => HmoProvider::where('is_active', true)->orderBy('name')->get(['id', 'name', 'logo_path']),
         ]);
     }
 }

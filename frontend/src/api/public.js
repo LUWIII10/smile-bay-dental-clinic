@@ -12,3 +12,8 @@ export async function getPublicDentists() {
   const response = await api.get('/api/dentists/public');
   return response.data.data;
 }
+
+export async function getPublicHmoProviders() {
+  const response = await api.get('/api/hmo-providers');
+  return response.data.data;
+}

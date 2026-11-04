@@ -858,6 +858,21 @@
   transform: scale(1.05);
 }
 
+/* A provider added through Settings without a logo uploaded yet — same
+   muted-until-hover treatment as .landing-hmo-logo, in text instead of a
+   filtered image. */
+.landing-hmo-logo-fallback {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--landing-text-muted);
+  opacity: 0.55;
+  transition: opacity 0.2s ease;
+}
+
+.landing-hmo-logo-fallback:hover {
+  opacity: 1;
+}
+
 /* ============ Location ============ */
 
 .landing-location-grid {
