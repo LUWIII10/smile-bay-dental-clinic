@@ -42,8 +42,15 @@ class ClinicSettingsController extends Controller
             'clinic_name' => ['required', 'string', 'max:255'],
             'tagline' => ['nullable', 'string', 'max:255'],
             'address' => ['nullable', 'string', 'max:500'],
-            'contact_number' => ['nullable', 'string', 'max:30'],
+            // Digits, spaces, +, -, and parentheses only, 7-20 characters —
+            // loose enough for real PH formats this field already holds
+            // ("0917 132 3093", a landline with an area code, +63 written
+            // out) without a rigid single-format regex, but still rejects
+            // obvious non-phone text (letters, a handful of stray symbols).
+            'contact_number' => ['nullable', 'string', 'regex:/^[0-9+\-\s()]{7,20}$/'],
             'contact_email' => ['nullable', 'email', 'max:255'],
+        ], [
+            'contact_number.regex' => 'Please enter a valid phone number (digits, spaces, +, -, and parentheses only).',
         ]);
 
         $info = ClinicInfo::firstOrCreate([], ['clinic_name' => $validated['clinic_name']]);
