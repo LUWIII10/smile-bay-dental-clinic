@@ -243,7 +243,7 @@ function Settings() {
 
   const openAddHmoProvider = () => {
     setEditingHmoProvider(null);
-    setHmoForm({ name: '', logo: null, logoPreview: '' });
+    setHmoForm({ name: '', logo: null, logoPreview: '', removeLogo: false });
     setHmoError('');
     setHmoModalOpen(true);
   };
@@ -257,7 +257,7 @@ function Settings() {
     // of their real bundled logo, even though the table right behind it
     // showed the logo correctly.
     const logoPreview = resolvePhotoUrl(provider.logo_path) || KNOWN_HMO_PROVIDER_LOGOS[provider.name] || '';
-    setHmoForm({ name: provider.name, logo: null, logoPreview });
+    setHmoForm({ name: provider.name, logo: null, logoPreview, removeLogo: false });
     setHmoError('');
     setHmoModalOpen(true);
   };
@@ -266,7 +266,20 @@ function Settings() {
     if (!file) return;
     setHmoForm((p) => {
       if (p.logoPreview?.startsWith('blob:')) URL.revokeObjectURL(p.logoPreview);
-      return { ...p, logo: file, logoPreview: URL.createObjectURL(file) };
+      // A freshly-picked file supersedes any pending removal from this same
+      // modal session.
+      return { ...p, logo: file, logoPreview: URL.createObjectURL(file), removeLogo: false };
+    });
+  };
+
+  // Only meaningful when the provider has a real stored logo_path (gated in
+  // the JSX below) — Medicard/Flexicare's preview can show their bundled
+  // fallback image with nothing actually stored in the database to remove,
+  // so this never fires for them.
+  const removeHmoLogo = () => {
+    setHmoForm((p) => {
+      if (p.logoPreview?.startsWith('blob:')) URL.revokeObjectURL(p.logoPreview);
+      return { ...p, logo: null, logoPreview: '', removeLogo: true };
     });
   };
 
@@ -274,7 +287,7 @@ function Settings() {
     setSavingHmoProvider(true);
     setHmoError('');
     try {
-      const payload = { name: hmoForm.name.trim(), logo: hmoForm.logo };
+      const payload = { name: hmoForm.name.trim(), logo: hmoForm.logo, removeLogo: hmoForm.removeLogo };
       if (editingHmoProvider) {
         await updateHmoProvider(editingHmoProvider.id, payload);
       } else {
@@ -651,6 +664,15 @@ function Settings() {
               hidden
             />
           </label>
+          {/* Only a real stored logo_path is removable — Medicard/Flexicare's
+              preview can be showing their bundled fallback image with
+              nothing actually in the database to clear, so this stays
+              hidden for them. */}
+          {editingHmoProvider?.logo_path && hmoForm.logoPreview && (
+            <button type="button" className="dash-btn dash-btn--danger hmo-logo-picker-btn" onClick={removeHmoLogo}>
+              Remove Logo
+            </button>
+          )}
         </div>
         <p className="hmo-logo-picker-hint">PNG, JPG, or WEBP — shown next to the provider&rsquo;s name wherever it appears in Settings. Leave blank to keep the initials badge.</p>
 

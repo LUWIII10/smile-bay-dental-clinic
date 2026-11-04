@@ -65,7 +65,12 @@ export async function updateHmoProvider(hmoProviderId, payload) {
     const response = await api.post(`/api/admin/settings/hmo-providers/${hmoProviderId}`, formData);
     return response.data.data;
   }
-  const response = await api.patch(`/api/admin/settings/hmo-providers/${hmoProviderId}`, { name: payload.name });
+  // No file either way here — removeLogo is a plain boolean flag, no need
+  // for the multipart/_method=PATCH workaround above.
+  const response = await api.patch(`/api/admin/settings/hmo-providers/${hmoProviderId}`, {
+    name: payload.name,
+    remove_logo: payload.removeLogo || undefined,
+  });
   return response.data.data;
 }
 

@@ -161,6 +161,7 @@ class ClinicSettingsController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255', Rule::unique('hmo_providers', 'name')->ignore($hmoProvider->id)],
             'logo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+            'remove_logo' => ['sometimes', 'boolean'],
         ]);
 
         $update = ['name' => $validated['name']];
@@ -168,6 +169,12 @@ class ClinicSettingsController extends Controller
         if ($request->hasFile('logo')) {
             $this->deleteLogoIfLocal($hmoProvider->logo_path);
             $update['logo_path'] = $this->storeLogo($request);
+        } elseif ($request->boolean('remove_logo')) {
+            // Clears back to the initials badge (Settings.jsx's own
+            // hmo-logo-picker-preview--empty) — a new upload always takes
+            // priority over this if somehow both were sent, hence the elseif.
+            $this->deleteLogoIfLocal($hmoProvider->logo_path);
+            $update['logo_path'] = null;
         }
 
         $hmoProvider->update($update);
