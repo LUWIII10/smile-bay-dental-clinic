@@ -296,90 +296,31 @@
   color: var(--portal-amber-text);
 }
 
-/* ============ Clinic Closures card — same "Upcoming days off" list shape
-   as MyAvailability.css's own .dayoff-row (second small copy, same
-   reasoning as .toggle-switch above: no shared component exists yet for
-   it). ============ */
+/* ============ Clinic Closures card ============
+   Reuses MyAvailability.css's own .dayoff-row/.dayoff-icon/.dayoff-info/
+   .dayoff-date/.dayoff-reason/.dayoff-delete as-is (same app-wide-bundle
+   reasoning as the calendar block below) — not redeclared here. Its
+   padding: 12px 0 is also the visually correct choice for this card: these
+   rows sit directly inside .section-card, which already contributes its
+   own 20px side padding (dashboards.css), so a second 20px here would have
+   doubled the indent on top of the collision risk. ============ */
 
-.dayoff-row {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 12px 20px;
-  border-bottom: 1px solid var(--portal-border-light);
-}
-
-.dayoff-row:last-child {
-  border-bottom: none;
-}
-
-.dayoff-icon {
-  flex-shrink: 0;
-  width: 36px;
-  height: 36px;
-  border-radius: var(--portal-radius-sm);
-  background: var(--portal-amber-bg);
-  color: var(--portal-amber-text);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.dayoff-info {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.dayoff-date {
-  font-size: 0.88rem;
-  font-weight: 700;
-  color: var(--portal-navy);
-}
-
-.dayoff-reason {
-  font-size: 0.78rem;
-  color: var(--portal-muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.dayoff-delete {
-  flex-shrink: 0;
-  width: 34px;
-  height: 34px;
-  border-radius: 8px;
-  border: 1px solid var(--portal-border-light);
-  background: #ffffff;
-  color: var(--portal-muted);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-}
-
-.dayoff-delete:hover:not(:disabled) {
-  border-color: #fda29b;
-  background: var(--portal-red-bg);
-  color: var(--portal-red-text);
-}
-
-.dayoff-delete:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-/* ============ "Add Closure Date" modal's own calendar — real
-   .calendar-cell/.calendar-nav-btn/.calendar-grid shapes from
-   BookAppointment.css (Settings.jsx doesn't import that file, so these are
-   redeclared here, same reasoning as .toggle-switch above), but deliberately
-   NOT the available/limited/full slot-capacity palette — there's no single
-   dentist/service here, it's clinic-wide, so the three states that actually
-   matter are "no appointments yet," "already has appointments," and
-   "already closed." ============ */
+/* ============ "Add Closure Date" modal's own calendar ============
+   .calendar-cell/.calendar-nav-btn/.calendar-grid/.calendar-month-label/
+   .calendar-weekday/.calendar-cell-tip/.calendar-legend/.calendar-legend-item
+   (base) are NOT redeclared here — they already exist in BookAppointment.css,
+   which ships in the same single app-wide bundle Vite produces (confirmed:
+   one dist/assets/index-*.css for the whole app, no per-route CSS
+   splitting), so they're already available on every page regardless of
+   which page's JS imports that file. Redeclaring them here once silently
+   broke Book Appointment's own real color-coded calendar (same bundling
+   collision .hours-row's own comment above already warns about) — the
+   late-loading duplicate .calendar-cell's plain background/color beat
+   .calendar-cell--available/--limited/--full's colors because both are
+   single-class selectors of equal specificity, so whichever lands later in
+   the bundle wins. Only the modifier classes below are genuinely new (no
+   existing page has this three-state "does this date already have
+   appointments" palette), so only they get their own rules. */
 
 .closure-picker-pane {
   padding: 14px;
@@ -394,68 +335,6 @@
   align-items: center;
   justify-content: space-between;
   margin-bottom: 10px;
-}
-
-.calendar-nav-btn {
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  border: 1px solid var(--portal-border-light);
-  background: var(--portal-card);
-  color: var(--portal-navy);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-}
-
-.calendar-nav-btn:hover:not(:disabled) {
-  border-color: var(--portal-blue);
-  color: var(--portal-blue);
-}
-
-.calendar-nav-btn:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
-}
-
-.calendar-month-label {
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: var(--portal-navy);
-}
-
-.calendar-grid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 5px;
-}
-
-.calendar-weekday {
-  text-align: center;
-  font-size: 0.68rem;
-  font-weight: 700;
-  color: var(--portal-muted);
-  padding-bottom: 6px;
-}
-
-.calendar-cell {
-  position: relative;
-  aspect-ratio: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  border: 2px solid transparent;
-  background: transparent;
-  font-size: 0.8rem;
-  color: var(--portal-slate);
-  cursor: pointer;
-}
-
-.calendar-cell--blank {
-  cursor: default;
-  visibility: hidden;
 }
 
 .calendar-cell--none {
@@ -475,80 +354,20 @@
   cursor: not-allowed;
 }
 
-.calendar-cell--unavailable {
-  background: transparent;
-  color: #cbd5e1;
-  cursor: not-allowed;
-}
-
-.calendar-cell--selected {
-  background: var(--portal-blue) !important;
-  color: #ffffff !important;
-  border-color: transparent;
-  text-decoration: none;
-  box-shadow: 0 4px 10px rgba(41, 82, 227, 0.3);
-}
-
-.calendar-cell-tip {
-  position: absolute;
-  bottom: calc(100% + 8px);
-  left: 50%;
-  transform: translateX(-50%) translateY(4px);
-  background: var(--portal-navy);
-  color: #ffffff;
-  font-size: 0.7rem;
-  font-weight: 600;
-  padding: 5px 9px;
-  border-radius: 7px;
-  white-space: nowrap;
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity 0.12s ease, transform 0.12s ease;
-  pointer-events: none;
-  z-index: 5;
-}
-
-.calendar-cell-tip::after {
-  content: '';
-  position: absolute;
-  top: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  border: 5px solid transparent;
-  border-top-color: var(--portal-navy);
-}
-
-.calendar-cell:hover .calendar-cell-tip {
-  opacity: 1;
-  visibility: visible;
-  transform: translateX(-50%) translateY(0);
-}
-
-.calendar-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 14px;
-  padding-top: 12px;
-  border-top: 1px solid var(--portal-border-light);
-}
-
-.calendar-legend-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  border-radius: 999px;
-  font-size: 0.72rem;
-}
-
 .calendar-legend-item--none { background: var(--portal-green-bg); color: var(--portal-green-text); }
 .calendar-legend-item--busy { background: var(--portal-amber-bg); color: var(--portal-amber-text); }
 .calendar-legend-item--day-closed { background: var(--portal-gray-bg); color: var(--portal-muted); }
 
-/* ============ Reschedule-first conflict modal (clinic closure) ============ */
+/* ============ Reschedule-first conflict modal (clinic closure) ============
+   Named .closure-conflict-* rather than reusing MyAvailability.css's own
+   .conflict-list/.conflict-list-item — same page-wide-bundle collision
+   reasoning as above, but this time a real layout difference, not just a
+   redundant copy: that one's .conflict-list-item is a plain stacked column
+   (date above meta, no action), this one needs a row with a "Reschedule"
+   button on the right, so reusing the name would have broken one or the
+   other depending on bundle order. */
 
-.conflict-list {
+.closure-conflict-list {
   list-style: none;
   margin: 0 0 4px;
   padding: 0;
@@ -558,7 +377,7 @@
   border-radius: 10px;
 }
 
-.conflict-list-item {
+.closure-conflict-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -567,23 +386,23 @@
   border-bottom: 1px solid var(--portal-border-light);
 }
 
-.conflict-list-item:last-child {
+.closure-conflict-item:last-child {
   border-bottom: none;
 }
 
-.conflict-list-text {
+.closure-conflict-text {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 
-.conflict-list-date {
+.closure-conflict-date {
   font-size: 0.82rem;
   font-weight: 700;
   color: var(--portal-navy);
 }
 
-.conflict-list-meta {
+.closure-conflict-meta {
   font-size: 0.78rem;
   color: var(--portal-muted);
 }

@@ -853,12 +853,12 @@ function Settings() {
             <span className={`progress-pill${conflictAppointments.length === 0 ? ' progress-pill--done' : ''}`}>
               {conflictAppointments.length === 0 ? '✓' : '⏳'} {originalConflictCount - conflictAppointments.length} of {originalConflictCount} rescheduled
             </span>
-            <ul className="conflict-list" style={{ marginTop: 12 }}>
+            <ul className="closure-conflict-list" style={{ marginTop: 12 }}>
               {conflictAppointments.map((c) => (
-                <li key={c.id} className="conflict-list-item">
-                  <div className="conflict-list-text">
-                    <span className="conflict-list-date">{c.patient_name} — {c.service_name}, {c.dentist_name}</span>
-                    <span className="conflict-list-meta">{formatDateLong(c.appointment_date)} · {formatTime12h(c.appointment_time)}</span>
+                <li key={c.id} className="closure-conflict-item">
+                  <div className="closure-conflict-text">
+                    <span className="closure-conflict-date">{c.patient_name} — {c.service_name}, {c.dentist_name}</span>
+                    <span className="closure-conflict-meta">{formatDateLong(c.appointment_date)} · {formatTime12h(c.appointment_time)}</span>
                   </div>
                   <button type="button" className="dash-btn dash-btn--outline row-btn" onClick={() => setReschedTarget(c)}>
                     Reschedule
