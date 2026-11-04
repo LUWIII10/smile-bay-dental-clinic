@@ -42,12 +42,29 @@ class ClinicSettingsController extends Controller
             'clinic_name' => ['required', 'string', 'max:255'],
             'tagline' => ['nullable', 'string', 'max:255'],
             'address' => ['nullable', 'string', 'max:500'],
-            // Digits, spaces, +, -, and parentheses only, 7-20 characters —
-            // loose enough for real PH formats this field already holds
-            // ("0917 132 3093", a landline with an area code, +63 written
-            // out) without a rigid single-format regex, but still rejects
-            // obvious non-phone text (letters, a handful of stray symbols).
-            'contact_number' => ['nullable', 'string', 'regex:/^[0-9+\-\s()]{7,20}$/'],
+            // Two checks, not one: the character whitelist alone (digits,
+            // spaces, +, -, parentheses) only catches letters/stray symbols
+            // — "0917 132 3093333333" (padded with extra digits) passed a
+            // plain character+length-of-the-whole-string check, since
+            // spaces/dashes ate into that length budget without actually
+            // limiting how many real digits were typed. Stripping
+            // formatting first and counting only the digits catches that:
+            // a PH mobile is 11 (09XXXXXXXXX) or 12 with the country code
+            // (639XXXXXXXXX) written out, a landline runs 7 (no area code)
+            // to 10 (with one) — 7-12 covers all of those without
+            // pretending to verify the number is actually real/reachable.
+            'contact_number' => [
+                'nullable', 'string', 'regex:/^[0-9+\-\s()]+$/',
+                function ($attribute, $value, $fail) {
+                    if (! $value) {
+                        return;
+                    }
+                    $digitCount = strlen(preg_replace('/\D/', '', $value));
+                    if ($digitCount < 7 || $digitCount > 12) {
+                        $fail('Please enter a valid phone number — check the number of digits.');
+                    }
+                },
+            ],
             'contact_email' => ['nullable', 'email', 'max:255'],
         ], [
             'contact_number.regex' => 'Please enter a valid phone number (digits, spaces, +, -, and parentheses only).',
