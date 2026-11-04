@@ -1,5 +1,7 @@
+import { useEffect, useState } from 'react';
 import BrandLogo from '../../../components/common/BrandLogo';
 import { MapPinIcon, PhoneIcon, MailIcon } from '../icons';
+import { getPublicClinicInfo } from '../../../api/public';
 
 // Shared print-only letterhead — screen-hidden by its own CSS (.print-letterhead),
 // revealed by @media print, same flip every other print surface in this app
@@ -7,12 +9,15 @@ import { MapPinIcon, PhoneIcon, MailIcon } from '../icons';
 // One reusable header instead of copy-pasting this block per page, so the
 // clinic identity/contact block only ever needs updating in one place.
 //
-// Tagline and contact details are real but hardcoded, not fetched live —
-// same reasoning as the address/phone/email this replaces: ClinicInfo
-// (which holds the editable tagline) only exists behind GET /api/admin/
-// settings, role:admin-only, and this component is shared by dentist/
-// dental_assistant print pages too. Opening that endpoint to more roles is
-// a backend change this pass doesn't make.
+// Fetches live from GET /api/clinic-info (ClinicInfoController) — a public,
+// unauthenticated endpoint already used by the landing page, not the
+// role:admin-only GET /api/admin/settings this component used to assume was
+// the only source. Editing Clinic Info in Settings now actually reaches this
+// on-screen "Print" path too, instead of only the downloadable PDFs (which
+// already read it live via AppServiceProvider's view composer). Hardcoded
+// strings stay as the initial/fallback state — same values as before, same
+// fallback pattern LandingPage.jsx already uses — so the letterhead never
+// renders blank while the fetch is in flight or if it ever fails.
 //
 // title: the report's name (e.g. "Clinic Operations Report").
 // metaRows: [{ icon: IconComponent, label, value }] — each print page's own
@@ -20,15 +25,21 @@ import { MapPinIcon, PhoneIcon, MailIcon } from '../icons';
 // for a dental record, Date/Generated/Total Patients for an appointments-
 // by-date report).
 function PrintLetterhead({ title, metaRows }) {
+  const [clinicInfo, setClinicInfo] = useState(null);
+
+  useEffect(() => {
+    getPublicClinicInfo().then(setClinicInfo).catch(() => {});
+  }, []);
+
   return (
     <div className="print-letterhead">
       <div className="print-letterhead-identity">
         <BrandLogo variant="blue" size="lg" />
-        <p className="print-letterhead-tagline">Your Smile, Our Priority</p>
+        <p className="print-letterhead-tagline">{clinicInfo?.tagline || 'Your Smile, Our Priority'}</p>
         <div className="print-letterhead-contact">
-          <span><MapPinIcon /> Ground Floor, Mega Building, National Highway, Landayan, San Pedro, Laguna, 4023</span>
-          <span><PhoneIcon /> 0917 132 3093</span>
-          <span><MailIcon /> smilebayph@gmail.com</span>
+          <span><MapPinIcon /> {clinicInfo?.address || 'Ground Floor, Mega Building, National Highway, Landayan, San Pedro, Laguna, 4023'}</span>
+          <span><PhoneIcon /> {clinicInfo?.contact_number || '0917 132 3093'}</span>
+          <span><MailIcon /> {clinicInfo?.contact_email || 'smilebayph@gmail.com'}</span>
         </div>
       </div>
 
