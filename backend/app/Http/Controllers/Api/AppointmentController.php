@@ -130,6 +130,25 @@ class AppointmentController extends Controller
                 return null;
             }
 
+            // Dentist-side availability only answers "is this dentist free" —
+            // under "Any Available Doctor," a time can be genuinely open for
+            // a DIFFERENT dentist than one the patient already has an
+            // overlapping appointment with, which isSlotAvailable() above
+            // would never catch (see AppointmentSlotService::
+            // isPatientSlotFree()'s own doc comment). Distinct sentinel
+            // string so the response outside can give a clearer message
+            // than the generic "slot no longer available" below.
+            $patientFree = $this->slots->isPatientSlotFree(
+                $patient->id,
+                $validated['appointment_date'],
+                $validated['appointment_time'],
+                $service->duration_minutes,
+            );
+
+            if (! $patientFree) {
+                return 'patient_conflict';
+            }
+
             $status = $isPediatric
                 ? 'pending_verification'
                 : ($patient->patient_type === 'cash' ? 'confirmed' : 'pending_verification');
@@ -159,6 +178,12 @@ class AppointmentController extends Controller
 
             return $appointment;
         });
+
+        if ($appointment === 'patient_conflict') {
+            return response()->json([
+                'message' => 'You already have another appointment at this exact date and time. Please pick a different time.',
+            ], 409);
+        }
 
         if (! $appointment) {
             return response()->json([

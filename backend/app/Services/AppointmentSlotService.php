@@ -336,6 +336,31 @@ class AppointmentSlotService
     }
 
     /**
+     * Same re-check-before-commit idea as isSlotAvailable() above, but
+     * scoped to the PATIENT instead of the dentist — catches a patient
+     * double-booking THEMSELVES across two different dentists at an
+     * overlapping date+time (e.g. already confirmed with Dr. A at 9:00, then
+     * "Any Available Doctor" offers 9:00 again because Dr. B happens to be
+     * free then — a real slot for Dr. B, but not one this patient can
+     * actually keep). isSlotAvailable() only ever checks the dentist side,
+     * so this was never caught before. $excludeAppointmentId lets a
+     * reschedule ignore the appointment's own current slot, same as
+     * isSlotAvailable()'s own parameter.
+     */
+    public function isPatientSlotFree(
+        int $patientId,
+        string $date,
+        string $time,
+        int $durationMinutes,
+        ?int $excludeAppointmentId = null
+    ): bool {
+        $slot = Carbon::parse("{$date} {$time}");
+        $existing = $this->occupiedIntervalsForPatient($patientId, $date, $excludeAppointmentId);
+
+        return ! $this->overlapsAny($slot, $durationMinutes, $existing);
+    }
+
+    /**
      * "My Availability" (dentist_weekly_hours/dentist_day_off) means one
      * dentist can now genuinely have worse hours than another on the same
      * date for the same service — this is the smart doctor-switch
@@ -591,6 +616,34 @@ class AppointmentSlotService
             // (see Appointment::slot_released_at) — the original request
             // stays on file, it just stops blocking this date+time for
             // anyone else.
+            ->whereNull('slot_released_at')
+            ->with('service:id,duration_minutes')
+            ->lockForUpdate();
+
+        if ($excludeAppointmentId) {
+            $query->where('id', '!=', $excludeAppointmentId);
+        }
+
+        return $query->get()->map(function (Appointment $appointment) use ($date) {
+            $start = Carbon::parse("{$date} {$appointment->appointment_time}");
+
+            return [
+                'start' => $start,
+                'end' => $start->copy()->addMinutes($appointment->service->duration_minutes),
+            ];
+        })->all();
+    }
+
+    /**
+     * Same shape as occupiedIntervals() above but scoped by patient_id
+     * instead of dentist_id — backs isPatientSlotFree().
+     */
+    private function occupiedIntervalsForPatient(int $patientId, string $date, ?int $excludeAppointmentId = null): array
+    {
+        $query = Appointment::query()
+            ->where('patient_id', $patientId)
+            ->where('appointment_date', $date)
+            ->whereIn('status', self::OCCUPYING_STATUSES)
             ->whereNull('slot_released_at')
             ->with('service:id,duration_minutes')
             ->lockForUpdate();
