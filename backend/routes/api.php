@@ -203,6 +203,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::patch('/admin/settings/hmo-providers/{hmoProvider}', [ClinicSettingsController::class, 'updateHmoProvider']);
         Route::patch('/admin/settings/hmo-providers/{hmoProvider}/toggle-active', [ClinicSettingsController::class, 'toggleHmoProviderActive']);
 
+        Route::get('/admin/settings/clinic-closures/day-summary', [ClinicSettingsController::class, 'closureDaySummary']);
+        Route::get('/admin/settings/clinic-closures/conflicts', [ClinicSettingsController::class, 'closureConflicts']);
+        Route::post('/admin/settings/clinic-closures', [ClinicSettingsController::class, 'storeClosure']);
+        Route::delete('/admin/settings/clinic-closures/{closure}', [ClinicSettingsController::class, 'destroyClosure']);
+
         Route::get('/admin/reports/overview', [ReportsController::class, 'overview']);
         Route::get('/admin/reports/overview/pdf', [ReportsController::class, 'downloadPdf']);
     });

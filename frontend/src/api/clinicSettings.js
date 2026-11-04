@@ -79,3 +79,38 @@ export async function toggleHmoProviderActive(hmoProviderId) {
   const response = await api.patch(`/api/admin/settings/hmo-providers/${hmoProviderId}/toggle-active`);
   return response.data.data;
 }
+
+// month: 'YYYY-MM'. Returns { 'YYYY-MM-DD': { appointment_count, closed } }
+// for every day in that month — what the "Add Closure Date" calendar colors
+// each cell by. Not per-dentist/service slot availability (there's no
+// single dentist here, it's clinic-wide) — just whether that date already
+// has bookings, so the admin can see upfront which dates will trigger the
+// reschedule-first flow.
+export async function getClosureDaySummary(month) {
+  const response = await api.get('/api/admin/settings/clinic-closures/day-summary', { params: { month } });
+  return response.data.data;
+}
+
+// Returns { conflicts: boolean, conflicting_appointments?: [...], closures?: [...] }.
+// conflicts: true means nothing was saved — conflicting_appointments is the
+// list for the "Reschedule affected patients first" modal. Calling this
+// again (same date/reason) after each one is individually rescheduled is
+// what actually creates the closure once the list comes back empty.
+export async function addClinicClosure({ date, reason }) {
+  await api.get('/sanctum/csrf-cookie');
+  const response = await api.post('/api/admin/settings/clinic-closures', { date, reason: reason || null });
+  return response.data;
+}
+
+// Read-only — refreshes the conflict list after a row gets rescheduled,
+// without the create-when-empty side effect addClinicClosure() has.
+export async function getClosureConflicts(date) {
+  const response = await api.get('/api/admin/settings/clinic-closures/conflicts', { params: { date } });
+  return response.data.data;
+}
+
+export async function deleteClinicClosure(closureId) {
+  await api.get('/sanctum/csrf-cookie');
+  const response = await api.delete(`/api/admin/settings/clinic-closures/${closureId}`);
+  return response.data.data;
+}

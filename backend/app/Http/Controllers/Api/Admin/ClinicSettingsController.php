@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\ClinicClosure;
 use App\Models\ClinicInfo;
 use App\Models\ClinicSchedule;
 use App\Models\HmoProvider;
 use App\Models\Service;
+use App\Services\ClinicClosureService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
@@ -20,6 +22,8 @@ use Illuminate\Validation\Rule;
  */
 class ClinicSettingsController extends Controller
 {
+    public function __construct(private ClinicClosureService $closures) {}
+
     public function show()
     {
         return response()->json([
@@ -32,6 +36,7 @@ class ClinicSettingsController extends Controller
                 // HmoProviderController::index()'s registration-facing
                 // list, which only ever shows the active ones.
                 'hmo_providers' => HmoProvider::orderBy('name')->get(),
+                'clinic_closures' => $this->closures->upcoming(),
             ],
         ]);
     }
@@ -246,5 +251,82 @@ class ClinicSettingsController extends Controller
         $hmoProvider->update(['is_active' => ! $hmoProvider->is_active]);
 
         return response()->json(['data' => $hmoProvider->fresh()]);
+    }
+
+    /**
+     * Deliberately stricter than updateSchedule()/storeDayOff()'s own
+     * "flags conflicts, confirm=true to force" pattern — a clinic-wide
+     * closure is never force-created over existing appointments. Every
+     * conflict must be individually rescheduled first (the frontend reuses
+     * StaffAppointmentController::reschedule() for that, row by row), and
+     * this keeps getting re-called — by "Add Closure" the first time, then
+     * by "Close Clinic" again once the list is empty — until the conflict
+     * list genuinely comes back empty, at which point it actually creates
+     * the row. No confirm flag to bypass that; nothing else in this method
+     * does the overriding.
+     */
+    public function storeClosure(Request $request)
+    {
+        $validated = $request->validate([
+            'date' => ['required', 'date_format:Y-m-d', 'after_or_equal:today'],
+            'reason' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $alreadyExists = ClinicClosure::where('date', $validated['date'])->exists();
+        if ($alreadyExists) {
+            return response()->json(['message' => 'That date is already marked as closed.'], 422);
+        }
+
+        $conflicts = $this->closures->conflictsForClosure($validated['date']);
+
+        if ($conflicts->isNotEmpty()) {
+            return response()->json([
+                'conflicts' => true,
+                'conflicting_appointments' => $this->closures->formatConflicts($conflicts),
+            ]);
+        }
+
+        $this->closures->store($validated['date'], $validated['reason'] ?? null);
+
+        return response()->json(['conflicts' => false, 'closures' => $this->closures->upcoming()], 201);
+    }
+
+    /**
+     * Read-only re-check of a date's conflicts — used to refresh the
+     * "Reschedule affected patients first" list after each individual
+     * reschedule, without re-triggering storeClosure()'s own create-when-
+     * empty side effect (that only happens when the admin explicitly clicks
+     * "Close Clinic" again).
+     */
+    public function closureConflicts(Request $request)
+    {
+        $validated = $request->validate([
+            'date' => ['required', 'date_format:Y-m-d'],
+        ]);
+
+        $conflicts = $this->closures->conflictsForClosure($validated['date']);
+
+        return response()->json(['data' => $this->closures->formatConflicts($conflicts)]);
+    }
+
+    /**
+     * No conflict check needed — removing a closure only ever expands
+     * availability, same reasoning as DentistAvailabilityController::
+     * destroyDayOff().
+     */
+    public function destroyClosure(ClinicClosure $closure)
+    {
+        $closure->delete();
+
+        return response()->json(['data' => $this->closures->upcoming()]);
+    }
+
+    public function closureDaySummary(Request $request)
+    {
+        $validated = $request->validate([
+            'month' => ['required', 'date_format:Y-m'],
+        ]);
+
+        return response()->json(['data' => $this->closures->daySummary($validated['month'])]);
     }
 }

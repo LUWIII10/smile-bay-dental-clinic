@@ -1,8 +1,14 @@
 import { useEffect, useState } from 'react';
 import Modal from './Modal';
-import { getAvailableSlots, rescheduleAppointment } from '../../../api/appointments';
-import { formatTime12h } from '../dateTimeUtils';
-import DateRangePicker from './DateRangePicker';
+import { rescheduleAppointment } from '../../../api/appointments';
+import AvailableSlotPicker from './AvailableSlotPicker';
+// AvailableSlotPicker renders .calendar-cell/.slot-card/etc. but doesn't
+// import their CSS itself (every existing caller — PediatricQueue.jsx,
+// PatientAppointments.jsx, HmoVerificationQueue.jsx — already has its own
+// BookAppointment.css import); AllAppointments.jsx/DentistSchedule.jsx/
+// Settings.jsx (this modal's own callers) don't, so it's imported here
+// instead, same as this file already did for its own pre-AvailableSlotPicker
+// markup.
 import '../BookAppointment.css';
 
 function todayDateKey() {
@@ -12,25 +18,29 @@ function todayDateKey() {
 
 // Dentist's own schedule by default — the appointment's own dentist/service
 // never change here, only the date/time, so this reuses the exact same
-// getAvailableSlots grid the patient booking wizard and staff walk-in modal
-// use (real AppointmentSlotService math), just with dentist/service fixed
-// instead of pickable. `rescheduleFn` is swappable (defaults to the
-// dentist-only API) so staff's clinic-wide "Move to Next Open Slot" action
-// (AllAppointments.jsx) can reuse this same modal with its own staff-wide
-// endpoint — every other existing caller is unaffected.
+// color-coded calendar + Morning/Afternoon slots Book Appointment itself
+// uses (via AvailableSlotPicker — real AppointmentSlotService math), just
+// with dentist/service fixed instead of pickable. Previously this rendered
+// its own plain date field + flat time-button list reading straight
+// getAvailableSlots(), a second, visually different picker reading the same
+// data — AvailableSlotPicker replaces both pieces at once, so a slot shown
+// here can never look open/full differently than the real booking calendar
+// does. `rescheduleFn` is swappable (defaults to the dentist-only API) so
+// staff's clinic-wide "Move to Next Open Slot" action (AllAppointments.jsx)
+// and the Clinic Closures reschedule-first flow (Settings.jsx) can reuse
+// this same modal with their own staff-wide endpoint — every other existing
+// caller is unaffected.
 //
 // `needsConfirmation` (default true, matching the default rescheduleFn)
 // controls whether this is a proposal the patient must confirm before it's
 // final, or an instant apply. The dentist's own "Reschedule" isn't usually
-// urgent, so the patient gets a say; staff's "Move to Next Open Slot" is for
-// a running-late patient the SAME day, so it stays instant — AllAppointments
-// passes needsConfirmation={false} alongside its own rescheduleFn.
+// urgent, so the patient gets a say; staff's direct-reschedule actions are
+// for a same-day, time-critical move, so they stay instant — callers pass
+// needsConfirmation={false} alongside their own rescheduleFn.
 function RescheduleModal({
   open, onClose, appointment, onSuccess, rescheduleFn = rescheduleAppointment, needsConfirmation = true,
 }) {
   const [date, setDate] = useState(todayDateKey());
-  const [timeSlots, setTimeSlots] = useState([]);
-  const [loadingSlots, setLoadingSlots] = useState(false);
   const [time, setTime] = useState('');
   const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -45,25 +55,10 @@ function RescheduleModal({
     setSubmitting(false);
   }, [open, appointment]);
 
-  useEffect(() => {
-    if (!open || !appointment || !date) return;
-    (async () => {
-      setLoadingSlots(true);
-      setTime('');
-      try {
-        const result = await getAvailableSlots(appointment.dentist_id, appointment.service_id, date);
-        setTimeSlots(result.slots || []);
-      } catch {
-        setTimeSlots([]);
-      } finally {
-        setLoadingSlots(false);
-      }
-    })();
-  }, [open, appointment, date]);
-
   if (!appointment) return null;
 
-  const patientName = `${appointment.patient?.first_name || ''} ${appointment.patient?.last_name || ''}`.trim();
+  const patientName = `${appointment.patient?.first_name || ''} ${appointment.patient?.last_name || ''}`.trim()
+    || appointment.patient_name;
 
   const handleSubmit = async () => {
     if (!time) return;
@@ -86,7 +81,7 @@ function RescheduleModal({
   return (
     <Modal open={open} onClose={onClose} title={needsConfirmation ? 'Propose a New Time' : 'Reschedule Appointment'}>
       <p style={{ margin: '0 0 16px', fontSize: '0.85rem', color: 'var(--portal-muted)' }}>
-        {patientName} &middot; {appointment.service?.name}
+        {patientName} &middot; {appointment.service?.name || appointment.service_name}
       </p>
       {needsConfirmation && (
         <p style={{ margin: '-8px 0 16px', fontSize: '0.8rem', color: 'var(--portal-muted)' }}>
@@ -94,34 +89,16 @@ function RescheduleModal({
         </p>
       )}
 
-      <label className="modal-field-label">New Date</label>
-      <DateRangePicker
-        mode="single"
-        value={date}
-        onChange={setDate}
-        minDate={todayDateKey()}
-        placeholder="Pick a date"
+      <AvailableSlotPicker
+        dentistId={appointment.dentist_id}
+        serviceId={appointment.service_id}
+        date={date}
+        onDateChange={setDate}
+        time={time}
+        onTimeChange={setTime}
+        disableToday={false}
+        compact
       />
-
-      <label className="modal-field-label" style={{ marginTop: 14, display: 'block' }}>New Time</label>
-      {loadingSlots ? (
-        <p style={{ fontSize: '0.85rem', color: 'var(--portal-muted)' }}>Loading open slots…</p>
-      ) : timeSlots.length === 0 ? (
-        <p style={{ fontSize: '0.85rem', color: 'var(--portal-muted)' }}>No open slots for this date.</p>
-      ) : (
-        <div className="slots-grid">
-          {timeSlots.map((t) => (
-            <button
-              key={t}
-              type="button"
-              className={`slot-card${t === time ? ' slot-card--selected' : ''}`}
-              onClick={() => setTime(t)}
-            >
-              {formatTime12h(t)}
-            </button>
-          ))}
-        </div>
-      )}
 
       {needsConfirmation && (
         <>

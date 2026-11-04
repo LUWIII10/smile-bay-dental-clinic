@@ -441,6 +441,16 @@ class AppointmentSlotService
      */
     private function operatingHoursFor(int $dentistId, string $date): ?array
     {
+        // Clinic-wide closure (Settings > Clinic Closures) wins over
+        // everything below, including a dentist's own hours or day-off —
+        // the clinic being shut for the day applies to every dentist alike,
+        // checked first so nothing further here can override it.
+        $clinicClosed = DB::table('clinic_closures')->where('date', $date)->exists();
+
+        if ($clinicClosed) {
+            return null;
+        }
+
         $dayOfWeek = Carbon::parse($date)->dayOfWeek; // 0=Sunday..6=Saturday, matches clinic_schedules/dentist_weekly_hours
 
         $dayOff = DB::table('dentist_day_off')
@@ -500,6 +510,15 @@ class AppointmentSlotService
      */
     private function unavailabilityReason(int $dentistId, string $date): string
     {
+        // Same clinic-wide-closure-wins-first precedence as operatingHoursFor()
+        // above — reuses the existing 'closed' reason string (the frontend's
+        // slotTooltipText() already renders it as "Clinic closed"), so a
+        // one-off closure date reads identically to a recurring closed
+        // weekday like Sunday, with zero frontend changes needed.
+        if (DB::table('clinic_closures')->where('date', $date)->exists()) {
+            return 'closed';
+        }
+
         $dayOff = DB::table('dentist_day_off')
             ->where('dentist_id', $dentistId)
             ->where('date', $date)

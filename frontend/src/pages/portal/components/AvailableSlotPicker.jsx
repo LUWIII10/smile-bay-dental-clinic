@@ -34,12 +34,12 @@ function startOfDay(date) {
 // dentist, never an "Any Available Doctor" union, so no offDentistNames
 // list to fall back to). count/reason come straight from the same
 // getDayAvailability() response BookAppointment.jsx reads.
-function slotTooltipText(status, count, isToday, isPast, reason) {
+function slotTooltipText(status, count, isToday, isPast, reason, disableToday) {
   if (status === 'full') return 'Fully booked';
   if (status === 'limited') return `${count} slot${count === 1 ? '' : 's'} left`;
   if (status === 'available') return `${count} slot${count === 1 ? '' : 's'} open`;
   if (isPast) return 'Already passed';
-  if (isToday) return 'Not available same-day';
+  if (isToday && disableToday) return 'Not available same-day';
   if (reason === 'day_off') return "Doctor's day off";
   return 'Clinic closed';
 }
@@ -65,7 +65,16 @@ function slotTooltipText(status, count, isToday, isPast, reason) {
 // inline flex direction, not a viewport media query, since a component
 // sitting inside a ~440px modal can't rely on the browser window itself
 // being narrow.
-function AvailableSlotPicker({ dentistId, serviceId, date, onDateChange, time, onTimeChange, compact }) {
+//
+// disableToday (default true, matching every caller before this prop
+// existed — Pediatric Queue's propose, the patient's counter-offer) forces
+// same-day off regardless of real capacity, since both of those submit
+// through endpoints validated after:today server-side. RescheduleModal's
+// callers (dentist's own reschedule, staff's "Move to Next Open Slot")
+// allow after_or_equal:today instead — same-day is the entire point of
+// "Move to Next Open Slot" for a running-late patient — so it passes
+// disableToday={false}.
+function AvailableSlotPicker({ dentistId, serviceId, date, onDateChange, time, onTimeChange, compact, disableToday = true }) {
   const [calendarMonth, setCalendarMonth] = useState(() => startOfDay(new Date()));
   const [dayAvailability, setDayAvailability] = useState({});
   const [slots, setSlots] = useState([]);
@@ -157,10 +166,10 @@ function AvailableSlotPicker({ dentistId, serviceId, date, onDateChange, time, o
             const isToday = d.getTime() === today.getTime();
             const isPast = d.getTime() < today.getTime();
             const info = dayAvailability[key] || { status: 'unavailable', count: 0, reason: null };
-            // Same-day is never bookable for a pediatric reschedule/counter —
-            // forced unavailable here regardless of the fetched status, which
-            // only reflects slot capacity, not this rule.
-            const status = (isPast || isToday) ? 'unavailable' : (info.status || 'unavailable');
+            // Same-day forced unavailable only when disableToday says so —
+            // see this component's own doc comment above for which callers
+            // need which behavior.
+            const status = (isPast || (isToday && disableToday)) ? 'unavailable' : (info.status || 'unavailable');
             const isSelected = key === date;
             const tipTone = status === 'unavailable' ? '' : ` calendar-cell-tip--${status}`;
 
@@ -174,7 +183,7 @@ function AvailableSlotPicker({ dentistId, serviceId, date, onDateChange, time, o
               >
                 {d.getDate()}
                 <span className={`calendar-cell-tip${tipTone}`}>
-                  {slotTooltipText(status, info.count, isToday, isPast, info.reason)}
+                  {slotTooltipText(status, info.count, isToday, isPast, info.reason, disableToday)}
                 </span>
               </button>
             );

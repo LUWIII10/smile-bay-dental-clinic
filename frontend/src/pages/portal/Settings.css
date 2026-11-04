@@ -28,17 +28,24 @@
    landed later in the bundle silently won on DentistSchedule's page too,
    squeezing its appointment rows into this 170px column and wrapping
    patient names one character per line. */
+/* Wraps one .hours-row plus its optional .hours-exception-note below it —
+   the border-bottom/last-child rule moved here from .hours-row itself so
+   the note (when present) sits inside the same bordered block as its day,
+   not visually attached to the next one. */
+.hours-row-group {
+  border-bottom: 1px solid var(--portal-border-light);
+}
+
+.hours-row-group:last-child {
+  border-bottom: none;
+}
+
 .hours-row {
   display: grid;
   grid-template-columns: 170px 1fr;
   align-items: center;
   column-gap: 16px;
   padding: 14px 20px;
-  border-bottom: 1px solid var(--portal-border-light);
-}
-
-.hours-row:last-child {
-  border-bottom: none;
 }
 
 .hours-row--closed {
@@ -267,4 +274,335 @@
 
 .toggle-switch--on::after {
   transform: translateX(18px);
+}
+
+/* ============ Operating Hours: inline note when an upcoming closure falls
+   on that weekday — same amber-pill concept as MyAvailability.css's own
+   .avail-day-exception-note, but .hours-row here is a CSS grid (170px +
+   1fr), not that page's flex row, so this aligns to the row's own 20px
+   side padding instead of copying that file's literal 118px indent, which
+   was tuned for a differently-shaped row. ============ */
+
+.hours-exception-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 20px 14px;
+  padding: 7px 12px;
+  background: var(--portal-amber-bg);
+  border: 1px solid var(--portal-amber-border);
+  border-radius: var(--portal-radius-sm);
+  font-size: 0.78rem;
+  color: var(--portal-amber-text);
+}
+
+/* ============ Clinic Closures card — same "Upcoming days off" list shape
+   as MyAvailability.css's own .dayoff-row (second small copy, same
+   reasoning as .toggle-switch above: no shared component exists yet for
+   it). ============ */
+
+.dayoff-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--portal-border-light);
+}
+
+.dayoff-row:last-child {
+  border-bottom: none;
+}
+
+.dayoff-icon {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--portal-radius-sm);
+  background: var(--portal-amber-bg);
+  color: var(--portal-amber-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dayoff-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dayoff-date {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--portal-navy);
+}
+
+.dayoff-reason {
+  font-size: 0.78rem;
+  color: var(--portal-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dayoff-delete {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  border: 1px solid var(--portal-border-light);
+  background: #ffffff;
+  color: var(--portal-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.dayoff-delete:hover:not(:disabled) {
+  border-color: #fda29b;
+  background: var(--portal-red-bg);
+  color: var(--portal-red-text);
+}
+
+.dayoff-delete:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ============ "Add Closure Date" modal's own calendar — real
+   .calendar-cell/.calendar-nav-btn/.calendar-grid shapes from
+   BookAppointment.css (Settings.jsx doesn't import that file, so these are
+   redeclared here, same reasoning as .toggle-switch above), but deliberately
+   NOT the available/limited/full slot-capacity palette — there's no single
+   dentist/service here, it's clinic-wide, so the three states that actually
+   matter are "no appointments yet," "already has appointments," and
+   "already closed." ============ */
+
+.closure-picker-pane {
+  padding: 14px;
+  background: var(--portal-canvas);
+  border: 1px solid var(--portal-border-light);
+  border-radius: 14px;
+  box-sizing: border-box;
+}
+
+.closure-cal-nav-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.calendar-nav-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid var(--portal-border-light);
+  background: var(--portal-card);
+  color: var(--portal-navy);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.calendar-nav-btn:hover:not(:disabled) {
+  border-color: var(--portal-blue);
+  color: var(--portal-blue);
+}
+
+.calendar-nav-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.calendar-month-label {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--portal-navy);
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 5px;
+}
+
+.calendar-weekday {
+  text-align: center;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--portal-muted);
+  padding-bottom: 6px;
+}
+
+.calendar-cell {
+  position: relative;
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  background: transparent;
+  font-size: 0.8rem;
+  color: var(--portal-slate);
+  cursor: pointer;
+}
+
+.calendar-cell--blank {
+  cursor: default;
+  visibility: hidden;
+}
+
+.calendar-cell--none {
+  background: var(--portal-green-bg);
+  color: var(--portal-green-text);
+}
+
+.calendar-cell--busy {
+  background: var(--portal-amber-bg);
+  color: var(--portal-amber-text);
+}
+
+.calendar-cell--day-closed {
+  background: var(--portal-gray-bg);
+  color: var(--portal-muted);
+  text-decoration: line-through;
+  cursor: not-allowed;
+}
+
+.calendar-cell--unavailable {
+  background: transparent;
+  color: #cbd5e1;
+  cursor: not-allowed;
+}
+
+.calendar-cell--selected {
+  background: var(--portal-blue) !important;
+  color: #ffffff !important;
+  border-color: transparent;
+  text-decoration: none;
+  box-shadow: 0 4px 10px rgba(41, 82, 227, 0.3);
+}
+
+.calendar-cell-tip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  background: var(--portal-navy);
+  color: #ffffff;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 5px 9px;
+  border-radius: 7px;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.12s ease, transform 0.12s ease;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.calendar-cell-tip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: var(--portal-navy);
+}
+
+.calendar-cell:hover .calendar-cell-tip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}
+
+.calendar-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--portal-border-light);
+}
+
+.calendar-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+}
+
+.calendar-legend-item--none { background: var(--portal-green-bg); color: var(--portal-green-text); }
+.calendar-legend-item--busy { background: var(--portal-amber-bg); color: var(--portal-amber-text); }
+.calendar-legend-item--day-closed { background: var(--portal-gray-bg); color: var(--portal-muted); }
+
+/* ============ Reschedule-first conflict modal (clinic closure) ============ */
+
+.conflict-list {
+  list-style: none;
+  margin: 0 0 4px;
+  padding: 0;
+  max-height: 280px;
+  overflow-y: auto;
+  border: 1px solid var(--portal-border-light);
+  border-radius: 10px;
+}
+
+.conflict-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--portal-border-light);
+}
+
+.conflict-list-item:last-child {
+  border-bottom: none;
+}
+
+.conflict-list-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.conflict-list-date {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--portal-navy);
+}
+
+.conflict-list-meta {
+  font-size: 0.78rem;
+  color: var(--portal-muted);
+}
+
+.progress-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--portal-amber-text);
+  background: var(--portal-amber-bg);
+  border: 1px solid var(--portal-amber-border);
+  padding: 5px 12px;
+  border-radius: 20px;
+}
+
+.progress-pill--done {
+  color: var(--portal-green-text);
+  background: var(--portal-green-bg);
+  border-color: #bbf7d0;
 }
