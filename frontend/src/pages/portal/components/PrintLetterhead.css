@@ -177,6 +177,22 @@
 
   .patient-records-print-table {
     width: 100%;
+    /* table-layout: fixed was missing entirely — every width below was
+       only ever a hint under the default "auto" layout, never binding, so
+       a cell whose actual content needed more room (a long patient name,
+       a two-line Type cell once the HMO provider sub-label was added)
+       could silently grow the table wider than the page itself instead of
+       wrapping inside its own column. That's what clipped the Type column
+       off the right edge entirely — not the new column by itself, a
+       latent gap this just happened to be the first thing to hit. The
+       PDF side of this same report (.par-col-* in styles.blade.php) has
+       the identical theoretical gap — .pdf-table never had table-layout:
+       fixed either — left alone for now since it's confirmed working;
+       worth the same fix if it ever actually overflows there too. Fixed
+       layout here makes every width below actually hold, combined with
+       box-sizing: border-box just under this rule so padding counts
+       toward each column's declared width instead of adding on top. */
+    table-layout: fixed;
     border-collapse: separate;
     border-spacing: 0;
     font-size: 12.5px;
@@ -189,6 +205,12 @@
     background: #1d4ed8;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+  }
+
+  .patient-records-print-table th,
+  .patient-records-print-table td {
+    box-sizing: border-box;
+    overflow-wrap: break-word;
   }
 
   .patient-records-print-table th {
@@ -206,16 +228,28 @@
     color: #334155;
   }
 
-  /* Fixed-format, short-content columns (an ID, a short date, a time) get
-     just enough width plus real slack to never wrap — calibrated to the
-     page's actual printed width (@page A4, 15mm margins — see
-     DentalRecords.css), not an unconstrained browser window — which frees
-     real space for Patient/Service/Dentist to fit on one line instead of
-     every column wrapping roughly evenly regardless of what it needs. */
+  /* Calibrated to the page's actual printed width (@page A4, 15mm
+     margins — DentalRecords.css — minus this table's own 1px border each
+     side): ~678px usable, with box-sizing: border-box above meaning these
+     7 widths (padding included) need to sum comfortably under that — they
+     sum to 665px, leaving ~13px of slack for rounding. Fixed-format,
+     short-content columns (an ID, a short date, a time, the Type badge +
+     its provider sub-label, which wraps to its own second line rather
+     than needing single-line width) get just enough; the three free-text
+     columns split what's left — sized by how much real content each
+     tends to carry (Service names run longest, e.g. "Orthodontic
+     Consultation / Adjustment" in testing; Dentist is always just
+     "Dr. <name>") rather than divided evenly, which table-layout: fixed
+     would otherwise do for any column left unsized. Content that still
+     doesn't fit wraps within its own column (overflow-wrap: break-word
+     above) instead of forcing the table wider than the page. */
   .patient-records-print-table .prt-col-patno { width: 90px; white-space: nowrap; }
   .patient-records-print-table .prt-col-date { width: 85px; white-space: nowrap; }
   .patient-records-print-table .prt-col-time { width: 65px; white-space: nowrap; }
-  .patient-records-print-table .prt-col-type { width: 75px; white-space: nowrap; }
+  .patient-records-print-table .prt-col-type { width: 65px; white-space: nowrap; }
+  .patient-records-print-table .prt-col-dentist { width: 85px; }
+  .patient-records-print-table .prt-col-patient { width: 135px; }
+  .patient-records-print-table .prt-col-service { width: 140px; }
 
   .prt-col-type-provider {
     display: block;
