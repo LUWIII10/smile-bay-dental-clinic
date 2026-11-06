@@ -114,10 +114,10 @@ function filterSummaryText(typeFilter, hmoProviders, effectiveProviderIds) {
     .map((p) => p.name)
     .join(', ');
 
-  if (cashOn && !hmoOn) return 'Cash patients only';
-  if (hmoOn && !cashOn) return allProviders ? 'HMO patients only' : `HMO patients only — ${providerNames}`;
+  if (cashOn && !hmoOn) return 'Cash';
+  if (hmoOn && !cashOn) return allProviders ? 'HMO' : `HMO: ${providerNames}`;
   // Both chips on, only the provider sub-filter is narrowed.
-  return `Cash patients, and HMO limited to ${providerNames}`;
+  return `Cash, HMO: ${providerNames}`;
 }
 
 function formatStatusLabel(status) {
@@ -2428,7 +2428,7 @@ function PatientRecords() {
                 icon: UsersIcon, label: 'Total Appointments', value: String(dateAppointments.length),
               },
               ...(filterSummaryText(typeFilter, hmoProviders, effectiveProviderIds)
-                ? [{ icon: ShieldIcon, label: 'Filtered To', value: filterSummaryText(typeFilter, hmoProviders, effectiveProviderIds) }]
+                ? [{ icon: ShieldIcon, label: 'Patient Type', value: filterSummaryText(typeFilter, hmoProviders, effectiveProviderIds) }]
                 : []),
             ]}
           />

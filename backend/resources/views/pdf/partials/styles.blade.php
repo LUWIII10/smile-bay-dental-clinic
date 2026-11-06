@@ -53,10 +53,19 @@
     letter-spacing: 0.5px;
     border-radius: 5px;
   }
-  .pdf-meta { width: 100%; margin-top: 10px; }
+  /* table-layout: fixed so each row's own column widths hold regardless of
+     what any other row in the table needs — without it, a single long
+     value (the "Patient Type" filter summary, which can run to "Cash,
+     HMO: Flexicare") forces the shared label column narrower on every
+     row, which is what wrapped "Total Appointments:" onto 2 lines and
+     threw its value out of alignment. 118px fits the longest real label
+     ("Total Appointments:") on one line with room to spare; the value
+     column takes the 230px box's remaining ~112px and wraps within its
+     own row via overflow-wrap instead of bleeding into siblings. */
+  .pdf-meta { width: 100%; margin-top: 10px; table-layout: fixed; }
   .pdf-meta td { padding: 3px 0; font-size: 10px; text-align: right; }
-  .pdf-meta-label { color: #64748b; font-weight: bold; }
-  .pdf-meta-value { color: #0f2557; font-weight: bold; padding-left: 6px; }
+  .pdf-meta-label { color: #64748b; font-weight: bold; width: 118px; }
+  .pdf-meta-value { color: #0f2557; font-weight: bold; padding-left: 6px; overflow-wrap: break-word; }
 
   /* Wraps a .pdf-section-title + its table/empty-state in a visible
      border — matches the bordered "card" feel the on-screen @media print
@@ -104,6 +113,15 @@
   .par-col-date { width: 85px; white-space: nowrap; }
   .par-col-time { width: 65px; white-space: nowrap; }
   .par-col-type { width: 65px; white-space: nowrap; text-align: center; }
+
+  /* Previously unconstrained — dompdf's auto table layout doesn't size
+     this consistently row-to-row (a short "Dr. Ramirez" wrapped to 2
+     lines in some rows while an equally short "Dr. Castro" stayed on 1
+     in others). 85px, same as the on-screen print version's own
+     .prt-col-dentist, comfortably fits any single-word surname on one
+     line; overflow-wrap below still lets a rare long compound surname
+     (e.g. "Dr. Castillo-Pascual") wrap gracefully instead of overflowing. */
+  .par-col-dentist { width: 85px; overflow-wrap: break-word; }
 
   /* Same green/amber Cash/HMO convention as the on-screen StatusBadge
      (dashboards.css .status-badge--green/--amber) — dompdf doesn't load

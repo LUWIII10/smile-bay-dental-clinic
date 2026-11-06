@@ -181,14 +181,14 @@ class PatientRecordController extends Controller
         $providerNames = HmoProvider::whereIn('id', $hmoProviderIds)->pluck('name')->implode(', ');
 
         if ($cashOn && ! $hmoOn) {
-            return 'Cash patients only';
+            return 'Cash';
         }
 
         if ($hmoOn && ! $cashOn) {
-            return $allProviders ? 'HMO patients only' : "HMO patients only — {$providerNames}";
+            return $allProviders ? 'HMO' : "HMO: {$providerNames}";
         }
 
-        return "Cash patients, and HMO limited to {$providerNames}";
+        return "Cash, HMO: {$providerNames}";
     }
 
     private function validateByDateRequest(Request $request): array

@@ -55,7 +55,7 @@
     // PatientRecordController::filterSummaryText()'s own comment for why
     // this needs to be stated on the printed page itself, not just
     // implied by whatever was on screen when it was generated.
-    ...($filterSummary ? [['label' => 'Filtered To', 'value' => $filterSummary]] : []),
+    ...($filterSummary ? [['label' => 'Patient Type', 'value' => $filterSummary]] : []),
   ],
 ])
 
@@ -72,7 +72,7 @@
         @endunless
         <th class="par-col-time">Time</th>
         <th>Service</th>
-        <th>Dentist</th>
+        <th class="par-col-dentist">Dentist</th>
         <th class="par-col-type">Type</th>
       </tr>
     </thead>
@@ -86,7 +86,7 @@
           @endunless
           <td class="par-col-time">{{ \Carbon\Carbon::parse($row->appointment_time)->format('g:i A') }}</td>
           <td>{{ $row->service->name ?? '' }}</td>
-          <td>{{ dentistSurname($row->dentist->name ?? null) }}</td>
+          <td class="par-col-dentist">{{ dentistSurname($row->dentist->name ?? null) }}</td>
           <td class="par-col-type">
             @if (($row->patient->patient_type ?? null) === 'cash')
               <span class="par-type-cash">Cash</span>
