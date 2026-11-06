@@ -13,7 +13,7 @@ import PageHeader from './components/PageHeader';
 import AvailableSlotPicker from './components/AvailableSlotPicker';
 import FilterDropdown from './components/FilterDropdown';
 import DateRangePicker from './components/DateRangePicker';
-import { ShieldIcon, CheckCircleIcon, MailIcon, CalendarIcon, AlertIcon, UserIcon, ToothIcon, FileIcon, EditIcon, SwapIcon, ClockIcon } from './icons';
+import { ShieldIcon, CheckCircleIcon, MailIcon, CalendarIcon, AlertIcon, UserIcon, ToothIcon, FileIcon, EditIcon, SwapIcon, ClockIcon, SearchIcon } from './icons';
 import { formatDateLong, formatTime12h, toLocalDate } from './dateTimeUtils';
 import { showSuccessToast } from '../../utils/toast';
 import './dashboards.css';
@@ -332,6 +332,7 @@ function QueueCard({ appointment, actingId, sendingId, releasingId, onApprove, o
 // renders whatever it's handed.
 function HmoVerificationQueue() {
   const [appointments, setAppointments] = useState([]);
+  const [searchInput, setSearchInput] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [actingId, setActingId] = useState(null);
@@ -678,6 +679,22 @@ function HmoVerificationQueue() {
     }
   };
 
+  // Client-side only — the whole queue is already loaded in one shot
+  // (getHmoQueue(), no pagination), same reasoning Patient Records' own
+  // search uses. Matches whatever an admin would actually remember about a
+  // booking that's been sitting in the queue a while and gotten buried
+  // under newer ones: the patient's name, their HMO provider, or their card
+  // number — not anything booking-detail-specific like the service or date.
+  const search = searchInput.trim().toLowerCase();
+  const visibleAppointments = search
+    ? appointments.filter((a) => {
+      const patientName = `${a.patient?.first_name || ''} ${a.patient?.last_name || ''}`.toLowerCase();
+      const hmoProviderName = (a.patient?.hmo_provider?.name || a.patient?.hmo_company_name || '').toLowerCase();
+      const cardNumber = (a.patient?.hmo_number || '').toLowerCase();
+      return patientName.includes(search) || hmoProviderName.includes(search) || cardNumber.includes(search);
+    })
+    : appointments;
+
   return (
     <div>
       <PageHeader
@@ -687,6 +704,25 @@ function HmoVerificationQueue() {
       />
 
       {actionError && <div className="profile-alert profile-alert--error">{actionError}</div>}
+
+      {!loading && !error && appointments.length > 0 && (
+        <div className="section-card">
+          <div className="appt-toolbar">
+            <div className="filter-field filter-field--grow">
+              <div className="filter-search">
+                <SearchIcon />
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="Search by patient name, HMO provider, or card number…"
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <Skeleton variant="block" height="150px" count={3} />
@@ -700,8 +736,14 @@ function HmoVerificationQueue() {
           <span className="dash-empty-title">No HMO bookings awaiting verification</span>
           <p className="dash-empty-desc">New HMO appointments will show up here as soon as they're submitted.</p>
         </div>
+      ) : visibleAppointments.length === 0 ? (
+        <div className="dash-empty">
+          <SearchIcon />
+          <span className="dash-empty-title">No bookings match &ldquo;{searchInput.trim()}&rdquo;</span>
+          <p className="dash-empty-desc">Try a different name, HMO provider, or card number.</p>
+        </div>
       ) : (
-        appointments.map((appointment) => (
+        visibleAppointments.map((appointment) => (
           <QueueCard
             key={appointment.id}
             appointment={appointment}
