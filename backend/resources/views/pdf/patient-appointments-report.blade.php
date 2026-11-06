@@ -50,6 +50,12 @@
     // to match what count($appointments) actually counts, not "Total
     // Patients", which it isn't.
     ['label' => 'Total Appointments', 'value' => (string) count($appointments)],
+    // Only present when the Cash/HMO chips or HMO Provider dropdown
+    // actually narrowed anything — see
+    // PatientRecordController::filterSummaryText()'s own comment for why
+    // this needs to be stated on the printed page itself, not just
+    // implied by whatever was on screen when it was generated.
+    ...($filterSummary ? [['label' => 'Filtered To', 'value' => $filterSummary]] : []),
   ],
 ])
 

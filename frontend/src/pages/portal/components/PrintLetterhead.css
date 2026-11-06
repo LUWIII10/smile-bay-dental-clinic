@@ -109,7 +109,14 @@
   }
 
   .print-letterhead-meta-label {
-    width: 82px;
+    /* Was 82px — fine for "Date:"/"Generated:" but "Total Appointments:"
+       (PatientRecords.jsx's own date-range report) wrapped to 2 lines at
+       that width, which threw off the row's vertical alignment (the icon/
+       value centered against the now-taller 2-line label instead of
+       sitting level with where the label visually reads). Widened to fit
+       every real label this shared component is actually given today
+       (including the longest, "Total Appointments:") on one line. */
+    width: 150px;
     flex-shrink: 0;
     font-weight: 600;
     color: #64748b;

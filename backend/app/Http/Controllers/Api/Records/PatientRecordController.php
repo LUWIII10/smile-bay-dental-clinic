@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Appointment;
 use App\Models\ClinicalNote;
 use App\Models\DentalRecord;
+use App\Models\HmoProvider;
 use App\Models\Notification;
 use App\Models\Patient;
 use App\Models\ToothCondition;
@@ -156,6 +157,40 @@ class PatientRecordController extends Controller
         });
     }
 
+    /**
+     * null = no active filter worth announcing on a printed report (both
+     * Cash/HMO on, every HMO provider included) — see the matching
+     * filterSummaryText() in PatientRecords.jsx for the full reasoning
+     * (a "Total Appointments: 6" line with nothing else gives zero
+     * indication later that every one of those 6 was actually
+     * Flexicare-only). $types empty means "no filter" server-side (see
+     * appointmentsByDateQuery()'s own handling), which is the same as
+     * both chips being on — not an unset/invalid state, since the
+     * frontend only ever omits patient_type entirely in that exact case.
+     */
+    private function filterSummaryText(array $types, array $hmoProviderIds): ?string
+    {
+        $cashOn = empty($types) || in_array('cash', $types, true);
+        $hmoOn = empty($types) || in_array('hmo', $types, true);
+        $allProviders = empty($hmoProviderIds);
+
+        if ($cashOn && $hmoOn && $allProviders) {
+            return null;
+        }
+
+        $providerNames = HmoProvider::whereIn('id', $hmoProviderIds)->pluck('name')->implode(', ');
+
+        if ($cashOn && ! $hmoOn) {
+            return 'Cash patients only';
+        }
+
+        if ($hmoOn && ! $cashOn) {
+            return $allProviders ? 'HMO patients only' : "HMO patients only — {$providerNames}";
+        }
+
+        return "Cash patients, and HMO limited to {$providerNames}";
+    }
+
     private function validateByDateRequest(Request $request): array
     {
         $validated = $request->validate([
@@ -222,6 +257,7 @@ class PatientRecordController extends Controller
             'dateTo' => $validated['date_to'],
             'appointments' => $appointments,
             'generatedAt' => now(),
+            'filterSummary' => $this->filterSummaryText($validated['patient_type'], $validated['hmo_provider']),
         ]);
 
         // Suffix only when the filter actually narrows anything — both (or

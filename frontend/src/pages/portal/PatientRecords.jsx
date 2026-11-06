@@ -95,6 +95,31 @@ function dentistSurname(fullName) {
   return `Dr. ${surname}`;
 }
 
+// null = no active filter worth announcing (both Cash/HMO on, every HMO
+// provider included) — a printed report with "Total Appointments" and
+// nothing else would otherwise give zero indication that, say, every row
+// in it is actually Flexicare-only, which reads as "this is everyone" to
+// anyone looking at it later without the live filter state in front of
+// them. Shown as its own meta row (PrintLetterhead/PDF letterhead alike)
+// only when the result is genuinely narrowed.
+function filterSummaryText(typeFilter, hmoProviders, effectiveProviderIds) {
+  const cashOn = typeFilter.includes('cash');
+  const hmoOn = typeFilter.includes('hmo');
+  const allProviders = effectiveProviderIds.length === 0;
+
+  if (cashOn && hmoOn && allProviders) return null;
+
+  const providerNames = hmoProviders
+    .filter((p) => effectiveProviderIds.includes(p.id))
+    .map((p) => p.name)
+    .join(', ');
+
+  if (cashOn && !hmoOn) return 'Cash patients only';
+  if (hmoOn && !cashOn) return allProviders ? 'HMO patients only' : `HMO patients only — ${providerNames}`;
+  // Both chips on, only the provider sub-filter is narrowed.
+  return `Cash patients, and HMO limited to ${providerNames}`;
+}
+
 function formatStatusLabel(status) {
   return String(status).replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase());
 }
@@ -2402,6 +2427,9 @@ function PatientRecords() {
                 // counts, not "Total Patients", which it isn't.
                 icon: UsersIcon, label: 'Total Appointments', value: String(dateAppointments.length),
               },
+              ...(filterSummaryText(typeFilter, hmoProviders, effectiveProviderIds)
+                ? [{ icon: ShieldIcon, label: 'Filtered To', value: filterSummaryText(typeFilter, hmoProviders, effectiveProviderIds) }]
+                : []),
             ]}
           />
           <table className="patient-records-print-table">
