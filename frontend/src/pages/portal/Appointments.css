@@ -265,6 +265,17 @@
   padding-left: 38px;
 }
 
+/* "X of Y" live result count — sits in .appt-toolbar next to the search
+   field, only shown once a search is actually typed (HmoVerificationQueue.jsx).
+   Fills what would otherwise be dead space on a toolbar with no other
+   filters next to the search box, and doubles as visible proof the list is
+   actually narrowing as you type, not just the input filling in with text. */
+.toolbar-count {
+  font-size: 0.78rem;
+  color: var(--portal-muted);
+  white-space: nowrap;
+}
+
 /* Date-range filter — one button styled like .filter-search (same icon-left
    layout), opening a portal-rendered popover with the two real <input
    type="date"> fields. See .action-menu-dropdown below for the same

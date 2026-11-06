@@ -720,6 +720,11 @@ function HmoVerificationQueue() {
                 />
               </div>
             </div>
+            {search && (
+              <span className="toolbar-count">
+                {visibleAppointments.length} of {appointments.length} booking{appointments.length === 1 ? '' : 's'}
+              </span>
+            )}
           </div>
         </div>
       )}
