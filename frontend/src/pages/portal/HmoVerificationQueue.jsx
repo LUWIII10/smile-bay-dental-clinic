@@ -707,7 +707,7 @@ function HmoVerificationQueue() {
 
       {!loading && !error && appointments.length > 0 && (
         <div className="section-card">
-          <div className="appt-toolbar">
+          <div className="appt-toolbar appt-toolbar--end">
             <div className="filter-field filter-field--grow">
               <div className="filter-search">
                 <SearchIcon />

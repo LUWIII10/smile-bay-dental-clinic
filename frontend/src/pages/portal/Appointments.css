@@ -234,6 +234,19 @@
   margin-bottom: 16px;
 }
 
+/* Modifier, not a new rule on .appt-toolbar itself — every other page using
+   this toolbar (All Appointments, Patient Records, Activity Log) keeps the
+   default left-aligned flow; this only applies where the class is
+   explicitly added (HmoVerificationQueue.jsx, which has nothing else in
+   its own toolbar, so left-aligned left a large empty gap on the right).
+   Reset back to flex-start under the max-width: 480px column layout below
+   — flex-end on a column flex container pushes content to the BOTTOM
+   instead of the right, which would shove the field down behind empty
+   space on a narrow screen. */
+.appt-toolbar--end {
+  justify-content: flex-end;
+}
+
 .filter-field {
   display: flex;
   min-width: 140px;
@@ -935,6 +948,10 @@
   .appt-toolbar {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .appt-toolbar--end {
+    justify-content: flex-start;
   }
 
   .filter-field,
