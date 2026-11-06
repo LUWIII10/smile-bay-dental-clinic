@@ -237,9 +237,39 @@
 /* Modifier, not a new rule on .appt-toolbar itself — every other page using
    this toolbar (All Appointments, Patient Records, Activity Log) keeps the
    default flow; this only applies where the class is explicitly added
-   (HmoVerificationQueue.jsx's toolbar-heading + search pairing below). */
+   (HmoVerificationQueue.jsx's toolbar-heading + search pairing below).
+   flex-wrap: nowrap overrides the base .appt-toolbar's wrap — left as wrap,
+   the two children would silently wrap onto separate lines anywhere the row
+   got too narrow to fit both (a wide range above the explicit breakpoint
+   below), and WHERE exactly that happened shifted with the heading text's
+   own length (longer before a search, shorter once "matching “x”" replaces
+   it) — the search field visibly jumping position/width between the two
+   states the bug report caught. Below, this is forced into a single
+   deliberate stacked layout instead, at a wider threshold than the other
+   .appt-toolbar callers use, so there's no in-between zone left for that to
+   happen in. */
 .appt-toolbar--between {
   justify-content: space-between;
+  flex-wrap: nowrap;
+}
+
+@media (max-width: 640px) {
+  .appt-toolbar--between {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  /* Wider than the shared .filter-field--grow reset further below (480px)
+     on purpose — this toolbar has a second, variable-width element next to
+     the search field (the summary heading) that the plain search-only
+     toolbars on other pages don't, so it needs to drop to a full-width
+     stack sooner to stay predictable instead of inheriting their narrower
+     threshold. */
+  .appt-toolbar--between .filter-field--grow {
+    max-width: none;
+    width: 100%;
+    flex: none;
+  }
 }
 
 /* Left-side summary paired with the search field on the right
@@ -253,6 +283,7 @@
   display: flex;
   align-items: center;
   gap: 9px;
+  min-width: 0;
 }
 
 .toolbar-heading-icon {
@@ -270,6 +301,16 @@
 .toolbar-heading-icon svg {
   width: 16px;
   height: 16px;
+}
+
+/* min-width: 0 on the text column — without it, a flex child's default
+   min-width: auto uses its own unwrapped content width as the floor, which
+   for "6 need a reschedule before they can be approved" is wide enough to
+   force the whole row wider than it should ever get at a medium viewport
+   width (above the 640px stacked breakpoint, below a full desktop window).
+   With it, the text wraps within its own column like normal text instead. */
+.toolbar-heading > div {
+  min-width: 0;
 }
 
 .toolbar-heading-text {
@@ -976,9 +1017,8 @@
     align-items: stretch;
   }
 
-  .appt-toolbar--between {
-    justify-content: flex-start;
-  }
+  /* .appt-toolbar--between's own dedicated 640px breakpoint above already
+     covers this width and narrower — nothing left to override here. */
 
   .filter-field,
   .filter-field--grow {
