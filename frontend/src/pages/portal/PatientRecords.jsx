@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import {
@@ -18,7 +19,9 @@ import {
   downloadPatientRecordPdf,
   setPrimaryDentist,
 } from '../../api/patientRecords';
+import { getPublicHmoProviders } from '../../api/public';
 import { completeAppointment, backfillTreatmentRecord, getDentists, getServices } from '../../api/appointments';
+import { useDropdownPosition } from '../../hooks/useDropdownPosition';
 import DataTable from './components/DataTable';
 import Pagination from './components/Pagination';
 import Skeleton from './components/Skeleton';
@@ -147,6 +150,77 @@ function checkNoteLengthForCompletion(note) {
   return null;
 }
 
+function ChevronDownIcon({ open }) {
+  return (
+    <svg
+      width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6"
+      style={{ transform: `rotate(${open ? 180 : 0}deg)`, transition: 'transform 0.15s ease', flexShrink: 0 }}
+    >
+      <polyline points="6 9 12 15 18 9" />
+    </svg>
+  );
+}
+
+// Only rendered while the HMO chip is active (see PatientRecords' own
+// toolbar JSX) — a provider filter means nothing while only Cash is
+// selected. Multi-select, instant-apply (no separate Apply step, unlike
+// DateRangePicker's range mode — a single checkbox toggle is cheap enough
+// not to need one), portal-rendered via the same useDropdownPosition hook
+// FilterDropdown/DateRangePicker already use so it's never clipped by the
+// table below it.
+function HmoProviderFilterDropdown({ providers, selectedIds, onToggle, onSelectAll }) {
+  const { open, position, triggerRef, dropdownRef, toggle } = useDropdownPosition();
+
+  const allSelected = selectedIds.length === providers.length;
+  const label = allSelected
+    ? 'All Providers'
+    : `${selectedIds.length} of ${providers.length} provider${providers.length === 1 ? '' : 's'}`;
+
+  return (
+    <div style={{ position: 'relative' }}>
+      <button
+        ref={triggerRef}
+        type="button"
+        className={`filter-dd-trigger${open ? ' filter-dd-trigger--open' : ''}`}
+        onClick={toggle}
+        aria-expanded={open}
+      >
+        <span className="filter-dd-icon"><ShieldIcon /></span>
+        <span className="filter-dd-label">{label}</span>
+        <ChevronDownIcon open={open} />
+      </button>
+      {open && position && createPortal(
+        <div
+          ref={dropdownRef}
+          className="filter-dd-panel"
+          style={{ top: position.top, left: position.left, right: position.right }}
+        >
+          {providers.map((provider) => {
+            const checked = selectedIds.includes(provider.id);
+            return (
+              <button
+                key={provider.id}
+                type="button"
+                className="filter-dd-check-item"
+                onClick={() => onToggle(provider.id)}
+              >
+                <span className={`dd-checkbox${checked ? ' dd-checkbox--checked' : ''}`}>{checked && '✓'}</span>
+                <span>{provider.name}</span>
+              </button>
+            );
+          })}
+          {!allSelected && (
+            <div className="filter-dd-footer">
+              <button type="button" className="dd-link-btn" onClick={onSelectAll}>Select All</button>
+            </div>
+          )}
+        </div>,
+        document.body
+      )}
+    </div>
+  );
+}
+
 function PatientRecords() {
   const { role, user } = useAuth();
   const location = useLocation();
@@ -198,6 +272,36 @@ function PatientRecords() {
     });
   };
 
+  // The real, currently-active HMO providers (Settings > HMO Providers —
+  // today that's Medicard and Flexicare, but this never hardcodes which
+  // ones exist, same as the registration wizard's own HMO dropdown reading
+  // this same endpoint). hmoProviderFilter holds every provider's id once
+  // loaded = "no restriction"; toggleHmoProviderFilter never allows the
+  // last one to be turned off, same reasoning as toggleTypeFilter above.
+  const [hmoProviders, setHmoProviders] = useState([]);
+  const [hmoProviderFilter, setHmoProviderFilter] = useState([]);
+  useEffect(() => {
+    getPublicHmoProviders()
+      .then((list) => {
+        setHmoProviders(list);
+        setHmoProviderFilter(list.map((p) => p.id));
+      })
+      .catch(() => {});
+  }, []);
+  const toggleHmoProviderFilter = (id) => {
+    setHmoProviderFilter((prev) => {
+      if (prev.includes(id)) {
+        return prev.length > 1 ? prev.filter((p) => p !== id) : prev;
+      }
+      return [...prev, id];
+    });
+  };
+  const selectAllHmoProviders = () => setHmoProviderFilter(hmoProviders.map((p) => p.id));
+  // null (not an empty array) when every provider is selected — "no
+  // restriction" — so the API wrapper functions never send a hmo_provider
+  // param for the default, every-provider case, only once genuinely narrowed.
+  const effectiveProviderIds = hmoProviderFilter.length === hmoProviders.length ? [] : hmoProviderFilter;
+
   // ---- Detail state ----
   const [selectedPatientId, setSelectedPatientId] = useState(incoming.patientId ?? null);
   const [detail, setDetail] = useState(null);
@@ -229,7 +333,7 @@ function PatientRecords() {
   const handleDownloadByDatePdf = async () => {
     setDownloadingByDatePdf(true);
     try {
-      await downloadAppointmentsByDatePdf(dateFilter, typeFilter);
+      await downloadAppointmentsByDatePdf(dateFilter, typeFilter, effectiveProviderIds);
     } catch (err) {
       showErrorToast(err.message || 'Could not generate the PDF. Please try again.');
     } finally {
@@ -335,13 +439,14 @@ function PatientRecords() {
 
   useEffect(() => {
     setPage(1);
-  }, [search, perPage, typeFilter]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, perPage, typeFilter, JSON.stringify(effectiveProviderIds)]);
 
   const loadList = useCallback(async () => {
     setListLoading(true);
     setListError('');
     try {
-      const result = await searchPatientRecords({ search, page, per_page: perPage, types: typeFilter });
+      const result = await searchPatientRecords({ search, page, per_page: perPage, types: typeFilter, providerIds: effectiveProviderIds });
       setPatients(result.data);
       setMeta({
         current_page: result.current_page,
@@ -356,7 +461,8 @@ function PatientRecords() {
     } finally {
       setListLoading(false);
     }
-  }, [search, page, perPage, typeFilter]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, page, perPage, typeFilter, JSON.stringify(effectiveProviderIds)]);
 
   useEffect(() => {
     if (!selectedPatientId) loadList();
@@ -371,12 +477,13 @@ function PatientRecords() {
     let cancelled = false;
     setDateLoading(true);
     setDateError('');
-    getAppointmentsByDate(dateFilter, typeFilter)
+    getAppointmentsByDate(dateFilter, typeFilter, effectiveProviderIds)
       .then((data) => { if (!cancelled) setDateAppointments(data); })
       .catch(() => { if (!cancelled) setDateError('Could not load appointments for this date range.'); })
       .finally(() => { if (!cancelled) setDateLoading(false); });
     return () => { cancelled = true; };
-  }, [dateFilter.from, dateFilter.to, typeFilter]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dateFilter.from, dateFilter.to, typeFilter, JSON.stringify(effectiveProviderIds)]);
 
   const loadDetail = useCallback(async (patientId) => {
     setDetailLoading(true);
@@ -815,7 +922,12 @@ function PatientRecords() {
       minWidth: '14%',
       align: 'center',
       render: (row) => (
-        <StatusBadge status={row.patient_type === 'cash' ? 'Cash' : 'HMO'} tone={row.patient_type === 'cash' ? 'green' : 'amber'} />
+        <span className="cell-person-text" style={{ alignItems: 'center' }}>
+          <StatusBadge status={row.patient_type === 'cash' ? 'Cash' : 'HMO'} tone={row.patient_type === 'cash' ? 'green' : 'amber'} />
+          {row.patient_type === 'hmo' && row.hmo_provider?.name && (
+            <span className="cell-person-sub">{row.hmo_provider.name}</span>
+          )}
+        </span>
       ),
     },
     {
@@ -884,7 +996,12 @@ function PatientRecords() {
       minWidth: '10%',
       align: 'center',
       render: (row) => (
-        <StatusBadge status={row.patient?.patient_type === 'cash' ? 'Cash' : 'HMO'} tone={row.patient?.patient_type === 'cash' ? 'green' : 'amber'} />
+        <span className="cell-person-text" style={{ alignItems: 'center' }}>
+          <StatusBadge status={row.patient?.patient_type === 'cash' ? 'Cash' : 'HMO'} tone={row.patient?.patient_type === 'cash' ? 'green' : 'amber'} />
+          {row.patient?.patient_type === 'hmo' && row.patient?.hmo_provider?.name && (
+            <span className="cell-person-sub">{row.patient.hmo_provider.name}</span>
+          )}
+        </span>
       ),
     },
     {
@@ -2167,6 +2284,17 @@ function PatientRecords() {
             </div>
           </div>
 
+          {typeFilter.includes('hmo') && hmoProviders.length > 0 && (
+            <div className="filter-field">
+              <HmoProviderFilterDropdown
+                providers={hmoProviders}
+                selectedIds={hmoProviderFilter}
+                onToggle={toggleHmoProviderFilter}
+                onSelectAll={selectAllHmoProviders}
+              />
+            </div>
+          )}
+
           <button
             type="button"
             className="dash-btn dash-btn--outline"
@@ -2279,6 +2407,9 @@ function PatientRecords() {
                   <td className="prt-col-dentist">{row.dentist?.name || 'Unassigned'}</td>
                   <td className="prt-col-type">
                     <StatusBadge status={row.patient?.patient_type === 'cash' ? 'Cash' : 'HMO'} tone={row.patient?.patient_type === 'cash' ? 'green' : 'amber'} />
+                    {row.patient?.patient_type === 'hmo' && row.patient?.hmo_provider?.name && (
+                      <span className="prt-col-type-provider">{row.patient.hmo_provider.name}</span>
+                    )}
                   </td>
                 </tr>
               ))}

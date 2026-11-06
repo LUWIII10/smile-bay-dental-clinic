@@ -62,6 +62,9 @@
               <span class="par-type-cash">Cash</span>
             @else
               <span class="par-type-hmo">HMO</span>
+              @if ($row->patient->hmoProvider->name ?? null)
+                <br><span class="par-type-provider">{{ $row->patient->hmoProvider->name }}</span>
+              @endif
             @endif
           </td>
         </tr>

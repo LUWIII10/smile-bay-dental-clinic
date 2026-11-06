@@ -7,11 +7,15 @@ import { downloadFile } from '../utils/downloadFile';
 
 // types: array of 'cash'/'hmo' (the Patient Records toolbar's own chips —
 // same two chips also drive getAppointmentsByDate/downloadAppointmentsByDatePdf
-// below). Sent as a comma-separated string, never as a PHP-style array[]
-// query param — see those two functions' own comment for why.
-export async function searchPatientRecords({ search = '', page = 1, per_page = 10, types = [] } = {}) {
+// below). providerIds: selected HMO Provider dropdown ids — pass an empty
+// array for "every provider" (the caller only ever passes a non-empty one
+// when the admin has actually narrowed it, never when every provider
+// checkbox is checked). Both sent as comma-separated strings, never as a
+// PHP-style array[] query param — see those two functions' own comment for why.
+export async function searchPatientRecords({ search = '', page = 1, per_page = 10, types = [], providerIds = [] } = {}) {
   const params = Object.fromEntries(Object.entries({ search, page, per_page }).filter(([, v]) => v !== '' && v != null));
   if (types.length === 1) params.patient_type = types[0];
+  if (providerIds.length > 0) params.hmo_provider = providerIds.join(',');
   const response = await api.get('/api/patient-records', { params });
   return response.data;
 }
@@ -31,20 +35,22 @@ export async function getPatientRecord(patientId) {
 // query param — axios's default array serialization isn't guaranteed to
 // round-trip into a real PHP array on the Laravel side, a flat string has
 // no such ambiguity. Both chips on (or an empty array) means "no filter".
-export async function getAppointmentsByDate({ from, to }, types = []) {
+export async function getAppointmentsByDate({ from, to }, types = [], providerIds = []) {
   const params = { date_from: from, date_to: to };
   if (types.length === 1) params.patient_type = types[0];
+  if (providerIds.length > 0) params.hmo_provider = providerIds.join(',');
   const response = await api.get('/api/patient-records/by-date', { params });
   return response.data.data;
 }
 
-export async function downloadAppointmentsByDatePdf({ from, to }, types = []) {
+export async function downloadAppointmentsByDatePdf({ from, to }, types = [], providerIds = []) {
   const typeSuffix = types.length === 1 ? `-${types[0]}` : '';
   const filename = from === to
     ? `patient-appointments${typeSuffix}-${from}.pdf`
     : `patient-appointments${typeSuffix}-${from}_to_${to}.pdf`;
   const params = { date_from: from, date_to: to };
   if (types.length === 1) params.patient_type = types[0];
+  if (providerIds.length > 0) params.hmo_provider = providerIds.join(',');
   await downloadFile('/api/patient-records/by-date/pdf', params, filename);
 }
 

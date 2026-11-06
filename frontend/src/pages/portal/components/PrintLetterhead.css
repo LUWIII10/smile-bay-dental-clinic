@@ -215,7 +215,14 @@
   .patient-records-print-table .prt-col-patno { width: 90px; white-space: nowrap; }
   .patient-records-print-table .prt-col-date { width: 85px; white-space: nowrap; }
   .patient-records-print-table .prt-col-time { width: 65px; white-space: nowrap; }
-  .patient-records-print-table .prt-col-type { width: 65px; white-space: nowrap; }
+  .patient-records-print-table .prt-col-type { width: 75px; white-space: nowrap; }
+
+  .prt-col-type-provider {
+    display: block;
+    margin-top: 2px;
+    font-size: 8px;
+    color: #64748b;
+  }
 
   .patient-records-print-table td:first-child {
     color: #0f2557;

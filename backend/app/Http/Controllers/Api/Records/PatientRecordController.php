@@ -39,12 +39,14 @@ class PatientRecordController extends Controller
         $validated = $request->validate([
             'search' => ['nullable', 'string', 'max:100'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
-            // See parsePatientTypes()'s own comment — same two Cash/HMO
-            // toolbar chips filtering this directory, not a separate filter.
+            // See parsePatientTypes()/parseHmoProviderIds()'s own comments —
+            // same Cash/HMO chips + HMO Provider dropdown filtering this
+            // directory, not a separate filter.
             'patient_type' => ['sometimes', 'nullable', 'string'],
+            'hmo_provider' => ['sometimes', 'nullable', 'string'],
         ]);
 
-        $query = Patient::query()->with('user:id,email,mobile_number,avatar_path');
+        $query = Patient::query()->with(['user:id,email,mobile_number,avatar_path', 'hmoProvider:id,name']);
 
         if (! empty($validated['search'])) {
             $search = $validated['search'];
@@ -55,11 +57,11 @@ class PatientRecordController extends Controller
             });
         }
 
-        $types = $this->parsePatientTypes($validated['patient_type'] ?? null);
-
-        if (! empty($types)) {
-            $query->whereIn('patient_type', $types);
-        }
+        $this->applyPatientTypeFilter(
+            $query,
+            $this->parsePatientTypes($validated['patient_type'] ?? null),
+            $this->parseHmoProviderIds($validated['hmo_provider'] ?? null)
+        );
 
         $perPage = $validated['per_page'] ?? 10;
 
@@ -81,7 +83,9 @@ class PatientRecordController extends Controller
             ->whereIn('status', ['confirmed', 'pending_verification', 'completed']);
 
         if (! empty($validated['patient_type'])) {
-            $query->whereHas('patient', fn ($q) => $q->whereIn('patient_type', $validated['patient_type']));
+            $query->whereHas('patient', function ($q) use ($validated) {
+                $this->applyPatientTypeFilter($q, $validated['patient_type'], $validated['hmo_provider'] ?? []);
+            });
         }
 
         return $query->orderBy('appointment_date')->orderBy('appointment_time');
@@ -106,15 +110,63 @@ class PatientRecordController extends Controller
         ));
     }
 
+    /**
+     * Same comma-separated-string shape as patient_type above — the HMO
+     * Provider dropdown's own selected ids (Medicard/Flexicare today,
+     * whichever providers are actually active in hmo_providers — this
+     * filter never hardcodes which ones exist, same as every other
+     * HMO-provider-aware part of the app). Empty/omitted means "no provider
+     * filter" — matches every HMO patient, not zero.
+     */
+    private function parseHmoProviderIds(?string $raw): array
+    {
+        return array_values(array_filter(array_map('intval', explode(',', $raw ?? ''))));
+    }
+
+    /**
+     * Shared by index() and appointmentsByDateQuery() above — applies the
+     * Cash/HMO chips (and, within the HMO half only, the HMO Provider
+     * dropdown) to any Patient-scoped query builder, whether that's
+     * Patient::query() directly (index()) or the closure inside a
+     * whereHas('patient', ...) call (the date-range report). The provider
+     * filter is deliberately scoped inside the 'hmo' OR-branch, not applied
+     * to the query as a whole — a plain whereIn('hmo_provider_id', ...)
+     * would also silently exclude every cash patient (whose
+     * hmo_provider_id is always null) even when the Cash chip is still on,
+     * which isn't what picking a provider is supposed to mean.
+     */
+    private function applyPatientTypeFilter($query, array $types, array $hmoProviderIds): void
+    {
+        if (empty($types)) {
+            return;
+        }
+
+        $query->where(function ($q) use ($types, $hmoProviderIds) {
+            if (in_array('cash', $types, true)) {
+                $q->orWhere('patient_type', 'cash');
+            }
+            if (in_array('hmo', $types, true)) {
+                $q->orWhere(function ($hq) use ($hmoProviderIds) {
+                    $hq->where('patient_type', 'hmo');
+                    if (! empty($hmoProviderIds)) {
+                        $hq->whereIn('hmo_provider_id', $hmoProviderIds);
+                    }
+                });
+            }
+        });
+    }
+
     private function validateByDateRequest(Request $request): array
     {
         $validated = $request->validate([
             'date_from' => ['required', 'date'],
             'date_to' => ['required', 'date', 'after_or_equal:date_from'],
             'patient_type' => ['sometimes', 'nullable', 'string'],
+            'hmo_provider' => ['sometimes', 'nullable', 'string'],
         ]);
 
         $validated['patient_type'] = $this->parsePatientTypes($validated['patient_type'] ?? null);
+        $validated['hmo_provider'] = $this->parseHmoProviderIds($validated['hmo_provider'] ?? null);
 
         return $validated;
     }
@@ -136,8 +188,9 @@ class PatientRecordController extends Controller
 
         $appointments = $this->appointmentsByDateQuery($validated)
             ->with([
-                'patient:id,user_id,patient_number,first_name,last_name,patient_type',
+                'patient:id,user_id,patient_number,first_name,last_name,patient_type,hmo_provider_id',
                 'patient.user:id,avatar_path',
+                'patient.hmoProvider:id,name',
                 'service:id,name',
                 'dentist:id,name',
             ])
@@ -157,7 +210,8 @@ class PatientRecordController extends Controller
 
         $appointments = $this->appointmentsByDateQuery($validated)
             ->with([
-                'patient:id,patient_number,first_name,last_name,patient_type',
+                'patient:id,patient_number,first_name,last_name,patient_type,hmo_provider_id',
+                'patient.hmoProvider:id,name',
                 'service:id,name',
                 'dentist:id,name',
             ])
