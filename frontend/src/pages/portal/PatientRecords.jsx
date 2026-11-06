@@ -183,6 +183,20 @@ function PatientRecords() {
   const [dateAppointments, setDateAppointments] = useState([]);
   const [dateLoading, setDateLoading] = useState(false);
   const [dateError, setDateError] = useState('');
+  // Both on by default = every patient, identical to this report's
+  // behavior before this filter existed. toggleTypeFilter never allows
+  // the last one to be turned off — a filter matching zero patients makes
+  // Print/Download misleading ("0 found" from a report that looks like it
+  // should cover everyone), so the UI simply doesn't let that state exist.
+  const [typeFilter, setTypeFilter] = useState(['cash', 'hmo']);
+  const toggleTypeFilter = (type) => {
+    setTypeFilter((prev) => {
+      if (prev.includes(type)) {
+        return prev.length > 1 ? prev.filter((t) => t !== type) : prev;
+      }
+      return [...prev, type];
+    });
+  };
 
   // ---- Detail state ----
   const [selectedPatientId, setSelectedPatientId] = useState(incoming.patientId ?? null);
@@ -215,7 +229,7 @@ function PatientRecords() {
   const handleDownloadByDatePdf = async () => {
     setDownloadingByDatePdf(true);
     try {
-      await downloadAppointmentsByDatePdf(dateFilter);
+      await downloadAppointmentsByDatePdf(dateFilter, typeFilter);
     } catch (err) {
       showErrorToast(err.message || 'Could not generate the PDF. Please try again.');
     } finally {
@@ -357,12 +371,12 @@ function PatientRecords() {
     let cancelled = false;
     setDateLoading(true);
     setDateError('');
-    getAppointmentsByDate(dateFilter)
+    getAppointmentsByDate(dateFilter, typeFilter)
       .then((data) => { if (!cancelled) setDateAppointments(data); })
       .catch(() => { if (!cancelled) setDateError('Could not load appointments for this date range.'); })
       .finally(() => { if (!cancelled) setDateLoading(false); });
     return () => { cancelled = true; };
-  }, [dateFilter.from, dateFilter.to]);
+  }, [dateFilter.from, dateFilter.to, typeFilter]);
 
   const loadDetail = useCallback(async (patientId) => {
     setDetailLoading(true);
@@ -863,6 +877,15 @@ function PatientRecords() {
       label: 'Dentist',
       minWidth: '22%',
       render: (row) => row.dentist?.name || 'Unassigned',
+    },
+    {
+      key: 'type',
+      label: 'Type',
+      minWidth: '10%',
+      align: 'center',
+      render: (row) => (
+        <StatusBadge status={row.patient?.patient_type === 'cash' ? 'Cash' : 'HMO'} tone={row.patient?.patient_type === 'cash' ? 'green' : 'amber'} />
+      ),
     },
     {
       key: 'actions',
@@ -2125,6 +2148,25 @@ function PatientRecords() {
             <DateRangePicker mode="range" value={dateFilter} onChange={setDateFilter} placeholder="Pick dates" />
           </div>
 
+          <div className="filter-field">
+            <div className="type-chip-group">
+              <button
+                type="button"
+                className={`type-chip type-chip--cash${typeFilter.includes('cash') ? ' type-chip--active' : ''}`}
+                onClick={() => toggleTypeFilter('cash')}
+              >
+                <span className="type-chip-dot" />Cash
+              </button>
+              <button
+                type="button"
+                className={`type-chip type-chip--hmo${typeFilter.includes('hmo') ? ' type-chip--active' : ''}`}
+                onClick={() => toggleTypeFilter('hmo')}
+              >
+                <span className="type-chip-dot" />HMO
+              </button>
+            </div>
+          </div>
+
           <button
             type="button"
             className="dash-btn dash-btn--outline"
@@ -2223,6 +2265,7 @@ function PatientRecords() {
                 <th className="prt-col-time">Time</th>
                 <th className="prt-col-service">Service</th>
                 <th className="prt-col-dentist">Dentist</th>
+                <th className="prt-col-type">Type</th>
               </tr>
             </thead>
             <tbody>
@@ -2234,6 +2277,9 @@ function PatientRecords() {
                   <td className="prt-col-time">{formatTime12h(row.appointment_time)}</td>
                   <td className="prt-col-service">{row.service?.name}</td>
                   <td className="prt-col-dentist">{row.dentist?.name || 'Unassigned'}</td>
+                  <td className="prt-col-type">
+                    <StatusBadge status={row.patient?.patient_type === 'cash' ? 'Cash' : 'HMO'} tone={row.patient?.patient_type === 'cash' ? 'green' : 'amber'} />
+                  </td>
                 </tr>
               ))}
             </tbody>

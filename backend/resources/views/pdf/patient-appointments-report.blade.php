@@ -43,6 +43,7 @@
         <th class="par-col-time">Time</th>
         <th>Service</th>
         <th>Dentist</th>
+        <th class="par-col-type">Type</th>
       </tr>
     </thead>
     <tbody>
@@ -56,6 +57,13 @@
           <td class="par-col-time">{{ \Carbon\Carbon::parse($row->appointment_time)->format('g:i A') }}</td>
           <td>{{ $row->service->name ?? '' }}</td>
           <td>{{ $row->dentist->name ?? 'Unassigned' }}</td>
+          <td class="par-col-type">
+            @if (($row->patient->patient_type ?? null) === 'cash')
+              <span class="par-type-cash">Cash</span>
+            @else
+              <span class="par-type-hmo">HMO</span>
+            @endif
+          </td>
         </tr>
       @endforeach
     </tbody>

@@ -20,14 +20,27 @@ export async function getPatientRecord(patientId) {
 // just from === to), across all patients — powers the "print who's
 // scheduled this day/range" report. Read-only, no CSRF cookie needed
 // (matches searchPatientRecords/getPatientRecord above).
-export async function getAppointmentsByDate({ from, to }) {
-  const response = await api.get('/api/patient-records/by-date', { params: { date_from: from, date_to: to } });
+//
+// types: array of 'cash'/'hmo' (the Patient Records toolbar's own chips),
+// sent as one plain comma-separated string rather than a PHP-style array[]
+// query param — axios's default array serialization isn't guaranteed to
+// round-trip into a real PHP array on the Laravel side, a flat string has
+// no such ambiguity. Both chips on (or an empty array) means "no filter".
+export async function getAppointmentsByDate({ from, to }, types = []) {
+  const params = { date_from: from, date_to: to };
+  if (types.length === 1) params.patient_type = types[0];
+  const response = await api.get('/api/patient-records/by-date', { params });
   return response.data.data;
 }
 
-export async function downloadAppointmentsByDatePdf({ from, to }) {
-  const filename = from === to ? `patient-appointments-${from}.pdf` : `patient-appointments-${from}_to_${to}.pdf`;
-  await downloadFile('/api/patient-records/by-date/pdf', { date_from: from, date_to: to }, filename);
+export async function downloadAppointmentsByDatePdf({ from, to }, types = []) {
+  const typeSuffix = types.length === 1 ? `-${types[0]}` : '';
+  const filename = from === to
+    ? `patient-appointments${typeSuffix}-${from}.pdf`
+    : `patient-appointments${typeSuffix}-${from}_to_${to}.pdf`;
+  const params = { date_from: from, date_to: to };
+  if (types.length === 1) params.patient_type = types[0];
+  await downloadFile('/api/patient-records/by-date/pdf', params, filename);
 }
 
 export async function downloadPatientRecordPdf(patientId, { date_from, date_to } = {}) {

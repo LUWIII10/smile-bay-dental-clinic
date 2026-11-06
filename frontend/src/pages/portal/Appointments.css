@@ -1162,3 +1162,49 @@
 .patient-records-date-note strong {
   color: var(--portal-navy);
 }
+
+/* ============ Patient Records: Cash/HMO filter for the
+   "Patient Appointments Report" toolbar — each chip independently
+   toggleable, both on by default (= every patient, same as before this
+   filter existed). PatientRecords.jsx's own toggleTypeFilter() never lets
+   the last one turn off. ============ */
+
+.type-chip-group {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.type-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 14px;
+  border-radius: 10px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1.5px solid var(--portal-border-light);
+  background: var(--portal-card);
+  color: var(--portal-muted);
+}
+
+.type-chip-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.type-chip--cash.type-chip--active {
+  background: var(--portal-green-bg);
+  border-color: var(--portal-green-border);
+  color: var(--portal-green-text);
+  font-weight: 700;
+}
+
+.type-chip--hmo.type-chip--active {
+  background: var(--portal-amber-bg);
+  border-color: var(--portal-amber-border);
+  color: var(--portal-amber-text);
+  font-weight: 700;
+}

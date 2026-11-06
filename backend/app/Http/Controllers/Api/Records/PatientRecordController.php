@@ -68,23 +68,65 @@ class PatientRecordController extends Controller
      * page. Cancelled/rejected are excluded: a report of who "had an
      * appointment" that day shouldn't include ones that didn't happen.
      */
-    public function appointmentsByDate(Request $request)
+    /**
+     * Shared by appointmentsByDate()/appointmentsByDatePdf() below — both
+     * need the identical date range + status + patient-type filtering, only
+     * the eager-load shape and output format differ. patient_type comes in
+     * as one or more of 'cash'/'hmo' (the Patient Records toolbar's own
+     * Cash/HMO chips, both on by default = every patient, same as before
+     * this filter existed); omitted or empty is treated as "no filter",
+     * never as "match nothing".
+     */
+    private function appointmentsByDateQuery(array $validated)
+    {
+        $query = Appointment::whereBetween('appointment_date', [$validated['date_from'], $validated['date_to']])
+            ->whereIn('status', ['confirmed', 'pending_verification', 'completed']);
+
+        if (! empty($validated['patient_type'])) {
+            $query->whereHas('patient', fn ($q) => $q->whereIn('patient_type', $validated['patient_type']));
+        }
+
+        return $query->orderBy('appointment_date')->orderBy('appointment_time');
+    }
+
+    /**
+     * patient_type arrives as a plain comma-separated string ("cash,hmo"),
+     * not a PHP-style array[] query param — sidesteps any doubt about how
+     * axios's default array serialization would (or wouldn't) come back out
+     * as a real PHP array on this end; a single flat string round-trips
+     * unambiguously either way. Split, trimmed, filtered to only the two
+     * real values — omitted, empty, or junk all collapse to "no filter"
+     * (every patient), same as before this existed.
+     */
+    private function validateByDateRequest(Request $request): array
     {
         $validated = $request->validate([
             'date_from' => ['required', 'date'],
             'date_to' => ['required', 'date', 'after_or_equal:date_from'],
+            'patient_type' => ['sometimes', 'nullable', 'string'],
         ]);
 
-        $appointments = Appointment::whereBetween('appointment_date', [$validated['date_from'], $validated['date_to']])
-            ->whereIn('status', ['confirmed', 'pending_verification', 'completed'])
+        $types = array_values(array_intersect(
+            array_filter(array_map('trim', explode(',', $validated['patient_type'] ?? ''))),
+            ['cash', 'hmo']
+        ));
+
+        $validated['patient_type'] = $types;
+
+        return $validated;
+    }
+
+    public function appointmentsByDate(Request $request)
+    {
+        $validated = $this->validateByDateRequest($request);
+
+        $appointments = $this->appointmentsByDateQuery($validated)
             ->with([
-                'patient:id,user_id,patient_number,first_name,last_name',
+                'patient:id,user_id,patient_number,first_name,last_name,patient_type',
                 'patient.user:id,avatar_path',
                 'service:id,name',
                 'dentist:id,name',
             ])
-            ->orderBy('appointment_date')
-            ->orderBy('appointment_time')
             ->get();
 
         return response()->json(['data' => $appointments]);
@@ -97,20 +139,14 @@ class PatientRecordController extends Controller
      */
     public function appointmentsByDatePdf(Request $request)
     {
-        $validated = $request->validate([
-            'date_from' => ['required', 'date'],
-            'date_to' => ['required', 'date', 'after_or_equal:date_from'],
-        ]);
+        $validated = $this->validateByDateRequest($request);
 
-        $appointments = Appointment::whereBetween('appointment_date', [$validated['date_from'], $validated['date_to']])
-            ->whereIn('status', ['confirmed', 'pending_verification', 'completed'])
+        $appointments = $this->appointmentsByDateQuery($validated)
             ->with([
-                'patient:id,patient_number,first_name,last_name',
+                'patient:id,patient_number,first_name,last_name,patient_type',
                 'service:id,name',
                 'dentist:id,name',
             ])
-            ->orderBy('appointment_date')
-            ->orderBy('appointment_time')
             ->get();
 
         $pdf = Pdf::loadView('pdf.patient-appointments-report', [
@@ -120,9 +156,16 @@ class PatientRecordController extends Controller
             'generatedAt' => now(),
         ]);
 
+        // Suffix only when the filter actually narrows anything — both (or
+        // neither) selected reads as "every patient", same filename shape
+        // as before this filter existed, so an admin who never touches the
+        // new chips sees no change at all.
+        $types = $validated['patient_type'] ?? [];
+        $typeSuffix = (count($types) === 1) ? '-'.$types[0] : '';
+
         $filename = $validated['date_from'] === $validated['date_to']
-            ? "patient-appointments-{$validated['date_from']}.pdf"
-            : "patient-appointments-{$validated['date_from']}_to_{$validated['date_to']}.pdf";
+            ? "patient-appointments{$typeSuffix}-{$validated['date_from']}.pdf"
+            : "patient-appointments{$typeSuffix}-{$validated['date_from']}_to_{$validated['date_to']}.pdf";
 
         return $pdf->download($filename);
     }

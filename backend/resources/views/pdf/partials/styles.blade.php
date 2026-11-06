@@ -103,6 +103,21 @@
   .par-col-patno { width: 90px; white-space: nowrap; }
   .par-col-date { width: 85px; white-space: nowrap; }
   .par-col-time { width: 65px; white-space: nowrap; }
+  .par-col-type { width: 55px; white-space: nowrap; }
+
+  /* Same green/amber Cash/HMO convention as the on-screen StatusBadge
+     (dashboards.css .status-badge--green/--amber) — dompdf doesn't load
+     that stylesheet, so these are a small, scoped re-declaration just for
+     this one column rather than a shared class name. */
+  .par-type-cash, .par-type-hmo {
+    display: inline-block;
+    padding: 2px 8px;
+    font-size: 8.5px;
+    font-weight: bold;
+    border-radius: 999px;
+  }
+  .par-type-cash { background: #dcfce7; color: #15803d; }
+  .par-type-hmo { background: #fef3c7; color: #b45309; }
 
   /* table-layout: fixed so these widths actually hold — without it, dompdf
      (like most browsers on an "auto" table) can let a long value's content
