@@ -14,3 +14,9 @@ Artisan::command('inspire', function () {
 // meantime (`php artisan appointments:send-reminders`); duplicate reminders
 // for the same appointment are prevented in the command itself.
 Schedule::command('appointments:send-reminders')->dailyAt('08:00');
+
+// Same "requires a real cron" caveat as above — RunScheduledBackup itself
+// decides whether a backup is actually due (Settings > Database Backups'
+// own frequency), so running this daily is safe even though most days it
+// does nothing.
+Schedule::command('backups:run-scheduled')->dailyAt('02:00');

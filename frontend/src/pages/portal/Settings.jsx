@@ -15,13 +15,19 @@ import {
   deleteClinicClosure,
 } from '../../api/clinicSettings';
 import { rescheduleAppointmentAsStaff } from '../../api/appointments';
+import {
+  getBackupOverview, updateBackupFrequency, triggerManualBackup, downloadBackup, deleteBackup,
+} from '../../api/backups';
 import DataTable from './components/DataTable';
 import Skeleton from './components/Skeleton';
 import StatusBadge from './components/StatusBadge';
 import Modal from './components/Modal';
 import PageHeader from './components/PageHeader';
 import RescheduleModal from './components/RescheduleModal';
-import { SettingsIcon, BuildingIcon, ClockIcon, ToothIcon, ShieldIcon, CalendarXIcon, TrashIcon } from './icons';
+import {
+  SettingsIcon, BuildingIcon, ClockIcon, ToothIcon, ShieldIcon, CalendarXIcon, TrashIcon,
+  ArchiveIcon, DownloadIcon, AlertIcon,
+} from './icons';
 import { showSuccessToast, showErrorToast, confirmAction } from '../../utils/toast';
 import { resolvePhotoUrl } from './avatarUtils';
 import { formatDateLong, formatTime12h } from './dateTimeUtils';
@@ -172,6 +178,31 @@ const CATEGORY_TONE = {
   'Orthodontics': 'green',
   'Specialist Services': 'amber',
 };
+function formatBytes(bytes) {
+  if (bytes == null) return '—';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+// completed_at/next_run are full timestamps (or a plain 'YYYY-MM-DD' for
+// next_run), not the bare appointment-date strings dateTimeUtils' own
+// formatters are built around — plain Date here instead of reaching for
+// those on a shape they don't expect.
+function formatBackupTimestamp(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return `${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} · ${d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+}
+
+function formatBackupDate(dateOnly) {
+  if (!dateOnly) return '—';
+  const d = new Date(`${dateOnly}T00:00:00`);
+  return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+}
+
+const FREQUENCY_TAG_LABEL = { weekly: 'Weekly', monthly: 'Monthly', manual: 'Manual' };
+
 function getInitials(name) {
   const parts = String(name || '').trim().split(/\s+/);
   const first = parts[0]?.[0] || '';
@@ -235,6 +266,91 @@ function Settings() {
   const [originalConflictCount, setOriginalConflictCount] = useState(0);
   const [closingClinic, setClosingClinic] = useState(false);
   const [reschedTarget, setReschedTarget] = useState(null);
+
+  // Separate load from the rest of Settings (getClinicSettings() above) —
+  // a backup-loading failure shouldn't block Clinic Info/Operating Hours/
+  // Services/HMO Providers/Clinic Closures from loading, and vice versa.
+  const [backupOverview, setBackupOverview] = useState(null);
+  const [backupLoading, setBackupLoading] = useState(true);
+  const [savingFrequency, setSavingFrequency] = useState(false);
+  const [triggeringBackup, setTriggeringBackup] = useState(false);
+  const [deletingBackupId, setDeletingBackupId] = useState(null);
+  const [backupActionError, setBackupActionError] = useState('');
+
+  const loadBackups = useCallback(async () => {
+    setBackupLoading(true);
+    try {
+      const data = await getBackupOverview();
+      setBackupOverview(data);
+    } catch {
+      // Left as null — the section below renders its own "could not load"
+      // state rather than blocking the rest of Settings.
+    } finally {
+      setBackupLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadBackups();
+  }, [loadBackups]);
+
+  const changeBackupFrequency = async (frequency) => {
+    if (backupOverview?.settings.frequency === frequency) return;
+    setSavingFrequency(true);
+    setBackupActionError('');
+    try {
+      await updateBackupFrequency(frequency);
+      await loadBackups();
+    } catch (err) {
+      setBackupActionError(err.response?.data?.message || 'Could not save the backup frequency.');
+    } finally {
+      setSavingFrequency(false);
+    }
+  };
+
+  const handleBackupNow = async () => {
+    setTriggeringBackup(true);
+    setBackupActionError('');
+    try {
+      await triggerManualBackup();
+      await loadBackups();
+      showSuccessToast('Backup created.');
+    } catch (err) {
+      setBackupActionError(err.response?.data?.message || 'Could not create a backup.');
+      await loadBackups(); // The failed attempt still shows up in history.
+    } finally {
+      setTriggeringBackup(false);
+    }
+  };
+
+  const handleDownloadBackup = async (backup) => {
+    try {
+      await downloadBackup(backup.id, backup.filename);
+    } catch (err) {
+      showErrorToast(err.response?.data?.message || 'Could not download this backup.');
+    }
+  };
+
+  const handleDeleteBackup = async (backup) => {
+    const confirmed = await confirmAction({
+      title: 'Delete this backup?',
+      text: `${backup.filename} will be permanently removed. This can't be undone.`,
+      confirmButtonText: 'Delete',
+      confirmButtonColor: '#b42318',
+    });
+    if (!confirmed) return;
+
+    setDeletingBackupId(backup.id);
+    try {
+      await deleteBackup(backup.id);
+      await loadBackups();
+      showSuccessToast('Backup deleted.');
+    } catch (err) {
+      showErrorToast(err.response?.data?.message || 'Could not delete this backup.');
+    } finally {
+      setDeletingBackupId(null);
+    }
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -1031,6 +1147,135 @@ function Settings() {
           </button>
         </div>
       </Modal>
+
+      <div className="section-card">
+        <div className="section-card-header">
+          <div className="section-card-heading">
+            <span className="section-card-icon"><ArchiveIcon /></span>
+            <div>
+              <h3 className="section-card-title">Database Backups</h3>
+              <p className="section-card-subtitle">Automatic, scheduled copies of the entire database — for recovery if something ever goes wrong</p>
+            </div>
+          </div>
+          <button type="button" className="dash-btn dash-btn--outline" disabled={triggeringBackup} onClick={handleBackupNow}>
+            <DownloadIcon /> {triggeringBackup ? 'Backing up…' : 'Back Up Now'}
+          </button>
+        </div>
+
+        {backupActionError && <div className="profile-alert profile-alert--error">{backupActionError}</div>}
+
+        {backupLoading ? (
+          <Skeleton variant="block" height="140px" />
+        ) : !backupOverview ? (
+          <p className="booking-empty-note">Could not load backup settings. Try refreshing the page.</p>
+        ) : (
+          <>
+            {backupOverview.staleness && (
+              <div className="backup-stale-note">
+                <AlertIcon />
+                <div className="backup-stale-text">
+                  {backupOverview.staleness.never ? (
+                    <><b>No backup has been made yet.</b> Back up now to start protecting your data.</>
+                  ) : (
+                    <>
+                      <b>Your last backup was {backupOverview.staleness.days_since} days ago</b> — expected every {backupOverview.staleness.expected_days} days
+                      {' '}({FREQUENCY_TAG_LABEL[backupOverview.staleness.frequency]}). Check that scheduled backups are still running correctly, or back up now.
+                    </>
+                  )}
+                </div>
+                <button type="button" className="dash-btn row-btn" disabled={triggeringBackup} onClick={handleBackupNow}>
+                  <DownloadIcon /> Back Up Now
+                </button>
+              </div>
+            )}
+
+            <div className="freq-row">
+              <div>
+                <div className="freq-label">Backup Frequency</div>
+                <div className="freq-sub">How often a new backup is generated automatically</div>
+              </div>
+              <div className="freq-pills">
+                {['off', 'weekly', 'monthly'].map((option) => (
+                  <button
+                    key={option}
+                    type="button"
+                    disabled={savingFrequency}
+                    className={`freq-pill${backupOverview.settings.frequency === option ? ' freq-pill--active' : ''}`}
+                    onClick={() => changeBackupFrequency(option)}
+                  >
+                    {option === 'off' ? 'Off' : FREQUENCY_TAG_LABEL[option]}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {backupOverview.next_run && (
+              <div className="next-run-note">📅 Next automatic backup: {formatBackupDate(backupOverview.next_run)}</div>
+            )}
+          </>
+        )}
+      </div>
+
+      {!backupLoading && backupOverview && (
+        <div className="section-card">
+          <p style={{ margin: '0 0 4px', fontWeight: 700, color: 'var(--portal-navy)', fontSize: '0.9rem' }}>Backup History</p>
+          <p style={{ margin: '0 0 14px', fontSize: '0.78rem', color: 'var(--portal-muted)' }}>
+            Keeps the last 4 weekly, last 3 monthly, and last 5 manual backups — older ones are cleaned up automatically.
+          </p>
+
+          {backupOverview.history.length === 0 ? (
+            <p className="booking-empty-note">No backups yet.</p>
+          ) : (
+            backupOverview.history.map((backup) => (
+              <div key={backup.id} className="backup-row">
+                <span className={`backup-icon${backup.status === 'running' ? ' backup-icon--running' : backup.status === 'failed' ? ' backup-icon--failed' : ''}`}>
+                  {backup.status === 'running' ? <ClockIcon /> : backup.status === 'failed' ? <AlertIcon /> : '✓'}
+                </span>
+                <div className="backup-info">
+                  <div className="backup-name">
+                    {backup.status === 'running' ? 'Generating backup…' : backup.status === 'failed' ? 'Backup failed' : backup.filename}
+                    <span className={`backup-tag backup-tag--${backup.frequency_tag}`}>{FREQUENCY_TAG_LABEL[backup.frequency_tag] || backup.frequency_tag}</span>
+                  </div>
+                  <div className="backup-meta">
+                    {backup.status === 'failed' && backup.error_message
+                      ? backup.error_message
+                      : backup.status === 'completed'
+                        ? <>{formatBackupTimestamp(backup.completed_at)} · {formatBytes(backup.size_bytes)}{backup.triggered_by_name ? ` · by ${backup.triggered_by_name}` : ''}</>
+                        : 'In progress — this usually only takes a few seconds.'}
+                  </div>
+                </div>
+                {backup.status === 'completed' && (
+                  <div className="backup-actions">
+                    <button type="button" className="dash-btn row-btn" onClick={() => handleDownloadBackup(backup)}>
+                      <DownloadIcon /> Download
+                    </button>
+                    <button
+                      type="button"
+                      className="dash-btn dash-btn--tint-danger row-btn"
+                      disabled={deletingBackupId === backup.id}
+                      onClick={() => handleDeleteBackup(backup)}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                )}
+                {backup.status === 'failed' && (
+                  <div className="backup-actions">
+                    <button
+                      type="button"
+                      className="dash-btn dash-btn--tint-danger row-btn"
+                      disabled={deletingBackupId === backup.id}
+                      onClick={() => handleDeleteBackup(backup)}
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      )}
     </div>
   );
 }

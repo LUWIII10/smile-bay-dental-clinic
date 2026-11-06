@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\Admin\ActivityLogController;
+use App\Http\Controllers\Api\Admin\BackupController;
 use App\Http\Controllers\Api\Admin\ClinicSettingsController;
 use App\Http\Controllers\Api\Admin\ReportsController;
 use App\Http\Controllers\Api\Admin\UserManagementController;
@@ -210,5 +211,11 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::get('/admin/reports/overview', [ReportsController::class, 'overview']);
         Route::get('/admin/reports/overview/pdf', [ReportsController::class, 'downloadPdf']);
+
+        Route::get('/admin/backups', [BackupController::class, 'index']);
+        Route::put('/admin/backups/settings', [BackupController::class, 'updateSettings']);
+        Route::post('/admin/backups', [BackupController::class, 'store']);
+        Route::get('/admin/backups/{backup}/download', [BackupController::class, 'download']);
+        Route::delete('/admin/backups/{backup}', [BackupController::class, 'destroy']);
     });
 });
