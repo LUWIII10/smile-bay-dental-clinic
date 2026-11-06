@@ -39,6 +39,9 @@ class PatientRecordController extends Controller
         $validated = $request->validate([
             'search' => ['nullable', 'string', 'max:100'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
+            // See parsePatientTypes()'s own comment — same two Cash/HMO
+            // toolbar chips filtering this directory, not a separate filter.
+            'patient_type' => ['sometimes', 'nullable', 'string'],
         ]);
 
         $query = Patient::query()->with('user:id,email,mobile_number,avatar_path');
@@ -52,22 +55,17 @@ class PatientRecordController extends Controller
             });
         }
 
+        $types = $this->parsePatientTypes($validated['patient_type'] ?? null);
+
+        if (! empty($types)) {
+            $query->whereIn('patient_type', $types);
+        }
+
         $perPage = $validated['per_page'] ?? 10;
 
         return response()->json($query->orderBy('last_name')->paginate($perPage)->withQueryString());
     }
 
-    /**
-     * Every appointment scheduled on one specific date, across all
-     * patients — the "who's actually on the books for this day" list an
-     * admin/staff wants to print rather than the full patient directory
-     * above. Deliberately appointment-centric, not patient-centric (a
-     * patient with two visits the same day shows up as two rows, each
-     * with its own real time/service/dentist) — unpaginated, since a
-     * single day's schedule is small enough to always fit on one printed
-     * page. Cancelled/rejected are excluded: a report of who "had an
-     * appointment" that day shouldn't include ones that didn't happen.
-     */
     /**
      * Shared by appointmentsByDate()/appointmentsByDatePdf() below — both
      * need the identical date range + status + patient-type filtering, only
@@ -96,8 +94,18 @@ class PatientRecordController extends Controller
      * as a real PHP array on this end; a single flat string round-trips
      * unambiguously either way. Split, trimmed, filtered to only the two
      * real values — omitted, empty, or junk all collapse to "no filter"
-     * (every patient), same as before this existed.
+     * (every patient), same as before this existed. Shared by index() (the
+     * main patient directory) and validateByDateRequest() below (the
+     * date-range report) — same two Cash/HMO toolbar chips filter both.
      */
+    private function parsePatientTypes(?string $raw): array
+    {
+        return array_values(array_intersect(
+            array_filter(array_map('trim', explode(',', $raw ?? ''))),
+            ['cash', 'hmo']
+        ));
+    }
+
     private function validateByDateRequest(Request $request): array
     {
         $validated = $request->validate([
@@ -106,16 +114,22 @@ class PatientRecordController extends Controller
             'patient_type' => ['sometimes', 'nullable', 'string'],
         ]);
 
-        $types = array_values(array_intersect(
-            array_filter(array_map('trim', explode(',', $validated['patient_type'] ?? ''))),
-            ['cash', 'hmo']
-        ));
-
-        $validated['patient_type'] = $types;
+        $validated['patient_type'] = $this->parsePatientTypes($validated['patient_type'] ?? null);
 
         return $validated;
     }
 
+    /**
+     * Every appointment scheduled on one specific date, across all
+     * patients — the "who's actually on the books for this day" list an
+     * admin/staff wants to print rather than the full patient directory
+     * above. Deliberately appointment-centric, not patient-centric (a
+     * patient with two visits the same day shows up as two rows, each
+     * with its own real time/service/dentist) — unpaginated, since a
+     * single day's schedule is small enough to always fit on one printed
+     * page. Cancelled/rejected are excluded: a report of who "had an
+     * appointment" that day shouldn't include ones that didn't happen.
+     */
     public function appointmentsByDate(Request $request)
     {
         $validated = $this->validateByDateRequest($request);

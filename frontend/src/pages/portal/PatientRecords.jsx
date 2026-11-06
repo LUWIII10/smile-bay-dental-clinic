@@ -335,13 +335,13 @@ function PatientRecords() {
 
   useEffect(() => {
     setPage(1);
-  }, [search, perPage]);
+  }, [search, perPage, typeFilter]);
 
   const loadList = useCallback(async () => {
     setListLoading(true);
     setListError('');
     try {
-      const result = await searchPatientRecords({ search, page, per_page: perPage });
+      const result = await searchPatientRecords({ search, page, per_page: perPage, types: typeFilter });
       setPatients(result.data);
       setMeta({
         current_page: result.current_page,
@@ -356,7 +356,7 @@ function PatientRecords() {
     } finally {
       setListLoading(false);
     }
-  }, [search, page, perPage]);
+  }, [search, page, perPage, typeFilter]);
 
   useEffect(() => {
     if (!selectedPatientId) loadList();

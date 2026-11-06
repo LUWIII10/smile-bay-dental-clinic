@@ -5,8 +5,13 @@ import { downloadFile } from '../utils/downloadFile';
 // dentist/dental_assistant/admin; every write action below is dentist-only
 // (enforced server-side by routes/api.php's role:dentist group).
 
-export async function searchPatientRecords({ search = '', page = 1, per_page = 10 } = {}) {
+// types: array of 'cash'/'hmo' (the Patient Records toolbar's own chips —
+// same two chips also drive getAppointmentsByDate/downloadAppointmentsByDatePdf
+// below). Sent as a comma-separated string, never as a PHP-style array[]
+// query param — see those two functions' own comment for why.
+export async function searchPatientRecords({ search = '', page = 1, per_page = 10, types = [] } = {}) {
   const params = Object.fromEntries(Object.entries({ search, page, per_page }).filter(([, v]) => v !== '' && v != null));
+  if (types.length === 1) params.patient_type = types[0];
   const response = await api.get('/api/patient-records', { params });
   return response.data;
 }
