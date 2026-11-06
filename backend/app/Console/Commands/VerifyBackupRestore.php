@@ -90,9 +90,14 @@ class VerifyBackupRestore extends Command
             }
             $this->info("Statements executed: {$executed}");
 
-            $realTables = collect(DB::select('SHOW TABLES'))
-                ->map(fn ($row) => array_values((array) $row)[0])
-                ->all();
+            // information_schema, not SHOW TABLES — SHOW TABLES lists
+            // temporary tables too for the session that created them, which
+            // would otherwise list every verify_* table this command just
+            // created as if it were a second, separate "real" table and
+            // falsely report it as missing from the backup.
+            $realTables = collect(DB::select(
+                "SELECT TABLE_NAME AS name FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_TYPE = 'BASE TABLE'"
+            ))->pluck('name')->all();
 
             $totalRows = 0;
             foreach ($realTables as $table) {
