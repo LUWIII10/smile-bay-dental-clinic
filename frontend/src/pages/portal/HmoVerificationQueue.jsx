@@ -694,6 +694,10 @@ function HmoVerificationQueue() {
       return patientName.includes(search) || hmoProviderName.includes(search) || cardNumber.includes(search);
     })
     : appointments;
+  // Always against the full queue, not visibleAppointments — this is a
+  // summary of the whole queue's own state, same count QueueCard's own
+  // amber "reschedule needed" note is driven by for each card.
+  const overdueCount = appointments.filter(isOverdue).length;
 
   return (
     <div>
@@ -707,7 +711,31 @@ function HmoVerificationQueue() {
 
       {!loading && !error && appointments.length > 0 && (
         <div className="section-card">
-          <div className="appt-toolbar appt-toolbar--end">
+          <div className="appt-toolbar appt-toolbar--between">
+            <div className="toolbar-heading">
+              <span className="toolbar-heading-icon"><ShieldIcon /></span>
+              <div>
+                {search ? (
+                  <>
+                    <div className="toolbar-heading-text">
+                      {visibleAppointments.length} of {appointments.length} booking{appointments.length === 1 ? '' : 's'}
+                    </div>
+                    <div className="toolbar-heading-sub">matching &ldquo;{searchInput.trim()}&rdquo;</div>
+                  </>
+                ) : (
+                  <>
+                    <div className="toolbar-heading-text">
+                      {appointments.length} booking{appointments.length === 1 ? '' : 's'} awaiting verification
+                    </div>
+                    {overdueCount > 0 && (
+                      <div className="toolbar-heading-sub">
+                        {overdueCount} need{overdueCount === 1 ? 's' : ''} a reschedule before {overdueCount === 1 ? 'it can' : 'they can'} be approved
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
             <div className="filter-field filter-field--grow">
               <div className="filter-search">
                 <SearchIcon />
@@ -720,11 +748,6 @@ function HmoVerificationQueue() {
                 />
               </div>
             </div>
-            {search && (
-              <span className="toolbar-count">
-                {visibleAppointments.length} of {appointments.length} booking{appointments.length === 1 ? '' : 's'}
-              </span>
-            )}
           </div>
         </div>
       )}

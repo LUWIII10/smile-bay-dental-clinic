@@ -236,15 +236,52 @@
 
 /* Modifier, not a new rule on .appt-toolbar itself — every other page using
    this toolbar (All Appointments, Patient Records, Activity Log) keeps the
-   default left-aligned flow; this only applies where the class is
-   explicitly added (HmoVerificationQueue.jsx, which has nothing else in
-   its own toolbar, so left-aligned left a large empty gap on the right).
-   Reset back to flex-start under the max-width: 480px column layout below
-   — flex-end on a column flex container pushes content to the BOTTOM
-   instead of the right, which would shove the field down behind empty
-   space on a narrow screen. */
-.appt-toolbar--end {
-  justify-content: flex-end;
+   default flow; this only applies where the class is explicitly added
+   (HmoVerificationQueue.jsx's toolbar-heading + search pairing below). */
+.appt-toolbar--between {
+  justify-content: space-between;
+}
+
+/* Left-side summary paired with the search field on the right
+   (HmoVerificationQueue.jsx) — queue size (or live match count once
+   searching) plus how many need a reschedule, driven by the same
+   isOverdue() check each QueueCard's own amber note already uses. Exists
+   so the toolbar's right-aligned search isn't floating alone against a
+   large empty gap — this was tried first (just .justify-content: flex-end,
+   no left-side content) and looked unbalanced/unfinished. */
+.toolbar-heading {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.toolbar-heading-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  background: var(--portal-blue-bg);
+  color: var(--portal-blue-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.toolbar-heading-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.toolbar-heading-text {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--portal-navy);
+}
+
+.toolbar-heading-sub {
+  font-size: 0.74rem;
+  color: var(--portal-muted);
+  font-weight: 500;
 }
 
 .filter-field {
@@ -276,17 +313,6 @@
 
 .filter-search .form-input {
   padding-left: 38px;
-}
-
-/* "X of Y" live result count — sits in .appt-toolbar next to the search
-   field, only shown once a search is actually typed (HmoVerificationQueue.jsx).
-   Fills what would otherwise be dead space on a toolbar with no other
-   filters next to the search box, and doubles as visible proof the list is
-   actually narrowing as you type, not just the input filling in with text. */
-.toolbar-count {
-  font-size: 0.78rem;
-  color: var(--portal-muted);
-  white-space: nowrap;
 }
 
 /* Date-range filter — one button styled like .filter-search (same icon-left
@@ -950,7 +976,7 @@
     align-items: stretch;
   }
 
-  .appt-toolbar--end {
+  .appt-toolbar--between {
     justify-content: flex-start;
   }
 
