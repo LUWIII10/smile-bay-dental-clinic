@@ -232,24 +232,31 @@
      margins — DentalRecords.css — minus this table's own 1px border each
      side): ~678px usable, with box-sizing: border-box above meaning these
      7 widths (padding included) need to sum comfortably under that — they
-     sum to 665px, leaving ~13px of slack for rounding. Fixed-format,
-     short-content columns (an ID, a short date, a time, the Type badge +
-     its provider sub-label, which wraps to its own second line rather
-     than needing single-line width) get just enough; the three free-text
-     columns split what's left — sized by how much real content each
-     tends to carry (Service names run longest, e.g. "Orthodontic
-     Consultation / Adjustment" in testing; Dentist is always just
-     "Dr. <name>") rather than divided evenly, which table-layout: fixed
-     would otherwise do for any column left unsized. Content that still
-     doesn't fit wraps within its own column (overflow-wrap: break-word
-     above) instead of forcing the table wider than the page. */
-  .patient-records-print-table .prt-col-patno { width: 90px; white-space: nowrap; }
+     sum to 670px, leaving ~8px of slack for rounding. Each width is sized
+     to the LONGEST SINGLE WORD that column's real content ever needs to
+     hold on one line (not the longest full string) — overflow-wrap:
+     break-word above only prevents the table itself from ever growing
+     past the page, it doesn't stop an individual word from being split
+     mid-way if the column is too narrow for even that, which reads as
+     broken ("Ramire"/"z") rather than a normal wrap. Patient No. ("PT-
+     2026-0081", 12 chars, never wraps) needed to grow from an earlier
+     90px attempt that was still overflowing into the next column. Type
+     needed real room for the HMO provider name on its own second line
+     (e.g. "Medicard"). Dentist went the other way — shortened to "Dr.
+     <surname>" only (dentistSurname() in PatientRecords.jsx) rather than
+     the full name, the single biggest source of crowding before; even
+     this system's longest real dentist name ("Dr. Suchelle Ann del
+     Castillo-Pascual, DMD") only needs room for "Castillo-Pascual" once
+     shortened, with "Dr." itself free to wrap to its own line if ever
+     needed. Patient/Service, the two genuinely free-text columns, split
+     what's left over. */
+  .patient-records-print-table .prt-col-patno { width: 105px; white-space: nowrap; }
   .patient-records-print-table .prt-col-date { width: 85px; white-space: nowrap; }
   .patient-records-print-table .prt-col-time { width: 65px; white-space: nowrap; }
-  .patient-records-print-table .prt-col-type { width: 65px; white-space: nowrap; }
+  .patient-records-print-table .prt-col-type { width: 90px; white-space: nowrap; text-align: center; }
   .patient-records-print-table .prt-col-dentist { width: 85px; }
-  .patient-records-print-table .prt-col-patient { width: 135px; }
-  .patient-records-print-table .prt-col-service { width: 140px; }
+  .patient-records-print-table .prt-col-patient { width: 125px; }
+  .patient-records-print-table .prt-col-service { width: 115px; }
 
   .prt-col-type-provider {
     display: block;

@@ -103,7 +103,7 @@
   .par-col-patno { width: 90px; white-space: nowrap; }
   .par-col-date { width: 85px; white-space: nowrap; }
   .par-col-time { width: 65px; white-space: nowrap; }
-  .par-col-type { width: 65px; white-space: nowrap; }
+  .par-col-type { width: 65px; white-space: nowrap; text-align: center; }
 
   /* Same green/amber Cash/HMO convention as the on-screen StatusBadge
      (dashboards.css .status-badge--green/--amber) — dompdf doesn't load

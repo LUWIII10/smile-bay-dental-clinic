@@ -75,6 +75,26 @@ function getInitials(name) {
   return (first + last).toUpperCase();
 }
 
+// "Dr. [First] [Middle...] [Last][, Suffix]" -> "Dr. [Last]" — print-only
+// (Patient Appointments Report's printed table + PDF), not the on-screen
+// dateColumns table, which has real width to spare and stays full-name for
+// easier reading while browsing. Strips a trailing ", DMD"-style suffix
+// first, then takes the last whitespace-separated token as the surname —
+// correctly handles a compound surname like "del Castillo-Pascual" by
+// keeping "Castillo-Pascual" together (the hyphen has no space to split
+// on), even though it drops the "del" article; a reasonable, still
+// recognizable shortening rather than a perfect name parse, which the
+// data (one flat `name` string, no separate surname field) doesn't
+// support anyway.
+function dentistSurname(fullName) {
+  if (!fullName) return 'Unassigned';
+  const noSuffix = fullName.split(',')[0].trim();
+  const withoutTitle = noSuffix.replace(/^Dr\.?\s+/i, '').trim();
+  const parts = withoutTitle.split(/\s+/).filter(Boolean);
+  const surname = parts.length > 0 ? parts[parts.length - 1] : withoutTitle;
+  return `Dr. ${surname}`;
+}
+
 function formatStatusLabel(status) {
   return String(status).replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase());
 }
@@ -2404,7 +2424,7 @@ function PatientRecords() {
                   {dateFilter.from !== dateFilter.to && <td className="prt-col-date">{formatDateShort(row.appointment_date)}</td>}
                   <td className="prt-col-time">{formatTime12h(row.appointment_time)}</td>
                   <td className="prt-col-service">{row.service?.name}</td>
-                  <td className="prt-col-dentist">{row.dentist?.name || 'Unassigned'}</td>
+                  <td className="prt-col-dentist">{dentistSurname(row.dentist?.name)}</td>
                   <td className="prt-col-type">
                     <StatusBadge status={row.patient?.patient_type === 'cash' ? 'Cash' : 'HMO'} tone={row.patient?.patient_type === 'cash' ? 'green' : 'amber'} />
                     {row.patient?.patient_type === 'hmo' && row.patient?.hmo_provider?.name && (

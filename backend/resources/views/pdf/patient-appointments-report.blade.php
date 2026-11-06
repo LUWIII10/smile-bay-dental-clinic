@@ -9,6 +9,30 @@
 
 @php
   $isSingleDay = $dateFrom === $dateTo;
+
+  // "Dr. [First] [Middle...] [Last][, Suffix]" -> "Dr. [Last]" — same
+  // shortening PatientRecords.jsx's own dentistSurname() applies to the
+  // on-screen printed version of this report, for the same reason: the
+  // full name was the single biggest source of crowding. function_exists
+  // guard since this file has no class to hang a real method off of and a
+  // raw @php function would otherwise fatal with "cannot redeclare" if
+  // this view were ever rendered twice in one request (never happens
+  // today — Pdf::loadView() runs once per request here — but costs
+  // nothing to guard against).
+  if (! function_exists('dentistSurname')) {
+      function dentistSurname(?string $name): string
+      {
+          if (! $name) {
+              return 'Unassigned';
+          }
+          $noSuffix = trim(explode(',', $name)[0]);
+          $withoutTitle = trim(preg_replace('/^Dr\.?\s+/i', '', $noSuffix));
+          $parts = preg_split('/\s+/', $withoutTitle, -1, PREG_SPLIT_NO_EMPTY);
+          $surname = ! empty($parts) ? end($parts) : $withoutTitle;
+
+          return 'Dr. '.$surname;
+      }
+  }
 @endphp
 
 @include('pdf.partials.letterhead', [
@@ -56,7 +80,7 @@
           @endunless
           <td class="par-col-time">{{ \Carbon\Carbon::parse($row->appointment_time)->format('g:i A') }}</td>
           <td>{{ $row->service->name ?? '' }}</td>
-          <td>{{ $row->dentist->name ?? 'Unassigned' }}</td>
+          <td>{{ dentistSurname($row->dentist->name ?? null) }}</td>
           <td class="par-col-type">
             @if (($row->patient->patient_type ?? null) === 'cash')
               <span class="par-type-cash">Cash</span>
