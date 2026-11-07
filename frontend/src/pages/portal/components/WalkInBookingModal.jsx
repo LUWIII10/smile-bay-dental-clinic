@@ -1,19 +1,36 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Modal from './Modal';
+import ServiceSelector from './ServiceSelector';
+import StatusBadge from './StatusBadge';
 import {
   searchPatients,
   registerWalkInPatient,
   assignWalkIn,
   getDentists,
   getAvailableSlots,
+  getDayAvailability,
 } from '../../../api/appointments';
 import api from '../../../api';
 import { formatDateLong, formatTime12h } from '../dateTimeUtils';
+import { KNOWN_DENTIST_PHOTOS, KNOWN_DENTIST_CREDENTIALS } from '../dentistPhotos';
+import { resolvePhotoUrl } from '../avatarUtils';
+import { CalendarIcon, CheckCircleIcon, UserIcon, SearchIcon } from '../icons';
+import '../BookAppointment.css';
 import styles from './WalkInBookingModal.module.css';
 
 const SEARCH_DEBOUNCE_MS = 300;
 const STEP_LABELS = ['Patient', 'Service', 'Dentist', 'Date & Time'];
-const SERVICE_CATEGORIES = ['General Dentistry', 'Cosmetic Dentistry', 'Orthodontics', 'Specialist Services'];
+const WEEKDAY_LABELS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+const MONTH_LABELS = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+const DAY_STATUS_LABELS = {
+  available: 'Available',
+  limited: 'Limited Slots',
+  full: 'Fully Booked',
+  unavailable: 'Unavailable',
+};
 
 const EMPTY_NEW_PATIENT_FORM = {
   first_name: '',
@@ -32,6 +49,26 @@ const EMPTY_NEW_PATIENT_FORM = {
 function todayDateKey() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// Same calendar-coloring helpers as BookAppointment.jsx's patient-facing
+// wizard — this modal's Step 4 reuses that same day-availability-colored
+// calendar (and its CSS, imported above), so the date math needs to match.
+function toDateKey(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function toMonthKey(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function startOfDay(date) {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  return d;
 }
 
 /**
@@ -94,6 +131,13 @@ function WalkInBookingModal({ open, onClose, selectedSlotData, services, onSucce
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [time, setTime] = useState('');
 
+  // Which month the Step 4 calendar is showing, and that month's real
+  // per-day availability (colors the calendar cells) — same shape as
+  // BookAppointment.jsx's own calendarMonth/dayAvailability state.
+  const [calendarMonth, setCalendarMonth] = useState(() => startOfDay(new Date()));
+  const [dayAvailability, setDayAvailability] = useState({});
+  const [loadingDayAvailability, setLoadingDayAvailability] = useState(false);
+
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -124,6 +168,8 @@ function WalkInBookingModal({ open, onClose, selectedSlotData, services, onSucce
       setDate(todayDateKey());
       setTime('');
       setTimeSlots([]);
+      setCalendarMonth(startOfDay(new Date()));
+      setDayAvailability({});
     }
   }, [open, selectedSlotData]);
 
@@ -192,6 +238,44 @@ function WalkInBookingModal({ open, onClose, selectedSlotData, services, onSucce
       }
     })();
   }, [open, isPrefilled, dentistId, serviceId, date]);
+
+  // Calendar coloring — which days this dentist+service combination has
+  // open slots for. Same /api/schedules/day-availability endpoint
+  // BookAppointment.jsx's patient-facing wizard calls — already readable
+  // by any authenticated role (routes/api.php), not patient-only.
+  useEffect(() => {
+    if (!open || isPrefilled || !dentistId || !serviceId) {
+      setDayAvailability({});
+      return;
+    }
+    (async () => {
+      setLoadingDayAvailability(true);
+      try {
+        setDayAvailability(await getDayAvailability(dentistId, serviceId, toMonthKey(calendarMonth)));
+      } catch {
+        // Fails closed — cells just fall back to 'unavailable' below, same
+        // as BookAppointment.jsx's own handling of this call.
+        setDayAvailability({});
+      } finally {
+        setLoadingDayAvailability(false);
+      }
+    })();
+  }, [open, isPrefilled, dentistId, serviceId, calendarMonth]);
+
+  const calendarCells = useMemo(() => {
+    const year = calendarMonth.getFullYear();
+    const month = calendarMonth.getMonth();
+    const firstOfMonth = new Date(year, month, 1);
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const leadingBlanks = firstOfMonth.getDay();
+    const cells = Array.from({ length: leadingBlanks }, () => null);
+    for (let day = 1; day <= daysInMonth; day += 1) cells.push(new Date(year, month, day));
+    return cells;
+  }, [calendarMonth]);
+
+  const todayStart = startOfDay(new Date());
+  const isPrevMonthDisabled =
+    calendarMonth.getFullYear() === todayStart.getFullYear() && calendarMonth.getMonth() === todayStart.getMonth();
 
   const canSubmit = !!(selectedPatient && serviceId && dentistId && date && time);
 
@@ -389,13 +473,16 @@ function WalkInBookingModal({ open, onClose, selectedSlotData, services, onSucce
     </>
   ) : (
     <>
-      <input
-        type="text"
-        className={styles.input}
-        placeholder="Search by patient name or email…"
-        value={patientQuery}
-        onChange={(e) => setPatientQuery(e.target.value)}
-      />
+      <div className={styles.searchField}>
+        <SearchIcon />
+        <input
+          type="text"
+          className={styles.input}
+          placeholder="Search by patient name or email…"
+          value={patientQuery}
+          onChange={(e) => setPatientQuery(e.target.value)}
+        />
+      </div>
       {patientQuery.trim().length >= 2 && (
         <div className={styles.resultsList}>
           {searchingPatients ? (
@@ -424,7 +511,7 @@ function WalkInBookingModal({ open, onClose, selectedSlotData, services, onSucce
   );
 
   return (
-    <Modal open={open} onClose={onClose} title={isPrefilled ? 'Assign Walk-In' : 'Book Walk-In Patient'}>
+    <Modal open={open} onClose={onClose} title={isPrefilled ? 'Assign Walk-In' : 'Book Walk-In Patient'} size="lg">
       {isPrefilled ? (
         <div className={styles.stepBody}>
           <div className={styles.summaryCard}>
@@ -457,48 +544,47 @@ function WalkInBookingModal({ open, onClose, selectedSlotData, services, onSucce
 
           {step === 2 && (
             <div className={styles.stepBody}>
-              {SERVICE_CATEGORIES.map((cat) => {
-                const inCat = services.filter((s) => s.category === cat);
-                if (inCat.length === 0) return null;
-                return (
-                  <div key={cat} className={styles.serviceGroup}>
-                    <div className={styles.serviceGroupLabel}>{cat}</div>
-                    <div className={styles.serviceGrid}>
-                      {inCat.map((s) => (
-                        <button
-                          key={s.id}
-                          type="button"
-                          className={String(s.id) === serviceId ? styles.serviceCardSelected : styles.serviceCard}
-                          onClick={() => setServiceId(String(s.id))}
-                        >
-                          {s.name}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
+              <ServiceSelector
+                services={services}
+                selectedServiceId={serviceId ? Number(serviceId) : null}
+                onSelect={(id) => setServiceId(String(id))}
+              />
             </div>
           )}
 
           {step === 3 && (
             <div className={styles.stepBody}>
               {loadingDentists ? (
-                <div className={styles.hint}>Loading dentists…</div>
+                <p className="booking-empty-note">Loading dentists…</p>
               ) : dentistOptions.length === 0 ? (
-                <div className={styles.hint}>No dentists are credentialed for this service.</div>
+                <p className="booking-empty-note">No dentists are credentialed for this service.</p>
               ) : (
-                <div className={styles.dentistList}>
-                  {dentistOptions.map((d) => (
-                    <button
-                      key={d.id}
-                      type="button"
-                      className={String(d.id) === dentistId ? styles.dentistCardSelected : styles.dentistCard}
-                      onClick={() => setDentistId(String(d.id))}
-                    >
-                      {d.name}
-                    </button>
-                  ))}
+                <div className="doctor-grid">
+                  {dentistOptions.map((d) => {
+                    const photo = resolvePhotoUrl(d.photo_path) || KNOWN_DENTIST_PHOTOS[d.name];
+                    const credentials = d.bio || KNOWN_DENTIST_CREDENTIALS[d.name];
+                    const isSelected = String(d.id) === dentistId;
+                    return (
+                      <div
+                        key={d.id}
+                        className={`doctor-card${isSelected ? ' doctor-card--selected' : ''}`}
+                        onClick={() => setDentistId(String(d.id))}
+                      >
+                        {isSelected && (
+                          <span className="doctor-card-check" aria-hidden="true">
+                            <CheckCircleIcon />
+                          </span>
+                        )}
+                        <span className="doctor-card-photo">
+                          {photo ? <img src={photo} alt={d.name} /> : <UserIcon />}
+                        </span>
+                        <h4 className="doctor-card-name">{d.name}</h4>
+                        <span className="doctor-card-specialty">{d.specialization || 'General Dentistry'}</span>
+                        {d.on_duty_today === false && <StatusBadge status="Off Today" tone="amber" />}
+                        {credentials && <p className="doctor-card-credentials">{credentials}</p>}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -506,31 +592,101 @@ function WalkInBookingModal({ open, onClose, selectedSlotData, services, onSucce
 
           {step === 4 && (
             <div className={styles.stepBody}>
-              <input
-                type="date"
-                className={styles.input}
-                value={date}
-                min={todayDateKey()}
-                onChange={(e) => setDate(e.target.value)}
-              />
-              {loadingSlots ? (
-                <div className={styles.hint}>Loading open slots…</div>
-              ) : timeSlots.length === 0 ? (
-                <div className={styles.hint}>No open slots for this date.</div>
-              ) : (
-                <div className={styles.slotGrid}>
-                  {timeSlots.map((t) => (
-                    <button
-                      key={t}
-                      type="button"
-                      className={t === time ? styles.slotBtnSelected : styles.slotBtn}
-                      onClick={() => setTime(t)}
-                    >
-                      {formatTime12h(t)}
-                    </button>
-                  ))}
+              <div className="datetime-layout">
+                <div className="calendar-panel">
+                  <div className="panel-label">
+                    <span className="panel-label-icon"><CalendarIcon /></span>
+                    <span className="panel-label-text">Select a Date</span>
+                  </div>
+                  {loadingDayAvailability ? (
+                    <p className="booking-empty-note">Loading…</p>
+                  ) : (
+                    <>
+                      <div className="calendar-header">
+                        <button
+                          type="button"
+                          className="calendar-nav-btn"
+                          disabled={isPrevMonthDisabled}
+                          onClick={() => setCalendarMonth((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1))}
+                          aria-label="Previous month"
+                        >
+                          &#8249;
+                        </button>
+                        <span className="calendar-month-label">
+                          {MONTH_LABELS[calendarMonth.getMonth()]} {calendarMonth.getFullYear()}
+                        </span>
+                        <button
+                          type="button"
+                          className="calendar-nav-btn"
+                          onClick={() => setCalendarMonth((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1))}
+                          aria-label="Next month"
+                        >
+                          &#8250;
+                        </button>
+                      </div>
+
+                      <div className="calendar-grid">
+                        {WEEKDAY_LABELS.map((wd) => (
+                          <span key={wd} className="calendar-weekday">{wd}</span>
+                        ))}
+                        {calendarCells.map((cellDate, i) => {
+                          if (!cellDate) return <span key={`blank-${i}`} className="calendar-cell calendar-cell--blank" />; // eslint-disable-line react/no-array-index-key
+                          const key = toDateKey(cellDate);
+                          const status = dayAvailability[key]?.status || 'unavailable';
+                          const isSelected = key === date;
+                          return (
+                            <button
+                              key={key}
+                              type="button"
+                              className={`calendar-cell calendar-cell--${status}${isSelected ? ' calendar-cell--selected' : ''}`}
+                              disabled={status === 'unavailable'}
+                              onClick={() => setDate(key)}
+                            >
+                              {cellDate.getDate()}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      <div className="calendar-legend">
+                        {Object.entries(DAY_STATUS_LABELS).map(([status, label]) => (
+                          <span key={status} className={`calendar-legend-item calendar-legend-item--${status}`}>
+                            {label}
+                          </span>
+                        ))}
+                      </div>
+                    </>
+                  )}
                 </div>
-              )}
+
+                <div className="slots-panel">
+                  <div className="slots-date-row">
+                    <span className="slots-date-icon"><CalendarIcon /></span>
+                    <div>
+                      <p className="slots-panel-label">Available times for</p>
+                      <h4 className="slots-panel-date">{formatDateLong(date)}</h4>
+                    </div>
+                  </div>
+                  {loadingSlots ? (
+                    <p className="booking-empty-note">Loading open slots…</p>
+                  ) : timeSlots.length === 0 ? (
+                    <p className="booking-empty-note">No open slots for this date.</p>
+                  ) : (
+                    <div className={styles.slotGrid}>
+                      {timeSlots.map((t) => (
+                        <button
+                          key={t}
+                          type="button"
+                          className={t === time ? styles.slotBtnSelected : styles.slotBtn}
+                          onClick={() => setTime(t)}
+                        >
+                          {formatTime12h(t)}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           )}
         </>

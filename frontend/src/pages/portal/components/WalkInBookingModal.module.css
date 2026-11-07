@@ -1,8 +1,14 @@
-/* Scoped to the walk-in booking modal only — same isolation approach as
-   Appointments.module.css (hardcoded values, no --portal-* tokens). Modal.jsx
-   itself (backdrop/card/esc-to-close/focus) is still the shared component
-   every other modal in the app uses — only the content rendered inside it
-   is styled from this module. */
+/* Scoped to the walk-in booking modal's own bits (stepper, patient
+   search/registration form, time slots). The Service/Dentist/Date steps
+   now reuse BookAppointment.css's global service/doctor/datetime classes
+   directly (imported in WalkInBookingModal.jsx) — same components the
+   patient-facing booking wizard already uses, not reinvented here.
+   Colors below were previously hardcoded to a slightly different blue
+   (#2563eb) than the rest of the portal's --portal-blue (#2952e3) —
+   corrected to the real tokens instead of a second, near-but-not-quite
+   brand color. Modal.jsx itself (backdrop/card/esc-to-close/focus) is
+   still the shared component every other modal in the app uses — only the
+   content rendered inside it is styled from this module. */
 
 .stepper {
   display: flex;
@@ -24,7 +30,7 @@
 }
 
 .stepDotActive {
-  border-bottom-color: #2563eb;
+  border-bottom-color: var(--portal-blue);
 }
 
 .stepDotDone {
@@ -35,8 +41,8 @@
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: #e2e8f0;
-  color: #64748b;
+  background: var(--portal-border-light);
+  color: var(--portal-muted);
   font-size: 0.7rem;
   font-weight: 700;
   display: flex;
@@ -45,7 +51,7 @@
 }
 
 .stepDotActive .stepNum {
-  background: #2563eb;
+  background: var(--portal-blue);
   color: #ffffff;
 }
 
@@ -57,7 +63,7 @@
 .stepLabel {
   font-size: 0.68rem;
   font-weight: 600;
-  color: #64748b;
+  color: var(--portal-muted);
   text-transform: uppercase;
   letter-spacing: 0.03em;
 }
@@ -69,12 +75,21 @@
   min-height: 120px;
 }
 
+/* BookAppointment.css's .datetime-layout collapses to 1 column only under
+   a 720px VIEWPORT query — irrelevant here, since this modal's own card is
+   capped at 640px (Modal's size="lg") regardless of the viewport it opens
+   in, so the 2-up grid would otherwise cram calendar+slots into that width
+   on any ordinary desktop screen. Always stack within this modal. */
+.stepBody :global(.datetime-layout) {
+  grid-template-columns: 1fr;
+}
+
 .fieldLabel {
   font-size: 0.72rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.03em;
-  color: #64748b;
+  color: var(--portal-muted);
 }
 
 .summaryCard {
@@ -88,7 +103,26 @@
 }
 
 .summaryCard strong {
-  color: #0f172a;
+  color: var(--portal-navy);
+}
+
+.searchField {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.searchField svg {
+  position: absolute;
+  left: 13px;
+  width: 15px;
+  height: 15px;
+  color: var(--portal-muted);
+  pointer-events: none;
+}
+
+.searchField .input {
+  padding-left: 38px;
 }
 
 .input {
@@ -111,7 +145,8 @@
 
 .input:focus {
   outline: none;
-  border-color: #2563eb;
+  border-color: var(--portal-blue);
+  box-shadow: 0 0 0 3px var(--portal-blue-tint);
 }
 
 .resultsList {
@@ -192,7 +227,7 @@
   background: none;
   border: none;
   padding: 0;
-  color: #2563eb;
+  color: var(--portal-blue);
   font-size: 0.78rem;
   font-weight: 600;
   cursor: pointer;
@@ -203,31 +238,12 @@
   text-decoration: underline;
 }
 
-.serviceGroup {
-  margin-bottom: 6px;
-}
-
-.serviceGroupLabel {
-  font-size: 0.7rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  color: #94a3b8;
-  margin-bottom: 6px;
-}
-
-.serviceGrid,
-.dentistList,
 .slotGrid {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
 
-.serviceCard,
-.serviceCardSelected,
-.dentistCard,
-.dentistCardSelected,
 .slotBtn,
 .slotBtnSelected {
   font-family: 'Poppins', sans-serif;
@@ -235,25 +251,18 @@
   font-weight: 500;
   padding: 8px 14px;
   border-radius: 8px;
-  border: 1.5px solid #e2e8f0;
+  border: 1.5px solid var(--portal-border-light);
   background: #ffffff;
-  color: #334155;
+  color: var(--portal-slate);
   cursor: pointer;
   text-align: left;
 }
 
-.serviceCardSelected,
-.dentistCardSelected,
 .slotBtnSelected {
-  border-color: #2563eb;
-  background: #eff6ff;
-  color: #1d4ed8;
+  border-color: var(--portal-blue);
+  background: var(--portal-blue-tint);
+  color: var(--portal-blue-text);
   font-weight: 700;
-}
-
-.dentistCard,
-.dentistCardSelected {
-  flex: 1 1 auto;
 }
 
 .hint {
@@ -294,13 +303,13 @@
 }
 
 .primaryBtn {
-  background-color: #2563eb;
+  background-color: var(--portal-blue);
   color: #ffffff;
   border: none;
 }
 
 .primaryBtn:hover {
-  background-color: #1d4ed8;
+  background-color: var(--portal-blue-hover);
 }
 
 .primaryBtn:disabled {
