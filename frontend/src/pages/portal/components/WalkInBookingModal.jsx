@@ -781,6 +781,7 @@ function WalkInBookingModal({ open, onClose, selectedSlotData, services, onSucce
           selectedPatient is null while it's open). */}
       {!addingNewPatient && (
         <div className={styles.footer}>
+          <div className={styles.footerSpacer} />
           {!isPrefilled && step > 1 ? (
             <button type="button" className={styles.secondaryBtn} onClick={() => setStep(step - 1)}>
               Back
@@ -790,7 +791,6 @@ function WalkInBookingModal({ open, onClose, selectedSlotData, services, onSucce
               Cancel
             </button>
           )}
-          <div className={styles.footerSpacer} />
           {!isPrefilled && step < 5 ? (
             <button type="button" className={styles.primaryBtn} disabled={!canGoNext} onClick={() => setStep(step + 1)}>
               Next
