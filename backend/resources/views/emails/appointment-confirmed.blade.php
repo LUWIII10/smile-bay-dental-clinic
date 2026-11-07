@@ -34,6 +34,12 @@
                                         @endif
                                         <strong style="color:#0f2557;">Date:</strong> {{ $date }}<br>
                                         <strong style="color:#0f2557;">Time:</strong> {{ $time }}
+                                        @if($bookedByName)
+                                            <br><strong style="color:#0f2557;">Booked by:</strong> {{ $bookedByName }}
+                                        @endif
+                                        @if($verifiedByName)
+                                            <br><strong style="color:#0f2557;">Verified by:</strong> {{ $verifiedByName }}
+                                        @endif
                                     </td>
                                 </tr>
                             </table>

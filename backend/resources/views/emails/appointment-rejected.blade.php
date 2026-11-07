@@ -33,6 +33,9 @@
                                         @endif
                                         <strong style="color:#0f2557;">Requested date:</strong> {{ $date }}<br>
                                         <strong style="color:#0f2557;">Requested time:</strong> {{ $time }}
+                                        @if($reviewedByName)
+                                            <br><strong style="color:#0f2557;">Reviewed by:</strong> {{ $reviewedByName }}
+                                        @endif
                                     </td>
                                 </tr>
                             </table>

@@ -35,7 +35,7 @@ class AppointmentConfirmedMail extends Mailable
 
     public function content(): Content
     {
-        $this->appointment->loadMissing(['patient', 'dentist', 'service']);
+        $this->appointment->loadMissing(['patient', 'dentist', 'service', 'bookedBy', 'verifiedBy']);
 
         return new Content(
             view: 'emails.appointment-confirmed',
@@ -47,6 +47,12 @@ class AppointmentConfirmedMail extends Mailable
                 'time' => Carbon::parse($this->appointment->appointment_time)->format('g:i A'),
                 'viaHmoVerification' => $this->appointment->patient_type_snapshot === 'hmo',
                 'coverageNotes' => $this->appointment->patient->hmo_coverage_notes,
+                // Null for a patient's own self-service booking/approval —
+                // the view only shows whichever of these actually happened.
+                'bookedByName' => $this->appointment->bookedBy?->name,
+                'verifiedByName' => $this->appointment->patient_type_snapshot === 'hmo'
+                    ? $this->appointment->verifiedBy?->name
+                    : null,
             ],
         );
     }

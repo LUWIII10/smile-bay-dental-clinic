@@ -416,7 +416,7 @@ class StaffAppointmentController extends Controller
 
         $appointment->load(['service:id,name,duration_minutes', 'patient.user', 'dentist:id,name']);
         try {
-            Mail::to($appointment->patient->user->email)->send(new AppointmentRescheduledMail($appointment, $oldDate, $oldTime));
+            Mail::to($appointment->patient->user->email)->send(new AppointmentRescheduledMail($appointment, $oldDate, $oldTime, $request->user()->name));
         } catch (\Throwable $e) {
             Log::warning('Appointment email failed to send', [
                 'mailable' => AppointmentRescheduledMail::class,
@@ -795,6 +795,7 @@ class StaffAppointmentController extends Controller
             $appointment = Appointment::create([
                 'patient_id' => $patient->id,
                 'dentist_id' => $validated['dentist_id'],
+                'booked_by' => $request->user()->id,
                 'service_id' => $service->id,
                 'appointment_date' => $validated['appointment_date'],
                 'appointment_time' => $validated['appointment_time'],

@@ -20,6 +20,7 @@ class Appointment extends Model
     protected $fillable = [
         'patient_id',
         'dentist_id',
+        'booked_by',
         'service_id',
         'patient_notes',
         'recommended_follow_up_service_id',
@@ -89,6 +90,15 @@ class Appointment extends Model
     public function verifiedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'verified_by');
+    }
+
+    // Which staff member created this as a walk-in on the patient's
+    // behalf (StaffAppointmentController::assignWalkIn()) — null for a
+    // patient's own self-service booking. Feeds AppointmentConfirmedMail's
+    // "Booked by" line.
+    public function bookedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'booked_by');
     }
 
     public function pediatricConfirmedBy(): BelongsTo

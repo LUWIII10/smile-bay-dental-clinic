@@ -35,7 +35,7 @@ class HmoCoverageVerifiedMail extends Mailable
 
     public function content(): Content
     {
-        $this->appointment->loadMissing(['patient', 'dentist', 'service']);
+        $this->appointment->loadMissing(['patient', 'dentist', 'service', 'verifiedBy']);
 
         return new Content(
             view: 'emails.hmo-coverage-verified',
@@ -47,6 +47,7 @@ class HmoCoverageVerifiedMail extends Mailable
                 'time' => Carbon::parse($this->appointment->appointment_time)->format('g:i A'),
                 'reason' => $this->appointment->dentist_reschedule_reason,
                 'coverageNotes' => $this->appointment->patient->hmo_coverage_notes,
+                'verifiedByName' => $this->appointment->verifiedBy?->name,
             ],
         );
     }

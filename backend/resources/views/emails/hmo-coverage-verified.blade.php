@@ -36,6 +36,9 @@
                                         @endif
                                         <strong style="color:#0f2557;">Proposed date:</strong> {{ $date }}<br>
                                         <strong style="color:#0f2557;">Proposed time:</strong> {{ $time }}
+                                        @if($verifiedByName)
+                                            <br><strong style="color:#0f2557;">Verified by:</strong> {{ $verifiedByName }}
+                                        @endif
                                     </td>
                                 </tr>
                             </table>

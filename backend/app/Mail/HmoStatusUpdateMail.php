@@ -26,6 +26,11 @@ class HmoStatusUpdateMail extends Mailable
         public Appointment $appointment,
         public string $statusLabel,
         public ?string $note = null,
+        // The staff member who clicked "Send Status Update" — captured at
+        // send time (StaffVerificationController::sendStatusUpdate()),
+        // same pattern as $statusLabel/$note above, since this is a one-off
+        // notification detail rather than persisted appointment state.
+        public ?string $updatedByName = null,
     ) {}
 
     public function envelope(): Envelope
@@ -49,6 +54,7 @@ class HmoStatusUpdateMail extends Mailable
                 'time' => Carbon::parse($this->appointment->appointment_time)->format('g:i A'),
                 'statusLabel' => $this->statusLabel,
                 'note' => $this->note,
+                'updatedByName' => $this->updatedByName,
             ],
         );
     }

@@ -276,7 +276,7 @@ class PediatricVerificationController extends Controller
 
         $appointment->load(['service:id,name,duration_minutes', 'patient.user', 'dentist:id,name']);
         try {
-            Mail::to($appointment->patient->user->email)->send(new AppointmentRescheduledMail($appointment, $oldDate, $oldTime));
+            Mail::to($appointment->patient->user->email)->send(new AppointmentRescheduledMail($appointment, $oldDate, $oldTime, $request->user()->name));
         } catch (\Throwable $e) {
             Log::warning('Appointment email failed to send', [
                 'mailable' => AppointmentRescheduledMail::class,

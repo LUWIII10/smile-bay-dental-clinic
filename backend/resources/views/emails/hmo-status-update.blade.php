@@ -35,6 +35,9 @@
                                         <strong style="color:#0f2557;">Requested date:</strong> {{ $date }}<br>
                                         <strong style="color:#0f2557;">Requested time:</strong> {{ $time }}<br>
                                         <strong style="color:#0f2557;">Status:</strong> {{ $statusLabel }}
+                                        @if($updatedByName)
+                                            <br><strong style="color:#0f2557;">Updated by:</strong> {{ $updatedByName }}
+                                        @endif
                                     </td>
                                 </tr>
                             </table>

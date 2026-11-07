@@ -43,6 +43,9 @@
                                         @endif
                                         <strong style="color:#0f2557;">New date:</strong> {{ $newDate }}<br>
                                         <strong style="color:#0f2557;">New time:</strong> {{ $newTime }}
+                                        @if($rescheduledByName)
+                                            <br><strong style="color:#0f2557;">Rescheduled by:</strong> {{ $rescheduledByName }}
+                                        @endif
                                     </td>
                                 </tr>
                             </table>

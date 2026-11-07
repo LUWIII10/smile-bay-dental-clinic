@@ -24,6 +24,13 @@ class AppointmentRescheduledMail extends Mailable
         public Appointment $appointment,
         public string $oldDate,
         public string $oldTime,
+        // Whoever moved this appointment — a dentist proposing their own
+        // new date, the pediatric dentist, or staff rescheduling directly.
+        // Captured at send time (one name per reschedule event) rather than
+        // a persisted column, since AppointmentStatusLog already carries
+        // this per-event via changed_by — nothing else needs it as a
+        // standing fact about the appointment itself.
+        public ?string $rescheduledByName = null,
     ) {}
 
     public function envelope(): Envelope
@@ -48,6 +55,7 @@ class AppointmentRescheduledMail extends Mailable
                 'newDate' => $this->appointment->appointment_date->format('F j, Y'),
                 'newTime' => Carbon::parse($this->appointment->appointment_time)->format('g:i A'),
                 'reason' => $this->appointment->dentist_reschedule_reason,
+                'rescheduledByName' => $this->rescheduledByName,
             ],
         );
     }

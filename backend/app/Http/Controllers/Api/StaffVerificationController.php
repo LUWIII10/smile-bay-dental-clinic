@@ -530,7 +530,7 @@ class StaffVerificationController extends Controller
         ]);
 
         try {
-            Mail::to($patientEmail)->send(new HmoStatusUpdateMail($appointment, $validated['status_label'], $validated['note'] ?? null));
+            Mail::to($patientEmail)->send(new HmoStatusUpdateMail($appointment, $validated['status_label'], $validated['note'] ?? null, $request->user()->name));
         } catch (\Throwable $e) {
             Log::warning('Appointment email failed to send', [
                 'mailable' => HmoStatusUpdateMail::class,

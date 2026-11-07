@@ -32,7 +32,7 @@ class AppointmentRejectedMail extends Mailable
 
     public function content(): Content
     {
-        $this->appointment->loadMissing(['patient', 'dentist', 'service']);
+        $this->appointment->loadMissing(['patient', 'dentist', 'service', 'verifiedBy']);
 
         return new Content(
             view: 'emails.appointment-rejected',
@@ -43,6 +43,7 @@ class AppointmentRejectedMail extends Mailable
                 'date' => $this->appointment->appointment_date->format('F j, Y'),
                 'time' => Carbon::parse($this->appointment->appointment_time)->format('g:i A'),
                 'reason' => $this->reason,
+                'reviewedByName' => $this->appointment->verifiedBy?->name,
             ],
         );
     }
