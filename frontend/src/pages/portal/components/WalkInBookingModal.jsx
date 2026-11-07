@@ -9,17 +9,18 @@ import {
   getDentists,
   getAvailableSlots,
   getDayAvailability,
+  getPatientNextAppointment,
 } from '../../../api/appointments';
 import api from '../../../api';
 import { formatDateLong, formatTime12h } from '../dateTimeUtils';
 import { KNOWN_DENTIST_PHOTOS, KNOWN_DENTIST_CREDENTIALS } from '../dentistPhotos';
 import { resolvePhotoUrl } from '../avatarUtils';
-import { CalendarIcon, CheckCircleIcon, UserIcon, SearchIcon } from '../icons';
+import { CalendarIcon, CheckCircleIcon, UserIcon, SearchIcon, AlertIcon } from '../icons';
 import '../BookAppointment.css';
 import styles from './WalkInBookingModal.module.css';
 
 const SEARCH_DEBOUNCE_MS = 300;
-const STEP_LABELS = ['Patient', 'Service', 'Dentist', 'Date & Time'];
+const STEP_LABELS = ['Patient', 'Service', 'Dentist', 'Date & Time', 'Review'];
 const WEEKDAY_LABELS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 const MONTH_LABELS = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -71,6 +72,19 @@ function startOfDay(date) {
   return d;
 }
 
+// Same tooltip copy as BookAppointment.jsx's own slotTooltipText() — this
+// modal always has one specific dentist chosen by Step 3 (no "any doctor"
+// sentinel here), so the offDentistNames-union branch that function needs
+// is dropped; dentistName alone covers the single-dentist case.
+function slotTooltipText(status, count, isPast, reason, dentistName) {
+  if (status === 'full') return 'Fully booked';
+  if (status === 'limited') return `${count} slot${count === 1 ? '' : 's'} left`;
+  if (status === 'available') return `${count} slots open`;
+  if (isPast) return 'Already passed';
+  if (reason !== 'day_off') return 'Clinic closed';
+  return dentistName ? `${dentistName} is off` : "Doctor's day off";
+}
+
 /**
  * Two entry points, one modal:
  *  - Entry Point 1 ("+ Book Walk-In Patient" header button): selectedSlotData
@@ -120,6 +134,12 @@ function WalkInBookingModal({ open, onClose, selectedSlotData, services, onSucce
   const [savingNewPatient, setSavingNewPatient] = useState(false);
   const [newPatientError, setNewPatientError] = useState('');
   const [newPatientNotice, setNewPatientNotice] = useState('');
+
+  // Surfaced the instant a patient is picked (or just registered) — same
+  // "you already have one coming up" awareness the patient-facing wizard
+  // gives a patient about their own booking, just checked against whoever
+  // staff selected here. null means nothing upcoming, the normal case.
+  const [patientNextAppointment, setPatientNextAppointment] = useState(null);
 
   const [serviceId, setServiceId] = useState('');
   const [dentistOptions, setDentistOptions] = useState([]);
@@ -191,6 +211,18 @@ function WalkInBookingModal({ open, onClose, selectedSlotData, services, onSucce
     }, SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(patientDebounceRef.current);
   }, [patientQuery]);
+
+  useEffect(() => {
+    if (!selectedPatient) {
+      setPatientNextAppointment(null);
+      return;
+    }
+    let cancelled = false;
+    getPatientNextAppointment(selectedPatient.id)
+      .then((appt) => { if (! cancelled) setPatientNextAppointment(appt); })
+      .catch(() => { if (! cancelled) setPatientNextAppointment(null); });
+    return () => { cancelled = true; };
+  }, [selectedPatient]);
 
   // Only needed once the staff member actually opens the new-patient form,
   // and only matters for the HMO branch of it — no point fetching this on
@@ -341,7 +373,8 @@ function WalkInBookingModal({ open, onClose, selectedSlotData, services, onSucce
   const canGoNext =
     (step === 1 && !!selectedPatient) ||
     (step === 2 && !!serviceId) ||
-    (step === 3 && !!dentistId);
+    (step === 3 && !!dentistId) ||
+    (step === 4 && !!date && !!time);
 
   const patientPicker = selectedPatient ? (
     <>
@@ -356,6 +389,20 @@ function WalkInBookingModal({ open, onClose, selectedSlotData, services, onSucce
         </button>
       </div>
       {newPatientNotice && <div className={styles.hint}>{newPatientNotice}</div>}
+      {patientNextAppointment && (
+        <div className={styles.dupBanner}>
+          <span className={styles.dupBannerIcon}><AlertIcon /></span>
+          <div>
+            <strong>This patient already has an upcoming appointment</strong>
+            <div>
+              {patientNextAppointment.service?.name} with {patientNextAppointment.dentist?.name || 'any available dentist'}
+            </div>
+            <div>
+              {formatDateLong(patientNextAppointment.appointment_date)} at {formatTime12h(patientNextAppointment.appointment_time)}
+            </div>
+          </div>
+        </div>
+      )}
     </>
   ) : addingNewPatient ? (
     <>
@@ -632,17 +679,23 @@ function WalkInBookingModal({ open, onClose, selectedSlotData, services, onSucce
                         {calendarCells.map((cellDate, i) => {
                           if (!cellDate) return <span key={`blank-${i}`} className="calendar-cell calendar-cell--blank" />; // eslint-disable-line react/no-array-index-key
                           const key = toDateKey(cellDate);
-                          const status = dayAvailability[key]?.status || 'unavailable';
+                          const info = dayAvailability[key] || { status: 'unavailable', count: 0, reason: null };
                           const isSelected = key === date;
+                          const isPast = cellDate < todayStart;
+                          const tipTone = info.status === 'unavailable' ? '' : ` calendar-cell-tip--${info.status}`;
+                          const selectedDentistName = dentistOptions.find((d) => String(d.id) === dentistId)?.name;
                           return (
                             <button
                               key={key}
                               type="button"
-                              className={`calendar-cell calendar-cell--${status}${isSelected ? ' calendar-cell--selected' : ''}`}
-                              disabled={status === 'unavailable'}
+                              className={`calendar-cell calendar-cell--${info.status}${isSelected ? ' calendar-cell--selected' : ''}`}
+                              disabled={info.status === 'unavailable'}
                               onClick={() => setDate(key)}
                             >
                               {cellDate.getDate()}
+                              <span className={`calendar-cell-tip${tipTone}`}>
+                                {slotTooltipText(info.status, info.count, isPast, info.reason, selectedDentistName)}
+                              </span>
                             </button>
                           );
                         })}
@@ -689,6 +742,34 @@ function WalkInBookingModal({ open, onClose, selectedSlotData, services, onSucce
               </div>
             </div>
           )}
+
+          {step === 5 && (
+            <div className={styles.stepBody}>
+              <p className={styles.fieldLabel} style={{ marginBottom: 4 }}>Review before booking</p>
+              <div className="summary-card">
+                <div className="summary-row">
+                  <span className="summary-label">Patient</span>
+                  <span className="summary-value">{selectedPatient?.first_name} {selectedPatient?.last_name}</span>
+                </div>
+                <div className="summary-row">
+                  <span className="summary-label">Service</span>
+                  <span className="summary-value">{services.find((s) => String(s.id) === serviceId)?.name}</span>
+                </div>
+                <div className="summary-row">
+                  <span className="summary-label">Dentist</span>
+                  <span className="summary-value">{dentistOptions.find((d) => String(d.id) === dentistId)?.name}</span>
+                </div>
+                <div className="summary-row">
+                  <span className="summary-label">Date</span>
+                  <span className="summary-value">{formatDateLong(date)}</span>
+                </div>
+                <div className="summary-row">
+                  <span className="summary-label">Time</span>
+                  <span className="summary-value">{formatTime12h(time)}</span>
+                </div>
+              </div>
+            </div>
+          )}
         </>
       )}
 
@@ -710,7 +791,7 @@ function WalkInBookingModal({ open, onClose, selectedSlotData, services, onSucce
             </button>
           )}
           <div className={styles.footerSpacer} />
-          {!isPrefilled && step < 4 ? (
+          {!isPrefilled && step < 5 ? (
             <button type="button" className={styles.primaryBtn} disabled={!canGoNext} onClick={() => setStep(step + 1)}>
               Next
             </button>

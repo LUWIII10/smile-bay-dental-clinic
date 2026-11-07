@@ -265,6 +265,43 @@
   font-weight: 700;
 }
 
+.dupBanner {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  background: var(--portal-amber-bg);
+  border: 1px solid var(--portal-amber-border);
+  border-radius: 8px;
+  padding: 11px 13px;
+  font-size: 0.78rem;
+  color: var(--portal-amber-text);
+  line-height: 1.6;
+}
+
+.dupBanner strong {
+  display: block;
+  font-size: 0.8rem;
+  margin-bottom: 2px;
+}
+
+.dupBannerIcon {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--portal-amber-text);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1px;
+}
+
+.dupBannerIcon svg {
+  width: 12px;
+  height: 12px;
+}
+
 .hint {
   font-size: 0.82rem;
   color: #64748b;

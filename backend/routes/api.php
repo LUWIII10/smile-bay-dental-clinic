@@ -165,6 +165,7 @@ Route::middleware('auth:sanctum')->group(function () {
         // tries (and fails) to route-model-bind "stats" as an appointment id.
         Route::get('/staff/appointments/stats', [StaffAppointmentController::class, 'stats']);
         Route::get('/staff/patients/search', [StaffAppointmentController::class, 'searchPatients']);
+        Route::get('/staff/patients/{patient}/next-appointment', [StaffAppointmentController::class, 'nextAppointmentForPatient']);
         Route::post('/staff/patients', [StaffAppointmentController::class, 'registerWalkInPatient']);
         Route::post('/staff/appointments/walk-in', [StaffAppointmentController::class, 'assignWalkIn']);
         Route::get('/staff/appointments/{appointment}', [StaffAppointmentController::class, 'show']);

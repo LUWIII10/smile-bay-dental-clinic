@@ -636,6 +636,30 @@ class StaffAppointmentController extends Controller
     }
 
     /**
+     * Same "next appointment" shape/logic as PatientAppointmentController's
+     * own dashboard summary (status in [confirmed, pending_verification],
+     * date >= today, earliest first) — just scoped to whichever patient
+     * staff picked in the Walk-In modal instead of "myself". Lets that
+     * modal warn staff immediately, right when a patient is selected, that
+     * they already have something upcoming, same as the patient-facing
+     * booking wizard already warns a patient about their own duplicate.
+     * null when there's nothing to warn about — not an error, the normal
+     * case for most patients.
+     */
+    public function nextAppointmentForPatient(Patient $patient)
+    {
+        $appointment = Appointment::where('patient_id', $patient->id)
+            ->whereIn('status', ['confirmed', 'pending_verification'])
+            ->where('appointment_date', '>=', now()->toDateString())
+            ->with(['dentist:id,name', 'service:id,name'])
+            ->orderBy('appointment_date')
+            ->orderBy('appointment_time')
+            ->first(['id', 'dentist_id', 'service_id', 'appointment_date', 'appointment_time']);
+
+        return response()->json(['data' => $appointment]);
+    }
+
+    /**
      * Front-desk registration — a walk-in with no existing Smile Bay
      * account at all (a first-time patient, or someone who'll never use
      * the portal themselves — an elderly patient unfamiliar with the

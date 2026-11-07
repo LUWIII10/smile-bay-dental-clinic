@@ -468,6 +468,15 @@ export async function searchPatients(query) {
   return response.data.data;
 }
 
+// null when the patient has nothing upcoming — the normal case, not an
+// error. Lets the Walk-In modal warn staff the instant a patient is
+// picked, same idea as the patient-facing wizard's own duplicate-booking
+// nudge, just checked against whichever patient staff selected.
+export async function getPatientNextAppointment(patientId) {
+  const response = await api.get(`/api/staff/patients/${patientId}/next-appointment`);
+  return response.data.data;
+}
+
 // Front-desk registration for a walk-in with no existing Smile Bay account —
 // email is optional (the backend synthesizes one from the mobile number
 // when omitted, e.g. for a patient who won't self-serve the portal).
