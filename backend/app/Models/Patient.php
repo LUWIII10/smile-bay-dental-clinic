@@ -121,6 +121,51 @@ class Patient extends Model
         return $this->booking_restricted_at !== null;
     }
 
+    // Two independent anti-abuse guardrails on top of isBookingRestricted()'s
+    // 3-strike cancellation policy — both self-service-booking-only, same
+    // staff-exempt carve-out (StaffAppointmentController::assignWalkIn()
+    // deliberately never calls either of these).
+    //
+    // DAILY_BOOKING_LIMIT: how many times a patient may successfully book a
+    // NEW appointment within one calendar day (Asia/Manila, matching
+    // app.timezone) — counts every appointment created today regardless of
+    // which future date it's FOR, and regardless of its current status
+    // (even one cancelled minutes later already used one of today's 3, or
+    // "attempts" would mean nothing). Resets automatically at midnight —
+    // this is purely a count of today's created_at rows, nothing persisted.
+    // Anti-spam: stops someone from hammering the booking form in one
+    // sitting. On its own this wouldn't stop a patient from re-maxing out
+    // every single day, which is exactly what MAX_UPCOMING_APPOINTMENTS
+    // below is for.
+    public const DAILY_BOOKING_LIMIT = 3;
+
+    // MAX_UPCOMING_APPOINTMENTS: how many appointments a patient may have
+    // concurrently active (status confirmed or pending_verification, dated
+    // today or later) at any one time — regardless of which day each one was
+    // booked on. Doesn't reset on a timer; only goes down when one of those
+    // appointments is completed or cancelled, freeing up a slot. This is the
+    // one that actually closes the long-term loophole DAILY_BOOKING_LIMIT
+    // alone leaves open (booking 3 more every day, forever) — it's also the
+    // more commonly used real-world pattern (Jane's "upcoming appointments
+    // limit", TimeTap's "max open appointments", Cegedim's "Maximum
+    // Outstanding Appointments").
+    public const MAX_UPCOMING_APPOINTMENTS = 3;
+
+    public function reachedDailyBookingLimit(): bool
+    {
+        return $this->appointments()
+            ->whereDate('created_at', now()->toDateString())
+            ->count() >= self::DAILY_BOOKING_LIMIT;
+    }
+
+    public function reachedUpcomingAppointmentLimit(): bool
+    {
+        return $this->appointments()
+            ->whereIn('status', ['confirmed', 'pending_verification'])
+            ->where('appointment_date', '>=', now()->toDateString())
+            ->count() >= self::MAX_UPCOMING_APPOINTMENTS;
+    }
+
     public function archivedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'archived_by');

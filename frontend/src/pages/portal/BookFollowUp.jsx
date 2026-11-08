@@ -118,6 +118,11 @@ function BookFollowUp() {
   // blocked the same way.
   const [cancellationPolicy, setCancellationPolicy] = useState(null);
 
+  // Two more anti-abuse guardrails — same as BookAppointment.jsx, same
+  // reasoning: a follow-up still goes through AppointmentController::store(),
+  // so it's subject to both limits identically.
+  const [bookingLimits, setBookingLimits] = useState(null);
+
   const patientType = user?.patient?.patient_type;
   const hmoProviderName = user?.patient?.hmo_provider?.name || user?.patient?.hmo_company_name;
 
@@ -126,6 +131,7 @@ function BookFollowUp() {
       .then((summary) => {
         setNextAppointment(summary?.nextAppointment || null);
         setCancellationPolicy(summary?.cancellationPolicy || null);
+        setBookingLimits(summary?.bookingLimits || null);
       })
       .catch(() => {});
   }, []);
@@ -340,6 +346,38 @@ function BookFollowUp() {
     );
   }
 
+  if (bookingLimits && bookingLimits.dailyCount >= bookingLimits.dailyLimit) {
+    return (
+      <div className="section-card">
+        <div className="dash-empty">
+          <AlertIcon />
+          <span className="dash-empty-title">Daily Booking Limit Reached</span>
+          <p style={{ margin: 0, fontSize: '0.82rem' }}>
+            You've already booked {bookingLimits.dailyLimit} appointments today. To keep slots fair for every
+            patient, bookings are limited to {bookingLimits.dailyLimit} per day — please try again tomorrow, or
+            contact the clinic directly if this is urgent.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (bookingLimits && bookingLimits.upcomingCount >= bookingLimits.upcomingLimit) {
+    return (
+      <div className="section-card">
+        <div className="dash-empty">
+          <AlertIcon />
+          <span className="dash-empty-title">Too Many Upcoming Appointments</span>
+          <p style={{ margin: 0, fontSize: '0.82rem' }}>
+            You currently have {bookingLimits.upcomingLimit} upcoming appointments already scheduled. Please wait
+            until one is completed, or cancel one, before booking another — or contact the clinic directly if this
+            is urgent.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   if (recommendations.length === 0) {
     return (
       <div className="section-card">
@@ -451,6 +489,34 @@ function BookFollowUp() {
                   <p className="suggestion-banner-subtitle">
                     Reaching {cancellationPolicy.restriction_threshold} will restrict new bookings on this account. Please only
                     book if you're sure you can make it.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {bookingLimits && bookingLimits.dailyCount === bookingLimits.dailyLimit - 1 && (
+              <div className="suggestion-banner" style={{ marginTop: 12 }}>
+                <span className="suggestion-banner-icon"><AlertIcon /></span>
+                <div className="suggestion-banner-text">
+                  <p className="suggestion-banner-title">
+                    You've booked {bookingLimits.dailyCount} of {bookingLimits.dailyLimit} appointments allowed today
+                  </p>
+                  <p className="suggestion-banner-subtitle">
+                    One more booking today will reach your daily limit — it resets tomorrow.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {bookingLimits && bookingLimits.upcomingCount === bookingLimits.upcomingLimit - 1 && (
+              <div className="suggestion-banner" style={{ marginTop: 12 }}>
+                <span className="suggestion-banner-icon"><AlertIcon /></span>
+                <div className="suggestion-banner-text">
+                  <p className="suggestion-banner-title">
+                    You have {bookingLimits.upcomingCount} of {bookingLimits.upcomingLimit} upcoming appointments allowed at once
+                  </p>
+                  <p className="suggestion-banner-subtitle">
+                    One more booking will reach that limit — it frees up once an appointment is completed or cancelled.
                   </p>
                 </div>
               </div>

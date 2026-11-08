@@ -8,6 +8,7 @@ use App\Models\ActivityLog;
 use App\Models\Appointment;
 use App\Models\AppointmentStatusLog;
 use App\Models\Notification;
+use App\Models\Patient;
 use App\Services\AppointmentSlotService;
 use App\Services\CancellationPolicyService;
 use Illuminate\Http\Request;
@@ -100,6 +101,19 @@ class PatientAppointmentController extends Controller
                 'nextAppointment' => $nextAppointment,
                 'recentActivity' => $recentActivity,
                 'cancellationPolicy' => $this->cancellationPolicy->statusFor($patient),
+                // Backs BookAppointment.jsx/BookFollowUp.jsx's own guardrail
+                // banners — see Patient::reachedDailyBookingLimit()/
+                // reachedUpcomingAppointmentLimit() for what each counts.
+                // $upcomingCount above already matches the second one's own
+                // definition exactly, reused rather than re-queried.
+                'bookingLimits' => [
+                    'dailyCount' => Appointment::where('patient_id', $patient->id)
+                        ->whereDate('created_at', $today)
+                        ->count(),
+                    'dailyLimit' => Patient::DAILY_BOOKING_LIMIT,
+                    'upcomingCount' => $upcomingCount,
+                    'upcomingLimit' => Patient::MAX_UPCOMING_APPOINTMENTS,
+                ],
             ],
         ]);
     }

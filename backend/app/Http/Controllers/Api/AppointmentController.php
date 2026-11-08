@@ -14,6 +14,7 @@ use App\Models\Appointment;
 use App\Models\AppointmentStatusLog;
 use App\Models\DentalRecord;
 use App\Models\Notification;
+use App\Models\Patient;
 use App\Models\Service;
 use App\Models\TreatmentHistory;
 use App\Models\User;
@@ -61,6 +62,26 @@ class AppointmentController extends Controller
             return response()->json([
                 'message' => 'New bookings are currently restricted on this account due to repeated cancellations. Please contact the clinic directly to book an appointment.',
             ], 403);
+        }
+
+        // Two anti-abuse guardrails, same self-service-only / staff-exempt
+        // scope as isBookingRestricted() above — see Patient::
+        // reachedDailyBookingLimit()/reachedUpcomingAppointmentLimit()'s own
+        // doc comments for why both exist. Checked in this order so the
+        // message always matches whichever limit is actually binding today;
+        // a patient who's hit both sees the daily one first since it's the
+        // more immediately actionable of the two (try again tomorrow vs.
+        // wait for a slot to free up).
+        if ($patient->reachedDailyBookingLimit()) {
+            return response()->json([
+                'message' => 'You\'ve already booked '.Patient::DAILY_BOOKING_LIMIT.' appointments today. To keep slots fair for every patient, bookings are limited to '.Patient::DAILY_BOOKING_LIMIT.' per day — please try again tomorrow, or contact the clinic directly if this is urgent.',
+            ], 429);
+        }
+
+        if ($patient->reachedUpcomingAppointmentLimit()) {
+            return response()->json([
+                'message' => 'You currently have '.Patient::MAX_UPCOMING_APPOINTMENTS.' upcoming appointments already scheduled. Please wait until one is completed, or cancel one, before booking another — or contact the clinic directly if this is urgent.',
+            ], 429);
         }
 
         $service = Service::findOrFail($validated['service_id']);
