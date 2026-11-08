@@ -494,37 +494,23 @@ function BookAppointment() {
   // Checked in the same order as AppointmentController::store()'s own
   // server-side check, so the message a patient sees here always matches
   // the one they'd get if they somehow bypassed this and submitted anyway.
-  if (bookingLimits && bookingLimits.dailyCount >= bookingLimits.dailyLimit) {
-    return (
-      <div className="section-card">
-        <div className="dash-empty">
-          <AlertIcon />
-          <span className="dash-empty-title">Daily Booking Limit Reached</span>
-          <p style={{ margin: 0, fontSize: '0.82rem' }}>
-            You've already booked {bookingLimits.dailyLimit} appointments today. To keep slots fair for every
-            patient, bookings are limited to {bookingLimits.dailyLimit} per day — please try again tomorrow, or
-            contact the clinic directly if this is urgent.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  if (bookingLimits && bookingLimits.upcomingCount >= bookingLimits.upcomingLimit) {
-    return (
-      <div className="section-card">
-        <div className="dash-empty">
-          <AlertIcon />
-          <span className="dash-empty-title">Too Many Upcoming Appointments</span>
-          <p style={{ margin: 0, fontSize: '0.82rem' }}>
-            You currently have {bookingLimits.upcomingLimit} upcoming appointments already scheduled. Please wait
-            until one is completed, or cancel one, before booking another — or contact the clinic directly if this
-            is urgent.
-          </p>
-        </div>
-      </div>
-    );
-  }
+  // Deliberately non-blocking at the page level (unlike cancellationPolicy
+  // ?.restricted above) — a patient hitting either limit can still browse
+  // every step (services, doctors, real open slots) to plan ahead; only
+  // the final submit is actually disabled, via bookingLimitBlocked below.
+  const bookingLimitBlocked = bookingLimits && (
+    bookingLimits.dailyCount >= bookingLimits.dailyLimit || bookingLimits.upcomingCount >= bookingLimits.upcomingLimit
+  );
+  const bookingLimitBanner = !bookingLimits ? null
+    : bookingLimits.dailyCount >= bookingLimits.dailyLimit ? {
+      title: 'Daily Booking Limit Reached',
+      text: `You've already booked ${bookingLimits.dailyLimit} appointments today. You can still look around below, but a new booking can't be submitted until tomorrow — or contact the clinic directly if this is urgent.`,
+    }
+    : bookingLimits.upcomingCount >= bookingLimits.upcomingLimit ? {
+      title: 'Too Many Upcoming Appointments',
+      text: `You currently have ${bookingLimits.upcomingLimit} upcoming appointments already scheduled. You can still look around below, but a new booking can't be submitted until one is completed or cancelled — or contact the clinic directly if this is urgent.`,
+    }
+    : null;
 
   return (
     <div>
@@ -549,6 +535,16 @@ function BookAppointment() {
           })}
         </div>
         <p className="wizard-mobile-step-label">Step {step} of {STEPS.length}: {STEPS[step - 1]}</p>
+
+        {bookingLimitBanner && (
+          <div className="suggestion-banner" style={{ marginBottom: 16 }}>
+            <span className="suggestion-banner-icon"><AlertIcon /></span>
+            <div className="suggestion-banner-text">
+              <p className="suggestion-banner-title">{bookingLimitBanner.title}</p>
+              <p className="suggestion-banner-subtitle">{bookingLimitBanner.text}</p>
+            </div>
+          </div>
+        )}
 
         {/* ---- Step 1: Service ---- */}
         {step === 1 && (
@@ -1036,7 +1032,8 @@ function BookAppointment() {
               type="button"
               className="dash-btn"
               onClick={() => (nextAppointment ? setShowDuplicateWarning(true) : handleConfirm())}
-              disabled={submitting}
+              disabled={submitting || bookingLimitBlocked}
+              title={bookingLimitBlocked ? bookingLimitBanner?.title : undefined}
             >
               {submitting ? 'Booking…' : 'Confirm Booking'}
             </button>
