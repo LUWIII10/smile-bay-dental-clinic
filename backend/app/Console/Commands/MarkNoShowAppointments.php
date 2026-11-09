@@ -21,9 +21,17 @@ use Illuminate\Support\Facades\DB;
  * (date == appointment date) is deliberately left alone — that's the
  * "Running Late" window (AllAppointments.jsx's isRunningLate()), where staff
  * still has a same-day chance to move or reassign the slot.
+ *
+ * GRACE_DAYS is the buffer past that before assuming "nobody resolved it" —
+ * a same-day-only cutoff gave staff literally zero room to finish charting
+ * a busy day's visits before midnight auto-marked them missed. 2 days
+ * covers normal same/next-day charting lag without leaving a genuine
+ * no-show undetected for long.
  */
 class MarkNoShowAppointments extends Command
 {
+    private const GRACE_DAYS = 2;
+
     protected $signature = 'appointments:mark-no-shows';
 
     protected $description = 'Automatically mark lapsed confirmed/pending appointments as no-show';
@@ -31,7 +39,7 @@ class MarkNoShowAppointments extends Command
     public function handle(CancellationPolicyService $cancellationPolicy): int
     {
         $appointments = Appointment::whereIn('status', ['confirmed', 'pending_verification'])
-            ->where('appointment_date', '<', now()->toDateString())
+            ->where('appointment_date', '<=', now()->subDays(self::GRACE_DAYS)->toDateString())
             ->with(['patient.user', 'service:id,name'])
             ->get();
 
