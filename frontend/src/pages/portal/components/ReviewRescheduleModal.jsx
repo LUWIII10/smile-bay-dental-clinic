@@ -48,7 +48,7 @@ function ReviewRescheduleModal({ open, onClose, appointment, onSuccess }) {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 9, marginBottom: 14 }}>
         <div style={{ background: 'var(--portal-canvas)', border: '1px solid var(--portal-border-light)', borderRadius: 9, padding: 11 }}>
           <span style={{ display: 'block', fontSize: '0.62rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--portal-muted)', marginBottom: 4 }}>
-            Dentist Proposed
+            Proposed
           </span>
           <span style={{ fontWeight: 700, fontSize: '0.86rem', color: 'var(--portal-navy)' }}>
             {formatDateLong(appointment.appointment_date)} &middot; {formatTime12h(appointment.appointment_time)}

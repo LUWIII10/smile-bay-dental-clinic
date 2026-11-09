@@ -423,12 +423,29 @@ export async function cancelAppointmentAsStaff(appointmentId, reason) {
 
 // Staff-wide reschedule (any confirmed/pending appointment, any dentist) —
 // not scoped to a dentist's own schedule like rescheduleAppointment() above.
-// Meant for a patient running late: status never changes, only the date/time.
+// Instant-apply — used by the Clinic Closures reschedule-first flow, where
+// the old slot is being shut down and needs resolving right away.
 export async function rescheduleAppointmentAsStaff(appointmentId, date, time) {
   await api.get('/sanctum/csrf-cookie');
   const response = await api.patch(`/api/staff/appointments/${appointmentId}/reschedule`, {
     appointment_date: date,
     appointment_time: time,
+  });
+  return response.data;
+}
+
+// Staff-wide counterpart to rescheduleAppointment() above — same "propose,
+// don't auto-apply" flow, just without the dentist-ownership restriction.
+// Used by AllAppointments.jsx's Running Late "Move to Another Schedule":
+// staff picks a time, but it only becomes final once the patient confirms
+// (or counter-proposes) it, so a slot never gets handed to a time the
+// patient can't actually make.
+export async function proposeStaffReschedule(appointmentId, date, time, reason) {
+  await api.get('/sanctum/csrf-cookie');
+  const response = await api.patch(`/api/staff/appointments/${appointmentId}/propose-reschedule`, {
+    appointment_date: date,
+    appointment_time: time,
+    reason: reason || null,
   });
   return response.data;
 }

@@ -7,7 +7,7 @@ import {
   getServices,
   cancelAppointmentAsStaff,
   markNoShow,
-  rescheduleAppointmentAsStaff,
+  proposeStaffReschedule,
 } from '../../api/appointments';
 import StatusBadge from './components/StatusBadge';
 import StatCard from './components/StatCard';
@@ -129,6 +129,14 @@ function isAwaitingDateChangeReview(row) {
   return !!row.patient_requested_new_date_at;
 }
 
+// A reschedule proposal (from here or the dentist's own My Schedule) sitting
+// on a still-'confirmed' row, not yet accepted or countered by the patient —
+// isAwaitingDateChangeReview() above takes over once the patient counters,
+// so this never overlaps with it.
+function isAwaitingPatientConfirmation(row) {
+  return !!row.dentist_proposed_new_date_at && row.status === 'confirmed' && !row.patient_requested_new_date_at;
+}
+
 function localTodayKey() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -178,9 +186,10 @@ function AllAppointments() {
   const [cancelling, setCancelling] = useState(false);
 
   // "Move to Another Schedule" — reuses the same RescheduleModal the dentist's
-  // own schedule uses, just pointed at the staff-wide reschedule endpoint
-  // (rescheduleAppointmentAsStaff) since this isn't scoped to one dentist's
-  // own appointments.
+  // own schedule uses, pointed at the staff-wide PROPOSE endpoint
+  // (proposeStaffReschedule, needsConfirmation=true below) so a Running Late
+  // move only becomes final once the patient confirms it — picking a time
+  // the patient can't actually make no longer silently wastes the slot.
   const [rescheduleTarget, setRescheduleTarget] = useState(null);
   const [reviewTarget, setReviewTarget] = useState(null);
 
@@ -565,6 +574,8 @@ function AllAppointments() {
       render: (row) => (
         isAwaitingDateChangeReview(row) ? (
           <StatusBadge status="reschedule_date_change_requested" icon={ClockIcon} />
+        ) : isAwaitingPatientConfirmation(row) ? (
+          <StatusBadge status="New Time Proposed" tone="blue" icon={ClockIcon} />
         ) : isOverdueUnresolved(row) ? (
           <StatusBadge status="Awaiting Update" tone="amber" icon={ClockIcon} />
         ) : isRunningLate(row) ? (
@@ -780,13 +791,13 @@ function AllAppointments() {
         open={!!rescheduleTarget}
         onClose={() => setRescheduleTarget(null)}
         appointment={rescheduleTarget}
-        rescheduleFn={rescheduleAppointmentAsStaff}
-        needsConfirmation={false}
+        rescheduleFn={proposeStaffReschedule}
+        needsConfirmation
         onSuccess={() => {
           setRescheduleTarget(null);
           load();
           loadStats();
-          showSuccessToast('Appointment moved to a new time.');
+          showSuccessToast('New time sent to the patient for confirmation.');
         }}
       />
 

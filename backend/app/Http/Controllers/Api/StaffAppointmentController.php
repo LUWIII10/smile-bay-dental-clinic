@@ -443,6 +443,104 @@ class StaffAppointmentController extends Controller
     }
 
     /**
+     * Clinic-wide counterpart to AppointmentController::proposeReschedule()
+     * (dentist-only, own appointments) — same mechanics, same
+     * dentist_proposed_new_date_at/dentist_reschedule_reason fields reused
+     * as-is (already a generic "a new time is pending confirmation" signal,
+     * not exclusively a dentist one — the Pediatric Queue flow already sets
+     * it from a staff context too), just without the ownership check, so
+     * any staff/admin can propose on any dentist's appointment. Unlike
+     * reschedule() above (instant-apply, for a same-day Running Late move
+     * where staff needs the slot resolved right now), this is for a
+     * different-day move where there's time for the patient to actually
+     * confirm — PatientAppointmentController::acceptReschedule()/
+     * requestDifferentRescheduleDate() and reviewRescheduleRequest() above
+     * already handle the confirm/counter-propose/review loop generically,
+     * no changes needed there.
+     */
+    public function proposeReschedule(Request $request, Appointment $appointment)
+    {
+        if (! in_array($appointment->status, ['confirmed', 'pending_verification'], true)) {
+            return response()->json([
+                'message' => 'Only a confirmed or pending appointment can be rescheduled.',
+            ], 422);
+        }
+
+        $validated = $request->validate([
+            'appointment_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:today'],
+            'appointment_time' => ['required', 'date_format:H:i'],
+            'reason' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $appointment->load('service:id,duration_minutes');
+        $oldDate = $appointment->appointment_date->toDateString();
+        $oldTime = $appointment->appointment_time;
+
+        $proposed = DB::transaction(function () use ($appointment, $validated) {
+            $available = $this->slots->isSlotAvailable(
+                $appointment->dentist_id,
+                $validated['appointment_date'],
+                $validated['appointment_time'],
+                $appointment->service->duration_minutes,
+                $appointment->id,
+            );
+
+            if (! $available) {
+                return false;
+            }
+
+            $appointment->update([
+                'appointment_date' => $validated['appointment_date'],
+                'appointment_time' => $validated['appointment_time'],
+                'dentist_proposed_new_date_at' => now(),
+                'dentist_reschedule_reason' => $validated['reason'] ?? null,
+            ]);
+
+            return true;
+        });
+
+        if (! $proposed) {
+            return response()->json([
+                'message' => 'This time slot is no longer available. Please choose another.',
+            ], 409);
+        }
+
+        AppointmentStatusLog::create([
+            'appointment_id' => $appointment->id,
+            'old_status' => $appointment->status,
+            'new_status' => $appointment->status,
+            'changed_by' => $request->user()->id,
+            'note' => "Staff proposed a new date, from {$oldDate} {$oldTime} to {$validated['appointment_date']} {$validated['appointment_time']} — awaiting patient confirmation."
+                .(! empty($validated['reason']) ? ' Reason: '.$validated['reason'] : ''),
+        ]);
+
+        $appointment->load(['service:id,name,duration_minutes', 'patient.user', 'dentist:id,name']);
+        try {
+            Mail::to($appointment->patient->user->email)->send(new AppointmentRescheduledMail($appointment, $oldDate, $oldTime, $request->user()->name));
+        } catch (\Throwable $e) {
+            Log::warning('Appointment email failed to send', [
+                'mailable' => AppointmentRescheduledMail::class,
+                'appointment_id' => $appointment->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+        Notification::notifyUser(
+            $appointment->patient->user_id,
+            'New time proposed',
+            "Our staff proposed moving your {$appointment->service->name} appointment to {$validated['appointment_date']} at {$validated['appointment_time']} — please confirm.",
+            '/patient/appointments'
+        );
+
+        ActivityLog::record(
+            $request->user()->id,
+            'appointment_rescheduled',
+            "{$request->user()->name} proposed a new date for {$appointment->patient->first_name} {$appointment->patient->last_name}'s {$appointment->service->name} appointment."
+        );
+
+        return response()->json(['message' => 'New date sent to the patient for confirmation.', 'data' => $appointment]);
+    }
+
+    /**
      * Staff decides on a patient's countered reschedule date
      * (PatientAppointmentController::requestDifferentRescheduleDate() —
      * patient_requested_date/time/_new_date_at). approve re-checks the slot

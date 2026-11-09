@@ -773,9 +773,9 @@ function PatientAppointments() {
               <div className="profile-alert profile-alert--success" style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
                 <CheckCircleIcon />
                 <span>
-                  {proposalTarget.dentist?.name || 'Your dentist'} requested to move your already-confirmed visit to
-                  a new time below. Nothing is wrong with your booking — we just need you to confirm it still works
-                  for you, or pick a different time.
+                  We requested to move your already-confirmed visit to a new time below — your dentist or our staff
+                  may have made this request. Nothing is wrong with your booking; we just need you to confirm it
+                  still works for you, or pick a different time.
                 </span>
               </div>
             ) : isStaffProposal(proposalTarget) ? (
