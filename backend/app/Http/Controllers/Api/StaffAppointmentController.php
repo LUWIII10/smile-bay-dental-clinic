@@ -376,7 +376,7 @@ class StaffAppointmentController extends Controller
         $oldDate = $appointment->appointment_date->toDateString();
         $oldTime = $appointment->appointment_time;
 
-        $rescheduled = DB::transaction(function () use ($appointment, $validated) {
+        $rescheduled = DB::transaction(function () use ($appointment, $validated, $oldDate, $oldTime) {
             $available = $this->slots->isSlotAvailable(
                 $appointment->dentist_id,
                 $validated['appointment_date'],
