@@ -455,6 +455,31 @@
   color: var(--portal-green-text);
 }
 
+.notif-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 10px 14px 0;
+}
+
+.notif-tab {
+  flex: 1;
+  text-align: center;
+  padding: 7px 0;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--portal-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: 'Poppins', sans-serif;
+}
+
+.notif-tab.is-active {
+  background: var(--portal-blue-bg);
+  color: var(--portal-blue-text);
+}
+
 .notif-section-label {
   padding: 10px 18px 4px;
   font-size: 0.68rem;
@@ -464,6 +489,46 @@
   letter-spacing: 0.4px;
 }
 
+/* A notification row is two layers: .notif-row-bed (the red "Delete" bed,
+   always there but normally hidden behind the item) and .notif-item (the
+   real content, dragged left to reveal it) — NotificationRow.jsx's own
+   swipe-to-delete. */
+.notif-row {
+  position: relative;
+  overflow: hidden;
+  max-height: 200px;
+  border-bottom: 1px solid var(--portal-border-light);
+  transition: max-height 220ms ease, border-color 220ms ease;
+}
+
+.notif-row:last-child {
+  border-bottom: none;
+}
+
+.notif-row--removed {
+  max-height: 0;
+  border-bottom-color: transparent;
+}
+
+.notif-row-bed {
+  position: absolute;
+  inset: 0;
+  background: var(--portal-red-text);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+  padding-right: 20px;
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.notif-row-bed svg {
+  width: 16px;
+  height: 16px;
+}
+
 .notif-item {
   width: 100%;
   display: flex;
@@ -471,17 +536,23 @@
   gap: 11px;
   padding: 11px 18px;
   position: relative;
-  background: none;
+  background: var(--portal-card);
   border: none;
-  border-bottom: 1px solid var(--portal-border-light);
   text-align: left;
-  cursor: pointer;
+  cursor: grab;
   font-family: 'Poppins', sans-serif;
-  transition: background-color 0.15s ease;
+  transition: background-color 0.15s ease, transform 220ms cubic-bezier(.2, .8, .2, 1);
+  touch-action: pan-y;
 }
 
-.notif-item:last-child {
-  border-bottom: none;
+.notif-item--dragging {
+  transition: none;
+  cursor: grabbing;
+}
+
+.notif-row--removed .notif-item {
+  transform: translateX(-100%) !important;
+  opacity: 0;
 }
 
 .notif-item:hover {
@@ -505,6 +576,12 @@
   width: 3px;
   border-radius: 0 3px 3px 0;
   background: var(--portal-blue);
+}
+
+/* A read notification, only ever visible under the "All" tab — muted so an
+   at-a-glance scan still reads the unread queue as the actionable one. */
+.notif-item--read {
+  opacity: 0.7;
 }
 
 .notif-item-icon {

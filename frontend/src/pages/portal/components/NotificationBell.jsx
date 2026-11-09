@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { getNotifications, markNotificationRead, markAllNotificationsRead } from '../../../api/notifications';
+import {
+  getNotifications, markNotificationRead, markAllNotificationsRead, deleteNotification,
+} from '../../../api/notifications';
 import { useDropdownPosition } from '../../../hooks/useDropdownPosition';
-import { BellIcon, CheckCircleIcon, XCircleIcon, ClockIcon, ShieldIcon } from '../icons';
+import { BellIcon, CheckCircleIcon, XCircleIcon, ClockIcon, ShieldIcon, TrashIcon } from '../icons';
 
 // Notifications aren't as time-pressed as an action queue (HMO/pediatric
 // queues poll at 9s) — 20s keeps the badge fresh without hammering the
@@ -44,6 +46,94 @@ function timeAgo(iso) {
   return `${Math.round(hours / 24)}d ago`;
 }
 
+// How far left a row has to be dragged before releasing it deletes the
+// notification instead of snapping back — matched to the delete bed's own
+// padding-right (see .notif-row-bed) so the "Delete" label is fully
+// uncovered right around the threshold.
+const DELETE_THRESHOLD = -88;
+
+// One notification row — owns its own swipe-to-delete drag state so
+// NotificationBell itself only ever deals in onOpen/onDelete callbacks, not
+// per-row pointer tracking. A plain click (no horizontal movement past the
+// drag threshold) still calls onOpen; dragging past DELETE_THRESHOLD and
+// releasing calls onDelete and animates the row out.
+function NotificationRow({ notification, onOpen, onDelete }) {
+  const [dragX, setDragX] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const [removed, setRemoved] = useState(false);
+  const startXRef = useRef(null);
+  const draggedRef = useRef(false);
+
+  const type = classifyNotification(notification.title);
+  const Icon = type.icon;
+  const isUnread = !notification.read_at;
+
+  const handlePointerDown = (e) => {
+    if (removed) return;
+    startXRef.current = e.clientX;
+    draggedRef.current = false;
+    setDragging(true);
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+
+  const handlePointerMove = (e) => {
+    if (startXRef.current === null) return;
+    const dx = Math.min(0, e.clientX - startXRef.current);
+    if (Math.abs(dx) > 6) draggedRef.current = true;
+    setDragX(dx);
+  };
+
+  const handlePointerUp = () => {
+    if (startXRef.current === null) return;
+    startXRef.current = null;
+    setDragging(false);
+    if (dragX < DELETE_THRESHOLD) {
+      setRemoved(true);
+      onDelete(notification);
+    } else {
+      setDragX(0);
+    }
+  };
+
+  const handleClick = () => {
+    // Swallow the click that follows a real drag (pointerup still fires a
+    // click event) — only a drag-free tap should open the notification.
+    if (draggedRef.current) {
+      draggedRef.current = false;
+      return;
+    }
+    onOpen(notification);
+  };
+
+  return (
+    <div className={`notif-row${removed ? ' notif-row--removed' : ''}`}>
+      <div className="notif-row-bed" aria-hidden="true">
+        <TrashIcon />
+        Delete
+      </div>
+      <button
+        type="button"
+        className={`notif-item${isUnread ? ' notif-item--unread' : ' notif-item--read'}${dragging ? ' notif-item--dragging' : ''}`}
+        style={{ transform: dragX ? `translateX(${dragX}px)` : undefined }}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+        onClick={handleClick}
+      >
+        <span className={`notif-item-icon notif-item-icon--${type.tone}`} aria-hidden="true">
+          <Icon />
+        </span>
+        <span className="notif-item-text">
+          <span className="notif-item-title">{notification.title}</span>
+          {notification.body && <span className="notif-item-body">{notification.body}</span>}
+          <span className="notif-item-time">{timeAgo(notification.created_at)}</span>
+        </span>
+      </button>
+    </div>
+  );
+}
+
 // Same portal + fixed-position pattern ActionMenu.jsx uses — the topbar
 // sits above content that can scroll, and a plain absolutely-positioned
 // dropdown would get visually orphaned from its trigger the moment the
@@ -52,16 +142,17 @@ function NotificationBell() {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  // "Unread" is the default, actionable queue (and the only tab that used
+  // to exist) — marking one read (individually or via "Mark all as read")
+  // removes it from this tab. "All" is the full log the backend's index()
+  // already returns (most recent 20, read or not) — swiping a row left to
+  // delete it works the same in either tab.
+  const [tab, setTab] = useState('unread');
   const { open, setOpen, position, triggerRef, dropdownRef, toggle } = useDropdownPosition();
   const navigate = useNavigate();
 
-  // The panel only ever shows what's still unread — the backend's own
-  // index() returns the most recent 20 regardless of read status (so the
-  // badge count and a "did this fire" check elsewhere stay accurate), but
-  // showing already-read ones here read as a stale log instead of an
-  // actionable queue. Marking one read (individually or via "Mark all as
-  // read") removes it from view instead of just losing its unread styling.
   const unreadNotifications = notifications.filter((n) => !n.read_at);
+  const visibleNotifications = tab === 'unread' ? unreadNotifications : notifications;
 
   const load = useCallback(async () => {
     try {
@@ -109,6 +200,16 @@ function NotificationBell() {
     }
   };
 
+  const handleDelete = async (notification) => {
+    setNotifications((prev) => prev.filter((n) => n.id !== notification.id));
+    if (!notification.read_at) setUnreadCount((c) => Math.max(0, c - 1));
+    try {
+      await deleteNotification(notification.id);
+    } catch {
+      // Best-effort — worst case it reappears on the next poll.
+    }
+  };
+
   return (
     <div className="notif-bell">
       <button
@@ -138,42 +239,41 @@ function NotificationBell() {
             )}
           </div>
 
+          <div className="notif-tabs">
+            <button
+              type="button"
+              className={`notif-tab${tab === 'unread' ? ' is-active' : ''}`}
+              onClick={() => setTab('unread')}
+            >
+              Unread
+            </button>
+            <button
+              type="button"
+              className={`notif-tab${tab === 'all' ? ' is-active' : ''}`}
+              onClick={() => setTab('all')}
+            >
+              All
+            </button>
+          </div>
+
           <div className="notif-panel-list">
             {loading ? (
               <div className="notif-panel-empty">Loading…</div>
-            ) : unreadNotifications.length === 0 ? (
+            ) : visibleNotifications.length === 0 ? (
               <div className="notif-panel-empty">
                 <CheckCircleIcon />
-                <span>You're all caught up</span>
+                <span>{tab === 'unread' ? "You're all caught up" : 'No notifications yet'}</span>
               </div>
             ) : (
               [
-                { label: 'Today', items: unreadNotifications.filter((n) => isToday(n.created_at)) },
-                { label: 'Earlier', items: unreadNotifications.filter((n) => !isToday(n.created_at)) },
+                { label: 'Today', items: visibleNotifications.filter((n) => isToday(n.created_at)) },
+                { label: 'Earlier', items: visibleNotifications.filter((n) => !isToday(n.created_at)) },
               ].map(({ label, items }) => items.length > 0 && (
                 <div key={label}>
                   <div className="notif-section-label">{label}</div>
-                  {items.map((n) => {
-                    const type = classifyNotification(n.title);
-                    const Icon = type.icon;
-                    return (
-                      <button
-                        key={n.id}
-                        type="button"
-                        className="notif-item notif-item--unread"
-                        onClick={() => handleSelect(n)}
-                      >
-                        <span className={`notif-item-icon notif-item-icon--${type.tone}`} aria-hidden="true">
-                          <Icon />
-                        </span>
-                        <span className="notif-item-text">
-                          <span className="notif-item-title">{n.title}</span>
-                          {n.body && <span className="notif-item-body">{n.body}</span>}
-                          <span className="notif-item-time">{timeAgo(n.created_at)}</span>
-                        </span>
-                      </button>
-                    );
-                  })}
+                  {items.map((n) => (
+                    <NotificationRow key={n.id} notification={n} onOpen={handleSelect} onDelete={handleDelete} />
+                  ))}
                 </div>
               ))
             )}

@@ -19,3 +19,9 @@ export async function markAllNotificationsRead() {
   const response = await api.post('/api/notifications/read-all');
   return response.data;
 }
+
+export async function deleteNotification(id) {
+  await api.get('/sanctum/csrf-cookie');
+  const response = await api.delete(`/api/notifications/${id}`);
+  return response.data;
+}

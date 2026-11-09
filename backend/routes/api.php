@@ -81,6 +81,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/notifications', [NotificationController::class, 'index']);
     Route::patch('/notifications/{notification}/read', [NotificationController::class, 'markRead']);
     Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead']);
+    Route::delete('/notifications/{notification}', [NotificationController::class, 'destroy']);
 
     Route::middleware('role:patient')->group(function () {
         Route::post('/appointments', [AppointmentController::class, 'store']);
