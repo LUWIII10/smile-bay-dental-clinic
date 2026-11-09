@@ -4,10 +4,12 @@ import {
   updateDentistWeeklyHours,
   addDentistDayOff,
   deleteDentistDayOff,
+  addDentistSpecialWorkingDay,
+  deleteDentistSpecialWorkingDay,
 } from '../../api/appointments';
 import Modal from './components/Modal';
 import PageHeader from './components/PageHeader';
-import { CalendarXIcon, TrashIcon, ClockIcon, AlertIcon } from './icons';
+import { CalendarXIcon, CalendarPlusIcon, TrashIcon, ClockIcon, AlertIcon } from './icons';
 import { formatDateLong, formatTime12h } from './dateTimeUtils';
 import './dashboards.css';
 import './Appointments.css';
@@ -89,6 +91,23 @@ function MyAvailability() {
   const [dayOffFormError, setDayOffFormError] = useState('');
   const [deletingId, setDeletingId] = useState(null);
 
+  // Special Working Days — the inverse of Upcoming days off: a dentist's
+  // own opt-in to a date Settings > Special Opening Dates already opened
+  // clinic-wide. specialWorkingDays is this dentist's own list;
+  // availableSpecialDates is what the "Add Special Working Day" picker
+  // offers — clinic-opened dates not yet opted into, never a free-form
+  // calendar (a dentist can only opt into a date the clinic actually
+  // opened).
+  const [specialWorkingDays, setSpecialWorkingDays] = useState([]);
+  const [availableSpecialDates, setAvailableSpecialDates] = useState([]);
+  const [specialDayFormOpen, setSpecialDayFormOpen] = useState(false);
+  const [selectedSpecialDate, setSelectedSpecialDate] = useState('');
+  const [specialStartTime, setSpecialStartTime] = useState('');
+  const [specialEndTime, setSpecialEndTime] = useState('');
+  const [addingSpecialDay, setAddingSpecialDay] = useState(false);
+  const [specialDayFormError, setSpecialDayFormError] = useState('');
+  const [deletingSpecialId, setDeletingSpecialId] = useState(null);
+
   // type: 'weekly_hours' | 'day_off'. payload carries exactly what was
   // already conflict-checked, so "Save anyway" resubmits the identical
   // request with confirm=true rather than re-reading possibly-changed state.
@@ -103,6 +122,8 @@ function MyAvailability() {
       setWeeklyHours(data.weekly_hours);
       setDayOffs(data.day_offs);
       setIsOnCall(!!data.is_on_call);
+      setSpecialWorkingDays(data.special_working_days || []);
+      setAvailableSpecialDates(data.available_special_dates || []);
     } catch {
       setError('Could not load your availability. Please refresh the page.');
     } finally {
@@ -191,6 +212,60 @@ function MyAvailability() {
       setError('Could not remove that day off. Please try again.');
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  const openSpecialDayForm = () => {
+    setSpecialDayFormError('');
+    const first = availableSpecialDates[0];
+    setSelectedSpecialDate(first?.date || '');
+    setSpecialStartTime(first?.open_time || '');
+    setSpecialEndTime(first?.close_time || '');
+    setSpecialDayFormOpen(true);
+  };
+
+  // Picking a different date from the list re-defaults the time fields to
+  // that date's own clinic hours — the dentist can still adjust from there.
+  const handleSpecialDateChange = (date) => {
+    setSelectedSpecialDate(date);
+    const match = availableSpecialDates.find((d) => d.date === date);
+    setSpecialStartTime(match?.open_time || '');
+    setSpecialEndTime(match?.close_time || '');
+  };
+
+  const handleAddSpecialDay = async () => {
+    if (!selectedSpecialDate || !specialStartTime || !specialEndTime) {
+      setSpecialDayFormError('Please pick a date and both times.');
+      return;
+    }
+    setAddingSpecialDay(true);
+    setSpecialDayFormError('');
+    try {
+      const response = await addDentistSpecialWorkingDay({
+        date: selectedSpecialDate,
+        startTime: specialStartTime,
+        endTime: specialEndTime,
+      });
+      setSpecialWorkingDays(response.data.special_working_days);
+      setAvailableSpecialDates(response.data.available_special_dates);
+      setSpecialDayFormOpen(false);
+    } catch (err) {
+      setSpecialDayFormError(err.response?.data?.message || 'Could not add this special working day.');
+    } finally {
+      setAddingSpecialDay(false);
+    }
+  };
+
+  const handleDeleteSpecialDay = async (id) => {
+    setDeletingSpecialId(id);
+    try {
+      const response = await deleteDentistSpecialWorkingDay(id);
+      setSpecialWorkingDays(response.data.special_working_days);
+      setAvailableSpecialDates(response.data.available_special_dates);
+    } catch {
+      setError('Could not remove that special working day. Please try again.');
+    } finally {
+      setDeletingSpecialId(null);
     }
   };
 
@@ -308,6 +383,52 @@ function MyAvailability() {
         )}
       </div>
 
+      <div className="section-card">
+        <div className="section-card-header">
+          <h3 className="section-card-title">Special Working Days</h3>
+          <button
+            type="button"
+            className="dash-btn dash-btn--outline"
+            onClick={openSpecialDayForm}
+            disabled={availableSpecialDates.length === 0}
+          >
+            + Add Special Working Day
+          </button>
+        </div>
+        <p className="section-card-subtitle" style={{ marginTop: -10, marginBottom: 14 }}>
+          Dates the clinic has opened outside its regular weekly schedule (e.g. one extra Sunday) — you still need
+          to opt into each one yourself before you're bookable on it.
+        </p>
+
+        {specialWorkingDays.length === 0 ? (
+          <p className="booking-empty-note">
+            {availableSpecialDates.length === 0
+              ? 'No special opening dates from the clinic right now.'
+              : 'No special working days added yet.'}
+          </p>
+        ) : (
+          specialWorkingDays.map((s) => (
+            <div key={s.id} className="dayoff-row">
+              <span className="dayoff-icon"><CalendarPlusIcon /></span>
+              <div className="dayoff-info">
+                <span className="dayoff-date">
+                  {formatDateLong(s.date)} &middot; {formatTime12h(s.start_time)} &ndash; {formatTime12h(s.end_time)}
+                </span>
+              </div>
+              <button
+                type="button"
+                className="dayoff-delete"
+                disabled={deletingSpecialId === s.id}
+                onClick={() => handleDeleteSpecialDay(s.id)}
+                aria-label={`Remove special working day on ${s.date}`}
+              >
+                <TrashIcon />
+              </button>
+            </div>
+          ))
+        )}
+      </div>
+
       <div className="avail-save-bar">
         {saveError && <span className="avail-save-error">{saveError}</span>}
         {saveMessage && <span className="avail-save-success">{saveMessage}</span>}
@@ -348,6 +469,53 @@ function MyAvailability() {
           </button>
           <button type="button" className="dash-btn" disabled={addingDayOff} onClick={() => handleAddDayOff(false)}>
             {addingDayOff ? 'Adding…' : 'Add day off'}
+          </button>
+        </div>
+      </Modal>
+
+      <Modal open={specialDayFormOpen} onClose={() => setSpecialDayFormOpen(false)} title="Add Special Working Day">
+        <div className="form-field">
+          <label className="form-label" htmlFor="special-date">Date</label>
+          <select
+            id="special-date"
+            className="form-input"
+            value={selectedSpecialDate}
+            onChange={(e) => handleSpecialDateChange(e.target.value)}
+          >
+            {availableSpecialDates.map((d) => (
+              <option key={d.date} value={d.date}>
+                {formatDateLong(d.date)} ({formatTime12h(d.open_time)}–{formatTime12h(d.close_time)}){d.reason ? ` — ${d.reason}` : ''}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="form-field" style={{ marginTop: 12 }}>
+          <label className="form-label">Your hours for this date</label>
+          <div className="avail-time-inputs">
+            <input
+              type="time"
+              className="form-input avail-time-input"
+              value={specialStartTime}
+              onChange={(e) => setSpecialStartTime(e.target.value)}
+            />
+            <span className="avail-time-sep">to</span>
+            <input
+              type="time"
+              className="form-input avail-time-input"
+              value={specialEndTime}
+              onChange={(e) => setSpecialEndTime(e.target.value)}
+            />
+          </div>
+        </div>
+        {specialDayFormError && (
+          <p style={{ margin: '10px 0 0', fontSize: '0.82rem', color: 'var(--portal-red-text)' }}>{specialDayFormError}</p>
+        )}
+        <div className="modal-actions">
+          <button type="button" className="dash-btn dash-btn--outline" onClick={() => setSpecialDayFormOpen(false)}>
+            Cancel
+          </button>
+          <button type="button" className="dash-btn" disabled={addingSpecialDay} onClick={handleAddSpecialDay}>
+            {addingSpecialDay ? 'Adding…' : 'Add Special Working Day'}
           </button>
         </div>
       </Modal>

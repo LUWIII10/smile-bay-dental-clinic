@@ -499,13 +499,51 @@ class AppointmentSlotService
         $openTime = $hasCustomHours ? ($row->start_time ?? null) : ($row->open_time ?? null);
         $closeTime = $hasCustomHours ? ($row->end_time ?? null) : ($row->close_time ?? null);
 
-        if (! $row || ! $isOpen || ! $openTime || ! $closeTime) {
+        if ($row && $isOpen && $openTime && $closeTime) {
+            return [
+                'open' => Carbon::parse("{$date} {$openTime}"),
+                'close' => Carbon::parse("{$date} {$closeTime}"),
+            ];
+        }
+
+        // Normally closed this day of the week — one more thing to check
+        // before giving up: Settings > Special Opening Dates may have
+        // opened this EXACT date (clinic_special_hours), on top of the
+        // regular weekly schedule above, not instead of it. Opening the
+        // clinic for a date never makes a dentist bookable by itself,
+        // though — they still need their own opt-in row
+        // (dentist_special_hours), same "clinic hours are the outer
+        // envelope, each dentist still decides" principle the regular
+        // weekly schedule already follows. The one exception is an
+        // on-call dentist, who already blindly mirrors clinic_schedules
+        // for their regular hours with no personal customization at all —
+        // consistently, they mirror a special opening the same way, with
+        // no separate opt-in needed either.
+        $clinicSpecial = DB::table('clinic_special_hours')->where('date', $date)->first();
+
+        if (! $clinicSpecial) {
+            return null;
+        }
+
+        if ($isOnCall) {
+            return [
+                'open' => Carbon::parse("{$date} {$clinicSpecial->open_time}"),
+                'close' => Carbon::parse("{$date} {$clinicSpecial->close_time}"),
+            ];
+        }
+
+        $dentistSpecial = DB::table('dentist_special_hours')
+            ->where('dentist_id', $dentistId)
+            ->where('date', $date)
+            ->first();
+
+        if (! $dentistSpecial) {
             return null;
         }
 
         return [
-            'open' => Carbon::parse("{$date} {$openTime}"),
-            'close' => Carbon::parse("{$date} {$closeTime}"),
+            'open' => Carbon::parse("{$date} {$dentistSpecial->start_time}"),
+            'close' => Carbon::parse("{$date} {$dentistSpecial->end_time}"),
         ];
     }
 
@@ -557,7 +595,18 @@ class AppointmentSlotService
         $clinicRow = DB::table('clinic_schedules')->where('day_of_week', $dayOfWeek)->first();
         $clinicOpen = (bool) ($clinicRow->is_open ?? false);
 
-        return $clinicOpen ? 'day_off' : 'closed';
+        if ($clinicOpen) {
+            return 'day_off';
+        }
+
+        // Regularly closed this day of the week, but Settings > Special
+        // Opening Dates may have opened this exact date on top of that
+        // (see operatingHoursFor()'s own handling) — if so, this dentist
+        // simply hasn't opted in, same as any other day they're not
+        // working, not an actual clinic-wide closure.
+        $hasSpecialOpening = DB::table('clinic_special_hours')->where('date', $date)->exists();
+
+        return $hasSpecialOpening ? 'day_off' : 'closed';
     }
 
     /**

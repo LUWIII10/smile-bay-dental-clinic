@@ -113,6 +113,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/dentist/availability/weekly-hours', [DentistAvailabilityController::class, 'updateWeeklyHours']);
         Route::post('/dentist/availability/day-off', [DentistAvailabilityController::class, 'storeDayOff']);
         Route::delete('/dentist/availability/day-off/{id}', [DentistAvailabilityController::class, 'destroyDayOff']);
+        Route::post('/dentist/availability/special-working-day', [DentistAvailabilityController::class, 'storeSpecialWorkingDay']);
+        Route::delete('/dentist/availability/special-working-day/{id}', [DentistAvailabilityController::class, 'destroySpecialWorkingDay']);
 
         // Shared by every dentist account — scoping to dentist_id = auth
         // user inside the controller means a non-pediatric dentist just
@@ -209,6 +211,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/admin/settings/clinic-closures/conflicts', [ClinicSettingsController::class, 'closureConflicts']);
         Route::post('/admin/settings/clinic-closures', [ClinicSettingsController::class, 'storeClosure']);
         Route::delete('/admin/settings/clinic-closures/{closure}', [ClinicSettingsController::class, 'destroyClosure']);
+
+        Route::post('/admin/settings/special-hours', [ClinicSettingsController::class, 'storeSpecialHour']);
+        Route::delete('/admin/settings/special-hours/{specialHour}', [ClinicSettingsController::class, 'destroySpecialHour']);
 
         Route::get('/admin/reports/overview', [ReportsController::class, 'overview']);
         Route::get('/admin/reports/overview/pdf', [ReportsController::class, 'downloadPdf']);

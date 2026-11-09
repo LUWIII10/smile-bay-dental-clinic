@@ -252,6 +252,25 @@ export async function deleteDentistDayOff(dayOffId) {
   return response.data;
 }
 
+// The inverse of addDentistDayOff() above — a dentist opts into a date
+// Settings > Special Opening Dates has already opened clinic-wide
+// (getDentistAvailability()'s own available_special_dates lists which
+// ones). No conflict param/confirm step needed: opting in can only ever
+// add availability, never strand an existing appointment.
+export async function addDentistSpecialWorkingDay({ date, startTime, endTime }) {
+  await api.get('/sanctum/csrf-cookie');
+  const response = await api.post('/api/dentist/availability/special-working-day', {
+    date, start_time: startTime, end_time: endTime,
+  });
+  return response.data;
+}
+
+export async function deleteDentistSpecialWorkingDay(id) {
+  await api.get('/sanctum/csrf-cookie');
+  const response = await api.delete(`/api/dentist/availability/special-working-day/${id}`);
+  return response.data;
+}
+
 export async function getPediatricQueue() {
   const response = await api.get('/api/pediatric/queue');
   return response.data.data;

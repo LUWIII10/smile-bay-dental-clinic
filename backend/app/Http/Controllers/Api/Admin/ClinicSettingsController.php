@@ -6,9 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Models\ClinicClosure;
 use App\Models\ClinicInfo;
 use App\Models\ClinicSchedule;
+use App\Models\ClinicSpecialHour;
 use App\Models\HmoProvider;
 use App\Models\Service;
 use App\Services\ClinicClosureService;
+use App\Services\ClinicSpecialHourService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
@@ -22,7 +24,10 @@ use Illuminate\Validation\Rule;
  */
 class ClinicSettingsController extends Controller
 {
-    public function __construct(private ClinicClosureService $closures) {}
+    public function __construct(
+        private ClinicClosureService $closures,
+        private ClinicSpecialHourService $specialHours,
+    ) {}
 
     public function show()
     {
@@ -37,6 +42,7 @@ class ClinicSettingsController extends Controller
                 // list, which only ever shows the active ones.
                 'hmo_providers' => HmoProvider::orderBy('name')->get(),
                 'clinic_closures' => $this->closures->upcoming(),
+                'clinic_special_hours' => $this->specialHours->upcoming(),
             ],
         ]);
     }
@@ -328,5 +334,53 @@ class ClinicSettingsController extends Controller
         ]);
 
         return response()->json(['data' => $this->closures->daySummary($validated['month'])]);
+    }
+
+    /**
+     * Opens one specific date outside the regular weekly Operating Hours
+     * (e.g. a single extra Sunday) — the inverse of storeClosure() above.
+     * No conflict check needed: opening a date can never strand an
+     * existing appointment, only closing one can. Doesn't make any dentist
+     * bookable by itself — see AppointmentSlotService::operatingHoursFor()
+     * and DentistAvailabilityController::storeSpecialWorkingDay() for the
+     * per-dentist opt-in this still requires.
+     */
+    public function storeSpecialHour(Request $request)
+    {
+        $validated = $request->validate([
+            'date' => ['required', 'date_format:Y-m-d', 'after_or_equal:today'],
+            'open_time' => ['required', 'date_format:H:i'],
+            'close_time' => ['required', 'date_format:H:i', 'after:open_time'],
+            'reason' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $alreadyExists = ClinicSpecialHour::where('date', $validated['date'])->exists();
+        if ($alreadyExists) {
+            return response()->json(['message' => 'That date already has a special opening.'], 422);
+        }
+
+        $this->specialHours->store(
+            $validated['date'],
+            $validated['open_time'],
+            $validated['close_time'],
+            $validated['reason'] ?? null,
+        );
+
+        return response()->json(['data' => $this->specialHours->upcoming()], 201);
+    }
+
+    /**
+     * No conflict check needed — removing a special opening only ever
+     * narrows availability, same reasoning as destroyClosure() above.
+     * Cascades nowhere: any dentist_special_hours row for this date is
+     * left in place but becomes inert (operatingHoursFor() checks
+     * clinic_special_hours first and finds nothing), same as a dentist's
+     * own weekly hours for a day the clinic closes outright.
+     */
+    public function destroySpecialHour(ClinicSpecialHour $specialHour)
+    {
+        $specialHour->delete();
+
+        return response()->json(['data' => $this->specialHours->upcoming()]);
     }
 }

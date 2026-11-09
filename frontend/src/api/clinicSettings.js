@@ -114,3 +114,21 @@ export async function deleteClinicClosure(closureId) {
   const response = await api.delete(`/api/admin/settings/clinic-closures/${closureId}`);
   return response.data.data;
 }
+
+// The inverse of addClinicClosure() above — opens one specific date
+// OUTSIDE the regular weekly Operating Hours (e.g. a single extra Sunday)
+// instead of closing a normally-open one. No conflict check needed:
+// opening a date can never strand an existing appointment.
+export async function addSpecialHour({ date, openTime, closeTime, reason }) {
+  await api.get('/sanctum/csrf-cookie');
+  const response = await api.post('/api/admin/settings/special-hours', {
+    date, open_time: openTime, close_time: closeTime, reason: reason || null,
+  });
+  return response.data.data;
+}
+
+export async function deleteSpecialHour(specialHourId) {
+  await api.get('/sanctum/csrf-cookie');
+  const response = await api.delete(`/api/admin/settings/special-hours/${specialHourId}`);
+  return response.data.data;
+}

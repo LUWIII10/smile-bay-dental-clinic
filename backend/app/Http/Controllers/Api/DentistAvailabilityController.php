@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\ClinicSpecialHour;
 use App\Models\DentistDayOff;
+use App\Models\DentistSpecialHour;
 use App\Services\DentistAvailabilityService;
 use Illuminate\Http\Request;
 
@@ -128,6 +130,56 @@ class DentistAvailabilityController extends Controller
         }
 
         $dayOff->delete();
+
+        return response()->json(['data' => $this->availability->forDentist($request->user()->id)]);
+    }
+
+    /**
+     * A dentist opts into a date Settings > Special Opening Dates has
+     * already opened clinic-wide — the inverse of storeDayOff() above. The
+     * date must actually be one the clinic opened (the frontend's picker
+     * only ever offers those, but re-checked here too, same "never trust
+     * the client" precedent as the rest of this controller); no conflict
+     * check needed, since opting into an extra date can only ever add
+     * availability, never strand an existing appointment.
+     */
+    public function storeSpecialWorkingDay(Request $request)
+    {
+        $validated = $request->validate([
+            'date' => ['required', 'date_format:Y-m-d', 'after_or_equal:today'],
+            'start_time' => ['required', 'date_format:H:i'],
+            'end_time' => ['required', 'date_format:H:i', 'after:start_time'],
+        ]);
+
+        $dentistId = $request->user()->id;
+
+        if (! ClinicSpecialHour::where('date', $validated['date'])->exists()) {
+            return response()->json(['message' => 'The clinic has not opened that date.'], 422);
+        }
+
+        $alreadyExists = DentistSpecialHour::where('dentist_id', $dentistId)->where('date', $validated['date'])->exists();
+        if ($alreadyExists) {
+            return response()->json(['message' => 'You already opted into that date.'], 422);
+        }
+
+        $this->availability->addSpecialWorkingDay($dentistId, $validated['date'], $validated['start_time'], $validated['end_time']);
+
+        return response()->json(['data' => $this->availability->forDentist($dentistId)], 201);
+    }
+
+    /**
+     * No conflict check needed — removing a special working day only ever
+     * narrows availability, same reasoning as destroyDayOff() above.
+     */
+    public function destroySpecialWorkingDay(Request $request, int $id)
+    {
+        $specialDay = DentistSpecialHour::find($id);
+
+        if (! $specialDay || $specialDay->dentist_id !== $request->user()->id) {
+            return response()->json(['message' => 'Special working day not found.'], 404);
+        }
+
+        $specialDay->delete();
 
         return response()->json(['data' => $this->availability->forDentist($request->user()->id)]);
     }

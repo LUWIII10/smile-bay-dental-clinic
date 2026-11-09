@@ -3,7 +3,9 @@
 namespace App\Services;
 
 use App\Models\Appointment;
+use App\Models\ClinicSpecialHour;
 use App\Models\DentistDayOff;
+use App\Models\DentistSpecialHour;
 use App\Models\DentistWeeklyHour;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Collection;
@@ -56,7 +58,45 @@ class DentistAvailabilityService
             ->values()
             ->all();
 
-        return ['weekly_hours' => $weeklyHours, 'day_offs' => $dayOffs];
+        $specialWorkingDays = DentistSpecialHour::where('dentist_id', $dentistId)
+            ->where('date', '>=', now()->toDateString())
+            ->orderBy('date')
+            ->get(['id', 'date', 'start_time', 'end_time'])
+            ->map(fn (DentistSpecialHour $s) => [
+                'id' => $s->id,
+                'date' => $s->date->toDateString(),
+                'start_time' => Carbon::parse($s->start_time)->format('H:i'),
+                'end_time' => Carbon::parse($s->end_time)->format('H:i'),
+            ])
+            ->values()
+            ->all();
+
+        // Dates Settings > Special Opening Dates has already opened
+        // clinic-wide that this dentist hasn't opted into yet — what the
+        // "Add Special Working Day" picker offers. A dentist can only opt
+        // into a date the clinic has actually opened, never an arbitrary
+        // one, same "clinic hours are the outer envelope" principle as
+        // their regular weekly hours.
+        $optedInDates = collect($specialWorkingDays)->pluck('date')->all();
+        $availableSpecialDates = ClinicSpecialHour::where('date', '>=', now()->toDateString())
+            ->whereNotIn('date', $optedInDates)
+            ->orderBy('date')
+            ->get(['date', 'open_time', 'close_time', 'reason'])
+            ->map(fn (ClinicSpecialHour $s) => [
+                'date' => $s->date->toDateString(),
+                'open_time' => Carbon::parse($s->open_time)->format('H:i'),
+                'close_time' => Carbon::parse($s->close_time)->format('H:i'),
+                'reason' => $s->reason,
+            ])
+            ->values()
+            ->all();
+
+        return [
+            'weekly_hours' => $weeklyHours,
+            'day_offs' => $dayOffs,
+            'special_working_days' => $specialWorkingDays,
+            'available_special_dates' => $availableSpecialDates,
+        ];
     }
 
     /**
@@ -162,6 +202,22 @@ class DentistAvailabilityService
             'dentist_id' => $dentistId,
             'date' => $date,
             'reason' => $reason,
+        ]);
+    }
+
+    /**
+     * A dentist's own opt-in to a date Settings > Special Opening Dates has
+     * already opened clinic-wide — the inverse of addDayOff() above. No
+     * conflict check needed: opting into an extra date can never strand an
+     * existing appointment, only shrinking hours or adding a day off can.
+     */
+    public function addSpecialWorkingDay(int $dentistId, string $date, string $startTime, string $endTime): DentistSpecialHour
+    {
+        return DentistSpecialHour::create([
+            'dentist_id' => $dentistId,
+            'date' => $date,
+            'start_time' => $startTime,
+            'end_time' => $endTime,
         ]);
     }
 }

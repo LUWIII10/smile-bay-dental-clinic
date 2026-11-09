@@ -13,6 +13,8 @@ import {
   addClinicClosure,
   getClosureConflicts,
   deleteClinicClosure,
+  addSpecialHour,
+  deleteSpecialHour,
 } from '../../api/clinicSettings';
 import { rescheduleAppointmentAsStaff } from '../../api/appointments';
 import {
@@ -25,7 +27,7 @@ import Modal from './components/Modal';
 import PageHeader from './components/PageHeader';
 import RescheduleModal from './components/RescheduleModal';
 import {
-  SettingsIcon, BuildingIcon, ClockIcon, ToothIcon, ShieldIcon, CalendarXIcon, TrashIcon,
+  SettingsIcon, BuildingIcon, ClockIcon, ToothIcon, ShieldIcon, CalendarXIcon, CalendarPlusIcon, TrashIcon,
   ArchiveIcon, DownloadIcon, AlertIcon,
 } from './icons';
 import { showSuccessToast, showErrorToast, confirmAction } from '../../utils/toast';
@@ -266,6 +268,22 @@ function Settings() {
   const [originalConflictCount, setOriginalConflictCount] = useState(0);
   const [closingClinic, setClosingClinic] = useState(false);
   const [reschedTarget, setReschedTarget] = useState(null);
+
+  // Special Opening Dates — the inverse of Clinic Closures above: opens one
+  // specific date OUTSIDE the regular weekly Operating Hours (e.g. a single
+  // extra Sunday) instead of closing a normally-open one. No conflict-check
+  // state needed here (unlike closures) — opening a date can never strand
+  // an existing appointment.
+  const [specialHourModalOpen, setSpecialHourModalOpen] = useState(false);
+  const [specialHourDate, setSpecialHourDate] = useState('');
+  const [specialHourOpenTime, setSpecialHourOpenTime] = useState('09:00');
+  const [specialHourCloseTime, setSpecialHourCloseTime] = useState('13:00');
+  const [specialHourReason, setSpecialHourReason] = useState('');
+  const [specialHourMonth, setSpecialHourMonth] = useState(thisMonthKey());
+  const [specialHourDaySummary, setSpecialHourDaySummary] = useState({});
+  const [savingSpecialHour, setSavingSpecialHour] = useState(false);
+  const [specialHourError, setSpecialHourError] = useState('');
+  const [deletingSpecialHourId, setDeletingSpecialHourId] = useState(null);
 
   // Separate load from the rest of Settings (getClinicSettings() above) —
   // a backup-loading failure shouldn't block Clinic Info/Operating Hours/
@@ -520,6 +538,63 @@ function Settings() {
       showErrorToast(err.response?.data?.message || 'Could not remove this closure.');
     } finally {
       setDeletingClosureId(null);
+    }
+  };
+
+  useEffect(() => {
+    if (!specialHourModalOpen) return;
+    getClosureDaySummary(specialHourMonth).then(setSpecialHourDaySummary).catch(() => setSpecialHourDaySummary({}));
+  }, [specialHourModalOpen, specialHourMonth]);
+
+  const openSpecialHourModal = () => {
+    setSpecialHourDate('');
+    setSpecialHourOpenTime('09:00');
+    setSpecialHourCloseTime('13:00');
+    setSpecialHourReason('');
+    setSpecialHourError('');
+    setSpecialHourMonth(thisMonthKey());
+    setSpecialHourModalOpen(true);
+  };
+
+  const submitSpecialHour = async () => {
+    if (!specialHourDate || !specialHourOpenTime || !specialHourCloseTime) return;
+    setSavingSpecialHour(true);
+    setSpecialHourError('');
+    try {
+      const updated = await addSpecialHour({
+        date: specialHourDate,
+        openTime: specialHourOpenTime,
+        closeTime: specialHourCloseTime,
+        reason: specialHourReason.trim() || null,
+      });
+      setSpecialHourModalOpen(false);
+      setSettings((prev) => ({ ...prev, clinic_special_hours: updated }));
+      showSuccessToast(`${formatDateLong(specialHourDate)} opened as a special date.`);
+    } catch (err) {
+      setSpecialHourError(err.response?.data?.message || 'Could not save this special opening.');
+    } finally {
+      setSavingSpecialHour(false);
+    }
+  };
+
+  const handleDeleteSpecialHour = async (specialHour) => {
+    const confirmed = await confirmAction({
+      title: 'Remove this special opening?',
+      text: `${formatDateLong(specialHour.date)} will no longer be open outside the regular weekly schedule. Any dentist who opted into it keeps their own record, but it won't count toward availability anymore.`,
+      confirmButtonText: 'Remove',
+      confirmButtonColor: '#b42318',
+    });
+    if (!confirmed) return;
+
+    setDeletingSpecialHourId(specialHour.id);
+    try {
+      const updated = await deleteSpecialHour(specialHour.id);
+      setSettings((prev) => ({ ...prev, clinic_special_hours: updated }));
+      showSuccessToast('Special opening removed.');
+    } catch (err) {
+      showErrorToast(err.response?.data?.message || 'Could not remove this special opening.');
+    } finally {
+      setDeletingSpecialHourId(null);
     }
   };
 
@@ -929,6 +1004,43 @@ function Settings() {
         )}
       </div>
 
+      <div className="section-card">
+        <div className="section-card-header">
+          <div className="section-card-heading">
+            <span className="section-card-icon"><CalendarPlusIcon /></span>
+            <div>
+              <h3 className="section-card-title">Special Opening Dates</h3>
+              <p className="section-card-subtitle">One-off dates the clinic opens outside the regular weekly schedule above — e.g. a single extra Sunday — without changing Sunday permanently. A dentist still has to opt into the date themselves from their own My Availability before they're actually bookable on it.</p>
+            </div>
+          </div>
+          <button type="button" className="dash-btn dash-btn--outline" onClick={openSpecialHourModal}>+ Add Special Opening</button>
+        </div>
+        {(settings.clinic_special_hours || []).length === 0 ? (
+          <p className="booking-empty-note">No upcoming special openings.</p>
+        ) : (
+          (settings.clinic_special_hours || []).map((specialHour) => (
+            <div key={specialHour.id} className="dayoff-row">
+              <span className="dayoff-icon"><CalendarPlusIcon /></span>
+              <div className="dayoff-info">
+                <span className="dayoff-date">
+                  {formatDateLong(specialHour.date)} &middot; {formatTime12h(specialHour.open_time)} &ndash; {formatTime12h(specialHour.close_time)}
+                </span>
+                {specialHour.reason && <span className="dayoff-reason">{specialHour.reason}</span>}
+              </div>
+              <button
+                type="button"
+                className="dayoff-delete"
+                disabled={deletingSpecialHourId === specialHour.id}
+                onClick={() => handleDeleteSpecialHour(specialHour)}
+                aria-label="Remove special opening"
+              >
+                <TrashIcon />
+              </button>
+            </div>
+          ))
+        )}
+      </div>
+
       <Modal open={closureModalOpen} onClose={() => setClosureModalOpen(false)} title="Add Closure Date">
         {closureError && <div className="profile-alert profile-alert--error">{closureError}</div>}
 
@@ -955,6 +1067,68 @@ function Settings() {
           <button type="button" className="dash-btn dash-btn--outline" onClick={() => setClosureModalOpen(false)}>Cancel</button>
           <button type="button" className="dash-btn" disabled={!closureDate || savingClosure} onClick={submitClosure}>
             {savingClosure ? 'Checking…' : 'Add Closure'}
+          </button>
+        </div>
+      </Modal>
+
+      <Modal open={specialHourModalOpen} onClose={() => setSpecialHourModalOpen(false)} title="Add Special Opening">
+        {specialHourError && <div className="profile-alert profile-alert--error">{specialHourError}</div>}
+
+        <label className="modal-field-label">Date</label>
+        <ClosureDatePicker
+          value={specialHourDate}
+          onChange={setSpecialHourDate}
+          month={specialHourMonth}
+          onMonthChange={setSpecialHourMonth}
+          daySummary={specialHourDaySummary}
+        />
+
+        <div className="schedule-time-inputs" style={{ marginTop: 14 }}>
+          <div>
+            <label className="modal-field-label">Open</label>
+            <input
+              type="time"
+              className="form-input"
+              value={specialHourOpenTime}
+              onChange={(e) => setSpecialHourOpenTime(e.target.value)}
+            />
+          </div>
+          <span>to</span>
+          <div>
+            <label className="modal-field-label">Close</label>
+            <input
+              type="time"
+              className="form-input"
+              value={specialHourCloseTime}
+              onChange={(e) => setSpecialHourCloseTime(e.target.value)}
+            />
+          </div>
+        </div>
+
+        <label className="modal-field-label" style={{ marginTop: 14, display: 'block' }}>
+          Reason <span style={{ fontWeight: 400, color: 'var(--portal-muted)' }}>(optional)</span>
+        </label>
+        <input
+          className="form-input"
+          value={specialHourReason}
+          onChange={(e) => setSpecialHourReason(e.target.value)}
+          placeholder="e.g. Holiday rush overflow"
+        />
+
+        <p style={{ margin: '12px 0 0', fontSize: '0.78rem', color: 'var(--portal-muted)' }}>
+          This only opens the date clinic-wide — each dentist still needs to opt into it themselves from their own
+          My Availability page.
+        </p>
+
+        <div className="modal-actions">
+          <button type="button" className="dash-btn dash-btn--outline" onClick={() => setSpecialHourModalOpen(false)}>Cancel</button>
+          <button
+            type="button"
+            className="dash-btn"
+            disabled={!specialHourDate || !specialHourOpenTime || !specialHourCloseTime || savingSpecialHour}
+            onClick={submitSpecialHour}
+          >
+            {savingSpecialHour ? 'Saving…' : 'Add Special Opening'}
           </button>
         </div>
       </Modal>
