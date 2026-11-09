@@ -399,6 +399,18 @@ export const LockIcon = () => (
   </svg>
 );
 
+export const ChevronLeftIcon = () => (
+  <svg {...base}>
+    <polyline points="15 18 9 12 15 6" />
+  </svg>
+);
+
+export const ChevronRightIcon = () => (
+  <svg {...base}>
+    <polyline points="9 18 15 12 9 6" />
+  </svg>
+);
+
 export const CameraIcon = () => (
   <svg {...base}>
     <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2Z" />

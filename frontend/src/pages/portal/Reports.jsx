@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -24,7 +24,7 @@ import PrintFooter from './components/PrintFooter';
 import DateRangePicker from './components/DateRangePicker';
 import {
   CalendarIcon, ClockIcon, CheckCircleIcon, XCircleIcon, UsersIcon, PrinterIcon, ChartIcon, AlertIcon, MapPinIcon,
-  DownloadIcon,
+  DownloadIcon, ChevronLeftIcon, ChevronRightIcon,
 } from './icons';
 import { formatDateLong, formatDateShort } from './dateTimeUtils';
 import './dashboards.css';
@@ -100,6 +100,26 @@ function Reports() {
   // instead of pushing in a second chart card, which would shift
   // "Appointments Over Time" out of its current position.
   const [splitSlide, setSplitSlide] = useState(0);
+  const autoRotateRef = useRef(null);
+
+  // Auto-advances the split carousel every 6s so the Booking Source view is
+  // actually noticed instead of staying hidden behind a click a viewer may
+  // never make. Any manual arrow/dot interaction restarts this same timer
+  // (resetSplitAutoRotate below) rather than fighting it.
+  useEffect(() => {
+    autoRotateRef.current = setInterval(() => setSplitSlide((s) => (s + 1) % 2), 6000);
+    return () => clearInterval(autoRotateRef.current);
+  }, []);
+
+  const resetSplitAutoRotate = () => {
+    clearInterval(autoRotateRef.current);
+    autoRotateRef.current = setInterval(() => setSplitSlide((s) => (s + 1) % 2), 6000);
+  };
+
+  const goToSplitSlide = (updater) => {
+    setSplitSlide(updater);
+    resetSplitAutoRotate();
+  };
 
   const handleDownloadPdf = async () => {
     setDownloadingPdf(true);
@@ -395,17 +415,17 @@ function Reports() {
                     type="button"
                     className="reports-split-arrow"
                     aria-label="Previous breakdown"
-                    onClick={() => setSplitSlide((s) => (s + 1) % 2)}
+                    onClick={() => goToSplitSlide((s) => (s + 1) % 2)}
                   >
-                    ‹
+                    <ChevronLeftIcon />
                   </button>
                   <button
                     type="button"
                     className="reports-split-arrow"
                     aria-label="Next breakdown"
-                    onClick={() => setSplitSlide((s) => (s + 1) % 2)}
+                    onClick={() => goToSplitSlide((s) => (s + 1) % 2)}
                   >
-                    ›
+                    <ChevronRightIcon />
                   </button>
                 </div>
               </div>
@@ -427,13 +447,13 @@ function Reports() {
                       type="button"
                       className={`reports-split-dot${splitSlide === 0 ? ' is-active' : ''}`}
                       aria-label="Show Payment Type Split"
-                      onClick={() => setSplitSlide(0)}
+                      onClick={() => goToSplitSlide(0)}
                     />
                     <button
                       type="button"
                       className={`reports-split-dot${splitSlide === 1 ? ' is-active' : ''}`}
                       aria-label="Show Booking Source"
-                      onClick={() => setSplitSlide(1)}
+                      onClick={() => goToSplitSlide(1)}
                     />
                   </div>
                   {/* Print-only — Tables 2 and 3, both always rendered
