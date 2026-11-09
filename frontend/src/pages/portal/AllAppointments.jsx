@@ -600,7 +600,16 @@ function AllAppointments() {
             items={[
               isAwaitingDateChangeReview(row) && { label: 'Review Requested Date', onClick: () => setReviewTarget(row) },
               isRunningLate(row) && { label: 'Move to Another Schedule', onClick: () => setRescheduleTarget(row) },
-              (row.status === 'cancelled' || isRunningLate(row)) && { label: 'Assign Walk-In', onClick: () => openWalkInForRow(row) },
+              row.status === 'cancelled' && { label: 'Assign Walk-In', onClick: () => openWalkInForRow(row) },
+              // Running Late: deliberately opens the full, unlocked wizard
+              // (openBlankWalkIn(), same as "+ Add Appointment") instead of
+              // openWalkInForRow()'s prefilled/locked variant — the late
+              // patient's own slot isn't actually freed yet (they might
+              // still arrive), and a walk-in filling dentist time right now
+              // may well need a different service than whatever was booked,
+              // so staff pick everything fresh instead of being forced to
+              // match the original appointment's service.
+              isRunningLate(row) && { label: 'Assign Walk-In', onClick: () => openBlankWalkIn() },
               isOverdueUnresolved(row) && { label: 'Mark No Show', onClick: () => handleNoShow(row), danger: true },
               ['confirmed', 'pending_verification'].includes(row.status) && {
                 label: 'Cancel Appointment', onClick: () => openCancel(row), danger: true,
