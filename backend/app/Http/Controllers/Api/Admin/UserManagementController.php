@@ -65,33 +65,46 @@ class UserManagementController extends Controller
                 // scalar subquery (not a relation traversal) since it lives
                 // on patients, one hop further than this subquery already
                 // has a clean alias for.
+                // Also counts no_show rows now (CancellationPolicyService
+                // ::cancellationCount() — see its class doc for why no_show
+                // needs no changed_by scoping the way 'cancelled' does).
                 'patientAppointments as cancellation_count' => fn ($q) => $q
-                    ->where('appointments.status', 'cancelled')
-                    ->whereHas('statusLogs', fn ($sq) => $sq
-                        ->where('new_status', 'cancelled')
-                        ->whereColumn('changed_by', 'users.id')
-                        ->whereRaw(
-                            // Strictly after (>), not >= — see
-                            // CancellationPolicyService::cancellationCount()'s
-                            // own comment on why: a reset and the
-                            // cancellation that triggered it can land in the
-                            // same whole-second timestamp.
-                            //
-                            // The OUTER parens around the whole OR are load-
-                            // bearing, not decoration: whereRaw() ANDs this
-                            // string onto the preceding where()/whereColumn()
-                            // calls, and SQL's AND binds tighter than OR — an
-                            // unparenthesized "...IS NULL OR created_at > ..."
-                            // would let the OR's right side satisfy the
-                            // *entire* WHERE clause on its own, silently
-                            // discarding the new_status/changed_by filters
-                            // above for any row where created_at happens to
-                            // be later than the reset cutoff. Caught this via
-                            // a real (rolled-back) test where the count came
-                            // back inflated after a reset, not by inspection.
-                            '((select cancellation_count_reset_at from patients where patients.user_id = users.id) is null '
-                            .'or appointment_status_log.created_at > (select cancellation_count_reset_at from patients where patients.user_id = users.id))'
-                        )),
+                    ->where(function ($outer) {
+                        $outer->where(function ($w) {
+                            $w->where('appointments.status', 'cancelled')
+                                ->whereHas('statusLogs', fn ($sq) => $sq
+                                    ->where('new_status', 'cancelled')
+                                    ->whereColumn('changed_by', 'users.id')
+                                    ->whereRaw(
+                                        // Strictly after (>), not >= — see
+                                        // CancellationPolicyService::cancellationCount()'s
+                                        // own comment on why: a reset and the
+                                        // cancellation that triggered it can land in the
+                                        // same whole-second timestamp.
+                                        //
+                                        // The OUTER parens around the whole OR are load-
+                                        // bearing, not decoration: whereRaw() ANDs this
+                                        // string onto the preceding where()/whereColumn()
+                                        // calls, and SQL's AND binds tighter than OR — an
+                                        // unparenthesized "...IS NULL OR created_at > ..."
+                                        // would let the OR's right side satisfy the
+                                        // *entire* WHERE clause on its own, silently
+                                        // discarding the new_status/changed_by filters
+                                        // above for any row where created_at happens to
+                                        // be later than the reset cutoff. Caught this via
+                                        // a real (rolled-back) test where the count came
+                                        // back inflated after a reset, not by inspection.
+                                        '((select cancellation_count_reset_at from patients where patients.user_id = users.id) is null '
+                                        .'or appointment_status_log.created_at > (select cancellation_count_reset_at from patients where patients.user_id = users.id))'
+                                    ));
+                        })->orWhere(function ($w) {
+                            $w->where('appointments.status', 'no_show')
+                                ->whereRaw(
+                                    '((select cancellation_count_reset_at from patients where patients.user_id = users.id) is null '
+                                    .'or appointments.updated_at > (select cancellation_count_reset_at from patients where patients.user_id = users.id))'
+                                );
+                        });
+                    }),
             ])
             // Surfaces the automatic 3-strike restriction (see
             // CancellationPolicyService) alongside the manual Deactivate

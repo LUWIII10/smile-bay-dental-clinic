@@ -76,11 +76,11 @@ function PatientDashboard() {
             <p className="suggestion-banner-title">
               {cancellationPolicy.restricted
                 ? 'New bookings are restricted on your account'
-                : `You've had ${cancellationPolicy.cancellation_count} cancelled appointment${cancellationPolicy.cancellation_count === 1 ? '' : 's'}`}
+                : `You've had ${cancellationPolicy.cancellation_count} cancelled or missed appointment${cancellationPolicy.cancellation_count === 1 ? '' : 's'}`}
             </p>
             <p className="suggestion-banner-subtitle">
               {cancellationPolicy.restricted
-                ? 'This is due to repeated cancellations. Please contact the clinic to resolve this.'
+                ? 'This is due to repeated cancellations or missed appointments. Please contact the clinic to resolve this.'
                 : `Reaching ${cancellationPolicy.restriction_threshold} will restrict new bookings on this account.`}
             </p>
           </div>

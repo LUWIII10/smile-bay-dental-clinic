@@ -16,6 +16,7 @@ use App\Models\Patient;
 use App\Models\Service;
 use App\Models\User;
 use App\Services\AppointmentSlotService;
+use App\Services\CancellationPolicyService;
 use App\Services\FollowUpRecommendationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -38,6 +39,7 @@ class StaffAppointmentController extends Controller
     public function __construct(
         private AppointmentSlotService $slots,
         private FollowUpRecommendationService $followUps,
+        private CancellationPolicyService $cancellationPolicy,
     ) {}
 
     /**
@@ -605,6 +607,8 @@ class StaffAppointmentController extends Controller
             'appointment_no_show',
             "{$request->user()->name} marked {$appointment->patient->first_name} {$appointment->patient->last_name}'s {$appointment->service->name} appointment as a no-show."
         );
+
+        $this->cancellationPolicy->evaluateAfterNoShow($appointment->patient);
 
         return response()->json(['message' => 'Appointment marked as no-show.', 'data' => $appointment]);
     }

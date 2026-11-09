@@ -101,9 +101,13 @@ function isOverdueUnresolved(row) {
 
 // A CONFIRMED appointment, today, whose own scheduled time already passed
 // with no check-in — distinct from isOverdueUnresolved() above (that one
-// only fires once the whole DAY has passed). Drives the "Move to Next Open
-// Slot" action only; the row's status/badge are untouched by this, same as
-// isOverdueUnresolved() never changes status either.
+// only fires once the whole DAY has passed). Drives "Move to Another
+// Schedule" (reschedule this same patient) and "Assign Walk-In" (give the
+// freed slot to someone else instead) — staff's two options while the
+// patient might still turn up late. The row's status/badge are untouched by
+// either action, same as isOverdueUnresolved() never changes status either;
+// if nobody acts, MarkNoShowAppointments (backend) auto-resolves it
+// overnight once the whole day has passed.
 function isRunningLate(row) {
   if (row.status !== 'confirmed') return false;
   const today = new Date();
@@ -173,7 +177,7 @@ function AllAppointments() {
   const [cancelReason, setCancelReason] = useState('');
   const [cancelling, setCancelling] = useState(false);
 
-  // "Move to Next Open Slot" — reuses the same RescheduleModal the dentist's
+  // "Move to Another Schedule" — reuses the same RescheduleModal the dentist's
   // own schedule uses, just pointed at the staff-wide reschedule endpoint
   // (rescheduleAppointmentAsStaff) since this isn't scoped to one dentist's
   // own appointments.
@@ -584,8 +588,8 @@ function AllAppointments() {
           <ActionMenu
             items={[
               isAwaitingDateChangeReview(row) && { label: 'Review Requested Date', onClick: () => setReviewTarget(row) },
-              row.status === 'cancelled' && { label: 'Assign Walk-In', onClick: () => openWalkInForRow(row) },
-              isRunningLate(row) && { label: 'Move to Next Open Slot', onClick: () => setRescheduleTarget(row) },
+              isRunningLate(row) && { label: 'Move to Another Schedule', onClick: () => setRescheduleTarget(row) },
+              (row.status === 'cancelled' || isRunningLate(row)) && { label: 'Assign Walk-In', onClick: () => openWalkInForRow(row) },
               isOverdueUnresolved(row) && { label: 'Mark No Show', onClick: () => handleNoShow(row), danger: true },
               ['confirmed', 'pending_verification'].includes(row.status) && {
                 label: 'Cancel Appointment', onClick: () => openCancel(row), danger: true,

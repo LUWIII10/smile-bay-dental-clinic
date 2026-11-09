@@ -70,9 +70,9 @@ function slotTooltipText(status, count, isToday, isPast, reason, disableToday) {
 // existed — Pediatric Queue's propose, the patient's counter-offer) forces
 // same-day off regardless of real capacity, since both of those submit
 // through endpoints validated after:today server-side. RescheduleModal's
-// callers (dentist's own reschedule, staff's "Move to Next Open Slot")
+// callers (dentist's own reschedule, staff's "Move to Another Schedule")
 // allow after_or_equal:today instead — same-day is the entire point of
-// "Move to Next Open Slot" for a running-late patient — so it passes
+// "Move to Another Schedule" for a running-late patient — so it passes
 // disableToday={false}.
 function AvailableSlotPicker({ dentistId, serviceId, date, onDateChange, time, onTimeChange, compact, disableToday = true }) {
   const [calendarMonth, setCalendarMonth] = useState(() => startOfDay(new Date()));

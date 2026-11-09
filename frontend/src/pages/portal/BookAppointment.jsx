@@ -483,8 +483,8 @@ function BookAppointment() {
           <AlertIcon />
           <span className="dash-empty-title">New Bookings Restricted</span>
           <p style={{ margin: 0, fontSize: '0.82rem' }}>
-            This account has had repeated cancelled appointments, so new self-service bookings are currently
-            restricted. Please contact the clinic directly to book an appointment.
+            This account has had repeated cancelled or missed appointments, so new self-service bookings are
+            currently restricted. Please contact the clinic directly to book an appointment.
           </p>
         </div>
       </div>
@@ -573,7 +573,7 @@ function BookAppointment() {
                 <span className="suggestion-banner-icon"><AlertIcon /></span>
                 <div className="suggestion-banner-text">
                   <p className="suggestion-banner-title">
-                    You've had {cancellationPolicy.cancellation_count} cancelled appointment{cancellationPolicy.cancellation_count === 1 ? '' : 's'}
+                    You've had {cancellationPolicy.cancellation_count} cancelled or missed appointment{cancellationPolicy.cancellation_count === 1 ? '' : 's'}
                   </p>
                   <p className="suggestion-banner-subtitle">
                     Reaching {cancellationPolicy.restriction_threshold} will restrict new bookings on this account. Please only

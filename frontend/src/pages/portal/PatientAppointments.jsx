@@ -75,25 +75,19 @@ const CANCELLABLE_STATUSES = ['confirmed', 'pending_verification'];
 const REASON_VISIBLE_STATUSES = ['cancelled', 'rejected'];
 
 // Mirrors PatientAppointmentController::cancel()'s own "isUpcoming" +
-// "isLapsedToday" checks server-side — a confirmed/pending appointment
-// whose date has already passed, OR whose date is today but its own
-// scheduled time has already passed, gets rejected there ("This
-// appointment's scheduled time has already passed..."), so the button
-// shouldn't even show for one. The same-day+time case matters because the
-// visit may have genuinely already happened and just not be logged yet.
+// "isWithinCancellationWindow" checks server-side — a confirmed/pending
+// appointment less than 24 hours out gets rejected there ("Appointments can
+// only be cancelled at least 24 hours in advance..."), so the button
+// shouldn't even show for one. Also naturally covers the old same-day case
+// (anything within 24 hours is necessarily still today or lapsed already).
 function isCancellable(appointment) {
   if (!CANCELLABLE_STATUSES.includes(appointment.status)) return false;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
   const apptDay = toLocalDate(appointment.appointment_date);
-  if (apptDay < today) return false;
-  if (apptDay.getTime() === today.getTime()) {
-    const [h, m] = appointment.appointment_time.split(':').map(Number);
-    const slotMoment = new Date();
-    slotMoment.setHours(h, m, 0, 0);
-    if (slotMoment < new Date()) return false;
-  }
-  return true;
+  const [h, m] = appointment.appointment_time.split(':').map(Number);
+  const apptMoment = new Date(apptDay);
+  apptMoment.setHours(h, m, 0, 0);
+  const cutoff = new Date(apptMoment.getTime() - 24 * 60 * 60 * 1000);
+  return new Date() < cutoff;
 }
 
 // A confirmed/pending appointment whose date has already passed (falls
@@ -159,7 +153,7 @@ function isAwaitingStaffReview(appointment) {
   return !!appointment.patient_requested_new_date_at;
 }
 
-// Staff's "Move to Next Open Slot" (StaffAppointmentController::reschedule())
+// Staff's "Move to Another Schedule" (StaffAppointmentController::reschedule())
 // still applies instantly — no patient confirmation, since it's same-day and
 // time critical for a running-late patient. This is what lets the patient
 // see it happened without checking the notification bell or email first.
@@ -656,11 +650,11 @@ function PatientAppointments() {
             <p className="suggestion-banner-title">
               {cancellationPolicy.restricted
                 ? 'New bookings are restricted on your account'
-                : `You've had ${cancellationPolicy.cancellation_count} cancelled appointment${cancellationPolicy.cancellation_count === 1 ? '' : 's'}`}
+                : `You've had ${cancellationPolicy.cancellation_count} cancelled or missed appointment${cancellationPolicy.cancellation_count === 1 ? '' : 's'}`}
             </p>
             <p className="suggestion-banner-subtitle">
               {cancellationPolicy.restricted
-                ? 'This is due to repeated cancellations. Please contact the clinic to resolve this.'
+                ? 'This is due to repeated cancellations or missed appointments. Please contact the clinic to resolve this.'
                 : `Reaching ${cancellationPolicy.restriction_threshold} will restrict new bookings on this account.`}
             </p>
           </div>

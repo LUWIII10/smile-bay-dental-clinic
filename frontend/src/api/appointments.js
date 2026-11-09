@@ -208,7 +208,7 @@ export async function backfillTreatmentRecord(appointmentId, { procedureName, to
 // does not apply immediately. The patient must confirm it (or counter with
 // a different time) via acceptReschedule()/requestDifferentRescheduleDate()
 // above before it's final. Distinct from rescheduleAppointmentAsStaff()
-// below ("Move to Next Open Slot"), which still applies instantly.
+// below ("Move to Another Schedule"), which still applies instantly.
 export async function rescheduleAppointment(appointmentId, date, time, reason) {
   await api.get('/sanctum/csrf-cookie');
   const response = await api.patch(`/api/appointments/${appointmentId}/reschedule`, {

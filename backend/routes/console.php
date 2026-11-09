@@ -20,3 +20,11 @@ Schedule::command('appointments:send-reminders')->dailyAt('08:00');
 // own frequency), so running this daily is safe even though most days it
 // does nothing.
 Schedule::command('backups:run-scheduled')->dailyAt('02:00');
+
+// Same "requires a real cron" caveat as above — safe to re-run manually
+// (`php artisan appointments:mark-no-shows`); it only ever touches
+// appointments whose date has already fully passed, so running it twice in
+// a row finds nothing the second time. See MarkNoShowAppointments's own
+// doc comment for why this is scoped to past dates only, not today's
+// lapsed-but-still-"Running Late" appointments.
+Schedule::command('appointments:mark-no-shows')->dailyAt('00:05');

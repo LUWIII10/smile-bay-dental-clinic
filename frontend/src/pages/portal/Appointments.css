@@ -582,7 +582,7 @@
 }
 
 /* Staff instantly moved this appointment (StaffAppointmentController::
-   reschedule() — "Move to Next Open Slot", running-late patient, same day)
+   reschedule() — "Move to Another Schedule", running-late patient, same day)
    — no patient confirmation happens first, so this is what makes the change
    visible in the list itself instead of only in the notification bell. */
 .cell-rescheduled-note {

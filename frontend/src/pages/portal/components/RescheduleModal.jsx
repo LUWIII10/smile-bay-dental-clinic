@@ -26,7 +26,7 @@ function todayDateKey() {
 // data — AvailableSlotPicker replaces both pieces at once, so a slot shown
 // here can never look open/full differently than the real booking calendar
 // does. `rescheduleFn` is swappable (defaults to the dentist-only API) so
-// staff's clinic-wide "Move to Next Open Slot" action (AllAppointments.jsx)
+// staff's clinic-wide "Move to Another Schedule" action (AllAppointments.jsx)
 // and the Clinic Closures reschedule-first flow (Settings.jsx) can reuse
 // this same modal with their own staff-wide endpoint — every other existing
 // caller is unaffected.

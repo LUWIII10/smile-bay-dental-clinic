@@ -526,11 +526,11 @@ function UserManagement() {
       key: 'cancellations',
       label: (
         <button type="button" className="th-sort-btn" onClick={toggleCancellationSort}>
-          Cancellations
+          Strikes
           <span className={`th-sort-arrow${sort === 'cancellations_desc' ? ' th-sort-arrow--asc' : ''}`}>&#9662;</span>
         </button>
       ),
-      mobileLabel: 'Cancellations',
+      mobileLabel: 'Strikes',
       minWidth: '12%',
       align: 'center',
       render: (row) => {

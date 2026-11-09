@@ -8,18 +8,23 @@ use App\Models\Notification;
 use App\Models\Patient;
 
 /**
- * The "3-strike" self-cancellation policy: cash patients auto-confirm with
- * no down payment, so nothing else in the system discourages booking
- * repeatedly and cancelling instead of showing up. Only ever counts
- * patient-initiated cancellations — status alone (cancelled vs rejected)
- * turns out NOT to be enough to tell those apart: StaffAppointmentController
- * ::cancel() and AppointmentController::cancel() (dentist) ALSO write
- * status='cancelled' when the CLINIC cancels on a patient's behalf (e.g. a
- * scheduling conflict) — same status, but not the patient's doing, and
- * neither of those two controllers calls evaluateAfterCancellation() (nor
- * should they). cancellationCount() below cross-checks each cancelled row's
- * appointment_status_log entry and only counts ones where changed_by is the
- * patient's own user_id.
+ * The "3-strike" reliability policy: cash patients auto-confirm with no
+ * down payment, so nothing else in the system discourages booking
+ * repeatedly and then either cancelling or simply not showing up. Counts
+ * two kinds of strikes, added together:
+ * - Patient-initiated cancellations only — status alone (cancelled vs
+ *   rejected) turns out NOT to be enough to tell those apart:
+ *   StaffAppointmentController::cancel() and AppointmentController::cancel()
+ *   (dentist) ALSO write status='cancelled' when the CLINIC cancels on a
+ *   patient's behalf (e.g. a scheduling conflict) — same status, but not
+ *   the patient's doing, and neither of those two controllers calls
+ *   evaluateAfterCancellation() (nor should they). cancellationCount()
+ *   below cross-checks each cancelled row's appointment_status_log entry
+ *   and only counts ones where changed_by is the patient's own user_id.
+ * - Every no_show, with no such scoping needed — unlike 'cancelled',
+ *   nothing else in the app ever writes status='no_show' except the
+ *   patient's own absence (StaffAppointmentController::noShow(), manual, or
+ *   the automatic MarkNoShowAppointments command), so every row counts.
  *
  * This isn't just a fairness fix — it's the actual fix for a real bug: a
  * patient reached 4 total cancelled appointments (mixed patient- and
@@ -70,17 +75,31 @@ class CancellationPolicyService
     public function cancellationCount(Patient $patient): int
     {
         return Appointment::where('patient_id', $patient->id)
-            ->where('status', 'cancelled')
-            ->whereHas('statusLogs', function ($q) use ($patient) {
-                $q->where('new_status', 'cancelled')->where('changed_by', $patient->user_id);
-                if ($patient->cancellation_count_reset_at) {
-                    // Strictly after, not >= — a reset and the cancellation
-                    // that triggered it can land in the same second
-                    // (timestamp columns are whole-second here), and >=
-                    // would then fail to exclude the very cancellations the
-                    // reset was supposed to clear.
-                    $q->where('created_at', '>', $patient->cancellation_count_reset_at);
-                }
+            ->where(function ($outer) use ($patient) {
+                $outer->where(function ($w) use ($patient) {
+                    $w->where('status', 'cancelled')
+                        ->whereHas('statusLogs', function ($q) use ($patient) {
+                            $q->where('new_status', 'cancelled')->where('changed_by', $patient->user_id);
+                            if ($patient->cancellation_count_reset_at) {
+                                // Strictly after, not >= — a reset and the
+                                // cancellation that triggered it can land in
+                                // the same second (timestamp columns are
+                                // whole-second here), and >= would then fail
+                                // to exclude the very cancellations the
+                                // reset was supposed to clear.
+                                $q->where('created_at', '>', $patient->cancellation_count_reset_at);
+                            }
+                        });
+                })->orWhere(function ($w) use ($patient) {
+                    $w->where('status', 'no_show');
+                    if ($patient->cancellation_count_reset_at) {
+                        // No per-row status-log scoping needed here (see
+                        // class doc) — just the same reset cutoff, read off
+                        // the appointment's own updated_at since no_show is
+                        // a terminal status with nothing to log against.
+                        $w->where('updated_at', '>', $patient->cancellation_count_reset_at);
+                    }
+                });
             })
             ->count();
     }
@@ -103,13 +122,39 @@ class CancellationPolicyService
     }
 
     /**
-     * Call once, right after a patient-initiated cancel commits. Escalates
-     * at most one step per call: a patient who was already restricted going
-     * into this cancel jumps straight to deactivation (they cancelled again
-     * after fair warning); otherwise, reaching the restriction threshold for
-     * the first time sets the restriction. Never both in one call.
+     * Call once, right after a patient-initiated cancel commits. See
+     * escalate() for the shared logic — a cancellation and a no-show
+     * (evaluateAfterNoShow() below) escalate identically, only the wording
+     * of the notice differs.
      */
     public function evaluateAfterCancellation(Patient $patient): void
+    {
+        $this->escalate($patient, 'cancelling another appointment', 'cancelled');
+    }
+
+    /**
+     * Call once after an appointment is marked no_show — whether staff did
+     * it manually (StaffAppointmentController::noShow()) or the automatic
+     * nightly sweep did (MarkNoShowAppointments). Same escalation ladder as
+     * a cancellation, since both strikes feed the same count.
+     */
+    public function evaluateAfterNoShow(Patient $patient): void
+    {
+        $this->escalate($patient, 'missing another appointment', 'cancelled or missed');
+    }
+
+    /**
+     * Escalates at most one step per call: a patient who was already
+     * restricted going into this strike jumps straight to deactivation
+     * (fair warning already given); otherwise, reaching the restriction
+     * threshold for the first time sets the restriction. Never both in one
+     * call. $repeatOffensePhrase describes THIS strike (deactivation
+     * notice); $tallyPhrase describes the running total (restriction
+     * notice) — kept separate since "cancelling another appointment" reads
+     * naturally but "cancelling another cancelled or missed appointment"
+     * wouldn't.
+     */
+    private function escalate(Patient $patient, string $repeatOffensePhrase, string $tallyPhrase): void
     {
         if ($patient->isBookingRestricted()) {
             $patient->user->update(['status' => 'inactive']);
@@ -117,7 +162,7 @@ class CancellationPolicyService
             Notification::notifyUser(
                 $patient->user_id,
                 'Account deactivated',
-                'Your account has been deactivated after cancelling another appointment while booking-restricted. Please contact the clinic to resolve this.',
+                "Your account has been deactivated after {$repeatOffensePhrase} while booking-restricted. Please contact the clinic to resolve this.",
             );
             // No human actor — this is the system's own automatic
             // escalation, not an admin clicking Deactivate (see
@@ -125,7 +170,7 @@ class CancellationPolicyService
             ActivityLog::record(
                 null,
                 'account_deactivated',
-                "{$patient->user->name}'s account was automatically deactivated after cancelling again while booking-restricted."
+                "{$patient->user->name}'s account was automatically deactivated after {$repeatOffensePhrase} while booking-restricted."
             );
 
             return;
@@ -142,7 +187,7 @@ class CancellationPolicyService
             Notification::notifyUser(
                 $patient->user_id,
                 'New bookings restricted',
-                "You've had {$count} cancelled appointments. New bookings are restricted until our staff clears this — please contact the clinic.",
+                "You've had {$count} {$tallyPhrase} appointments. New bookings are restricted until our staff clears this — please contact the clinic.",
                 '/patient/dashboard',
             );
             // No human actor — the automatic 3-strike policy, not an admin
@@ -151,7 +196,7 @@ class CancellationPolicyService
             ActivityLog::record(
                 null,
                 'account_restricted',
-                "{$patient->user->name}'s new bookings were automatically restricted after {$count} cancelled appointments."
+                "{$patient->user->name}'s new bookings were automatically restricted after {$count} {$tallyPhrase} appointments."
             );
         }
     }

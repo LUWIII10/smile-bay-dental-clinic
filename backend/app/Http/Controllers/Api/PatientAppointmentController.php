@@ -11,6 +11,7 @@ use App\Models\Notification;
 use App\Models\Patient;
 use App\Services\AppointmentSlotService;
 use App\Services\CancellationPolicyService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -205,21 +206,20 @@ class PatientAppointmentController extends Controller
         $isCancellableStatus = in_array($appointment->status, ['confirmed', 'pending_verification'], true);
         $today = now()->toDateString();
         $isUpcoming = $appointment->appointment_date->toDateString() >= $today;
-        // Same-day, but the scheduled moment itself has already passed — the
-        // date-only check above alone still treated this as cancellable all
-        // day. By then the visit may have already happened and just not be
-        // logged yet (AppointmentController::complete()); a patient
-        // self-cancelling out from under that would erase a real visit
-        // before the dentist gets to it. Past this point, only the clinic
+        // Same-day working practice: at least 24 hours' notice, same as the
+        // existing reminder lead time. Replaces the old same-day-only check
+        // (which let a patient cancel minutes before their own appointment)
+        // — this now also covers that case, since anything within 24 hours
+        // is also necessarily still today. Past this point, only the clinic
         // itself (StaffAppointmentController::cancel()/noShow(), no time
         // restriction) resolves it.
-        $isLapsedToday = $appointment->appointment_date->toDateString() === $today
-            && $appointment->appointment_time <= now()->format('H:i:s');
+        $appointmentMoment = Carbon::parse($appointment->appointment_date->toDateString().' '.$appointment->appointment_time);
+        $isWithinCancellationWindow = now()->greaterThan($appointmentMoment->copy()->subHours(24));
 
-        if (! $isCancellableStatus || ! $isUpcoming || $isLapsedToday) {
+        if (! $isCancellableStatus || ! $isUpcoming || $isWithinCancellationWindow) {
             return response()->json([
-                'message' => $isLapsedToday
-                    ? "This appointment's scheduled time has already passed — please contact the clinic directly to cancel it."
+                'message' => $isWithinCancellationWindow
+                    ? 'Appointments can only be cancelled at least 24 hours in advance — please contact the clinic directly if you can no longer make it.'
                     : 'Only an upcoming confirmed or pending appointment can be cancelled.',
             ], 422);
         }
