@@ -59,6 +59,12 @@ const DELETE_THRESHOLD = -88;
 // releasing calls onDelete and animates the row out.
 function NotificationRow({ notification, onOpen, onDelete }) {
   const [dragX, setDragX] = useState(0);
+  // The red "Delete" bed's own opacity — independent of the item's
+  // translateX so it can fade in on its own curve instead of just being
+  // masked by whatever the item's background happens to be. Starts and
+  // rests at 0 (genuinely invisible, not just covered), only rises once
+  // the drag has actually moved past a few px (see handlePointerMove).
+  const [bedOpacity, setBedOpacity] = useState(0);
   const [dragging, setDragging] = useState(false);
   const [removed, setRemoved] = useState(false);
   const startXRef = useRef(null);
@@ -81,6 +87,10 @@ function NotificationRow({ notification, onOpen, onDelete }) {
     const dx = Math.min(0, e.clientX - startXRef.current);
     if (Math.abs(dx) > 6) draggedRef.current = true;
     setDragX(dx);
+    // Invisible for the first 12px (absorbs an accidental nudge/hover),
+    // then ramps to fully visible by 60px — well before DELETE_THRESHOLD,
+    // so "Delete" is clearly shown by the time a release would commit to it.
+    setBedOpacity(Math.max(0, Math.min(1, (Math.abs(dx) - 12) / 48)));
   };
 
   const handlePointerUp = () => {
@@ -88,10 +98,12 @@ function NotificationRow({ notification, onOpen, onDelete }) {
     startXRef.current = null;
     setDragging(false);
     if (dragX < DELETE_THRESHOLD) {
+      setBedOpacity(1);
       setRemoved(true);
       onDelete(notification);
     } else {
       setDragX(0);
+      setBedOpacity(0);
     }
   };
 
@@ -107,7 +119,11 @@ function NotificationRow({ notification, onOpen, onDelete }) {
 
   return (
     <div className={`notif-row${removed ? ' notif-row--removed' : ''}`}>
-      <div className="notif-row-bed" aria-hidden="true">
+      <div
+        className={`notif-row-bed${dragging ? ' notif-row-bed--dragging' : ''}`}
+        style={{ opacity: bedOpacity }}
+        aria-hidden="true"
+      >
         <TrashIcon />
         Delete
       </div>
