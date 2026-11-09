@@ -24,6 +24,7 @@
     <tr><td>Cancelled / rejected</td><td class="num">{{ $totals['cancelled'] + $totals['rejected'] }}</td></tr>
     <tr><td>New patients</td><td class="num">{{ $totals['new_patients'] }}</td></tr>
     <tr><td>No-shows</td><td class="num">{{ $totals['no_show'] }}</td></tr>
+    <tr><td>Walk-ins</td><td class="num">{{ $totals['walk_ins'] }}</td></tr>
     <tr><td>Completion rate</td><td class="num">{{ $completionRate }}%</td></tr>
   </tbody>
 </table>
@@ -49,7 +50,19 @@
 </div>
 
 <div class="pdf-section-box">
-<div class="pdf-section-title">Table 3 &mdash; Services Rendered</div>
+<div class="pdf-section-title">Table 3 &mdash; Booking Source</div>
+<table class="pdf-table">
+  <thead><tr><th>Source</th><th class="num">Count</th><th class="num">Share</th></tr></thead>
+  <tbody>
+    <tr><td>Online (patient-booked)</td><td class="num">{{ $bookingSource['online'] }}</td><td class="num">{{ $onlinePct }}%</td></tr>
+    <tr><td>Walk-in (staff-booked)</td><td class="num">{{ $bookingSource['walk_in'] }}</td><td class="num">{{ $walkInPct }}%</td></tr>
+  </tbody>
+  <tfoot><tr><td>Total</td><td class="num">{{ $bookingSourceTotal }}</td><td class="num">100%</td></tr></tfoot>
+</table>
+</div>
+
+<div class="pdf-section-box">
+<div class="pdf-section-title">Table 4 &mdash; Services Rendered</div>
 @if (count($topServices) === 0)
   <p class="pdf-empty">No data in this range.</p>
 @else
@@ -66,7 +79,7 @@
 </div>
 
 <div class="pdf-section-box">
-<div class="pdf-section-title">Table 4 &mdash; Appointments by Dentist</div>
+<div class="pdf-section-title">Table 5 &mdash; Appointments by Dentist</div>
 @if (count($byDentist) === 0)
   <p class="pdf-empty">No data in this range.</p>
 @else

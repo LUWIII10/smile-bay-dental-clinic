@@ -46,6 +46,10 @@ class ReportsController extends Controller
         $cashPct = $paymentTotal ? round($data['payment_split']['cash'] / $paymentTotal * 100) : 0;
         $hmoPct = $paymentTotal ? round($data['payment_split']['hmo'] / $paymentTotal * 100) : 0;
 
+        $bookingSourceTotal = $data['booking_source']['online'] + $data['booking_source']['walk_in'];
+        $onlinePct = $bookingSourceTotal ? round($data['booking_source']['online'] / $bookingSourceTotal * 100) : 0;
+        $walkInPct = $bookingSourceTotal ? round($data['booking_source']['walk_in'] / $bookingSourceTotal * 100) : 0;
+
         $servicesTotal = collect($data['top_services'])->sum('count');
         $dentistTotal = collect($data['by_dentist'])->sum('count');
         $pct = fn ($count, $total) => $total ? round($count / $total * 100, 1) : 0.0;
@@ -63,6 +67,10 @@ class ReportsController extends Controller
             'paymentTotal' => $paymentTotal,
             'cashPct' => $cashPct,
             'hmoPct' => $hmoPct,
+            'bookingSource' => $data['booking_source'],
+            'bookingSourceTotal' => $bookingSourceTotal,
+            'onlinePct' => $onlinePct,
+            'walkInPct' => $walkInPct,
             'topServices' => $data['top_services'],
             'byDentist' => $data['by_dentist'],
             'servicesTotal' => $servicesTotal,
@@ -109,6 +117,16 @@ class ReportsController extends Controller
             ->groupBy('patient_type_snapshot')
             ->pluck('count', 'patient_type_snapshot');
 
+        // Same booked_by flag AllAppointments/StaffAppointmentController rely
+        // on elsewhere: null = the patient booked through the portal
+        // themselves, set = staff created it (assignWalkIn(), either entry
+        // point). No new column needed — this is the one existing signal
+        // that already distinguishes a walk-in from an online booking.
+        $bookingSource = $scoped()
+            ->select(DB::raw("CASE WHEN booked_by IS NULL THEN 'online' ELSE 'walk_in' END as source"), DB::raw('count(*) as count'))
+            ->groupBy('source')
+            ->pluck('count', 'source');
+
         $topServices = $scoped()
             ->join('services', 'services.id', '=', 'appointments.service_id')
             ->select('services.name', DB::raw('count(*) as count'))
@@ -138,11 +156,16 @@ class ReportsController extends Controller
                 'rejected' => $statusCounts->get('rejected', 0),
                 'no_show' => $statusCounts->get('no_show', 0),
                 'new_patients' => $newPatients,
+                'walk_ins' => $bookingSource->get('walk_in', 0),
             ],
             'by_day' => $byDay,
             'payment_split' => [
                 'cash' => $paymentSplit->get('cash', 0),
                 'hmo' => $paymentSplit->get('hmo', 0),
+            ],
+            'booking_source' => [
+                'online' => $bookingSource->get('online', 0),
+                'walk_in' => $bookingSource->get('walk_in', 0),
             ],
             'top_services' => $topServices,
             'by_dentist' => $byDentist,

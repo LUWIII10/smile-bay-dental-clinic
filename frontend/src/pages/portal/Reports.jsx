@@ -23,7 +23,7 @@ import PrintLetterhead from './components/PrintLetterhead';
 import PrintFooter from './components/PrintFooter';
 import DateRangePicker from './components/DateRangePicker';
 import {
-  CalendarIcon, ClockIcon, CheckCircleIcon, XCircleIcon, UsersIcon, PrinterIcon, ChartIcon, AlertIcon, TrendingUpIcon,
+  CalendarIcon, ClockIcon, CheckCircleIcon, XCircleIcon, UsersIcon, PrinterIcon, ChartIcon, AlertIcon, MapPinIcon,
   DownloadIcon,
 } from './icons';
 import { formatDateLong, formatDateShort } from './dateTimeUtils';
@@ -94,6 +94,12 @@ function Reports() {
   const [error, setError] = useState('');
   const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [downloadError, setDownloadError] = useState('');
+  // Which breakdown the Payment Type Split card is currently showing — 0 is
+  // the existing Cash/HMO split, 1 is Booking Source (Online/Walk-In). Lets
+  // the new breakdown share that card's screen space via a small carousel
+  // instead of pushing in a second chart card, which would shift
+  // "Appointments Over Time" out of its current position.
+  const [splitSlide, setSplitSlide] = useState(0);
 
   const handleDownloadPdf = async () => {
     setDownloadingPdf(true);
@@ -149,6 +155,17 @@ function Reports() {
     ],
   };
 
+  const bookingSourceData = data && {
+    labels: ['Online', 'Walk-In'],
+    datasets: [
+      {
+        data: [data.booking_source.online, data.booking_source.walk_in],
+        backgroundColor: ['#2952e3', '#0d9488'],
+        borderWidth: 0,
+      },
+    ],
+  };
+
   const maxServiceCount = data ? Math.max(1, ...data.top_services.map((s) => s.count)) : 1;
   const maxDentistCount = data ? Math.max(1, ...data.by_dentist.map((d) => d.count)) : 1;
 
@@ -159,6 +176,11 @@ function Reports() {
   const paymentTotal = data ? data.payment_split.cash + data.payment_split.hmo : 0;
   const cashPct = paymentTotal ? Math.round((data.payment_split.cash / paymentTotal) * 100) : 0;
   const hmoPct = paymentTotal ? Math.round((data.payment_split.hmo / paymentTotal) * 100) : 0;
+
+  const bookingSourceTotal = data ? data.booking_source.online + data.booking_source.walk_in : 0;
+  const onlinePct = bookingSourceTotal ? Math.round((data.booking_source.online / bookingSourceTotal) * 100) : 0;
+  const walkInPct = bookingSourceTotal ? Math.round((data.booking_source.walk_in / bookingSourceTotal) * 100) : 0;
+
   const avgPerDay = data && data.by_day.length ? (data.totals.total_appointments / data.by_day.length).toFixed(1) : 0;
 
   // Printed tables 3 and 4 — share is each row's count over the sum of
@@ -200,7 +222,7 @@ function Reports() {
       cancelled: data ? data.totals.cancelled + data.totals.rejected : 0,
       newPatients: data?.totals.new_patients ?? 0,
       noShow: data?.totals.no_show ?? 0,
-      completionRate,
+      walkIns: data?.totals.walk_ins ?? 0,
     },
     !loading && !error,
   );
@@ -292,10 +314,10 @@ function Reports() {
                 </div>
                 <div className={statEntranceClass} style={entranceStyle(5)}>
                   <StatCard
-                    label="Completion Rate"
-                    value={`${counts.completionRate}%`}
-                    subtitle="of all appointments"
-                    icon={TrendingUpIcon}
+                    label="Walk-Ins"
+                    value={counts.walkIns}
+                    subtitle="staff-booked in clinic"
+                    icon={MapPinIcon}
                     tint="blue"
                   />
                 </div>
@@ -333,6 +355,7 @@ function Reports() {
                   <tr><td>Cancelled / rejected</td><td className="reports-print-num">{data.totals.cancelled + data.totals.rejected}</td></tr>
                   <tr><td>New patients</td><td className="reports-print-num">{data.totals.new_patients}</td></tr>
                   <tr><td>No-shows</td><td className="reports-print-num">{data.totals.no_show}</td></tr>
+                  <tr><td>Walk-ins</td><td className="reports-print-num">{data.totals.walk_ins}</td></tr>
                   <tr><td>Completion rate</td><td className="reports-print-num">{completionRate}%</td></tr>
                 </tbody>
               </table>
@@ -363,7 +386,28 @@ function Reports() {
 
             <div className={`section-card ${entranceClass}`} style={entranceStyle(8)}>
               <div className="section-card-header">
-                <h3 className="section-card-title">Payment Type Split</h3>
+                <h3 className="section-card-title">{splitSlide === 0 ? 'Payment Type Split' : 'Booking Source'}</h3>
+                {/* On-screen only (hidden in print, same as .reports-date-range
+                    above) — print shows both breakdowns as their own tables
+                    below instead of whichever slide happened to be open. */}
+                <div className="reports-split-nav">
+                  <button
+                    type="button"
+                    className="reports-split-arrow"
+                    aria-label="Previous breakdown"
+                    onClick={() => setSplitSlide((s) => (s + 1) % 2)}
+                  >
+                    ‹
+                  </button>
+                  <button
+                    type="button"
+                    className="reports-split-arrow"
+                    aria-label="Next breakdown"
+                    onClick={() => setSplitSlide((s) => (s + 1) % 2)}
+                  >
+                    ›
+                  </button>
+                </div>
               </div>
               {loading ? (
                 <Skeleton variant="block" />
@@ -372,12 +416,32 @@ function Reports() {
               ) : (
                 <>
                   <div className="chart-container">
-                    <Doughnut data={paymentData} options={DOUGHNUT_OPTIONS} plugins={[PAYMENT_CENTER_LABEL]} />
+                    <Doughnut
+                      data={splitSlide === 0 ? paymentData : bookingSourceData}
+                      options={DOUGHNUT_OPTIONS}
+                      plugins={[PAYMENT_CENTER_LABEL]}
+                    />
                   </div>
-                  {/* Print-only — Table 2, replacing the doughnut. Reuses
-                      cashPct/hmoPct as already computed above (whole-number
-                      rounding) rather than recomputing to the one-decimal
-                      precision tables 3/4 use below. */}
+                  <div className="reports-split-dots">
+                    <button
+                      type="button"
+                      className={`reports-split-dot${splitSlide === 0 ? ' is-active' : ''}`}
+                      aria-label="Show Payment Type Split"
+                      onClick={() => setSplitSlide(0)}
+                    />
+                    <button
+                      type="button"
+                      className={`reports-split-dot${splitSlide === 1 ? ' is-active' : ''}`}
+                      aria-label="Show Booking Source"
+                      onClick={() => setSplitSlide(1)}
+                    />
+                  </div>
+                  {/* Print-only — Tables 2 and 3, both always rendered
+                      regardless of which slide is on screen (a printed page
+                      has no carousel to click through). Reuses cashPct/hmoPct/
+                      onlinePct/walkInPct as already computed above (whole-
+                      number rounding) rather than recomputing to the
+                      one-decimal precision tables 4/5 use below. */}
                   <div className="reports-print-table-block">
                     <p className="reports-print-caption">TABLE 2 — PAYMENT TYPE</p>
                     {printPeriod}
@@ -391,6 +455,22 @@ function Reports() {
                       </tbody>
                       <tfoot>
                         <tr><td>Total</td><td className="reports-print-num">{paymentTotal}</td><td className="reports-print-num">100%</td></tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                  <div className="reports-print-table-block">
+                    <p className="reports-print-caption">TABLE 3 — BOOKING SOURCE</p>
+                    {printPeriod}
+                    <table className="reports-print-table">
+                      <thead>
+                        <tr><th>Source</th><th className="reports-print-num">Count</th><th className="reports-print-num">Share</th></tr>
+                      </thead>
+                      <tbody>
+                        <tr><td>Online (patient-booked)</td><td className="reports-print-num">{data.booking_source.online}</td><td className="reports-print-num">{onlinePct}%</td></tr>
+                        <tr><td>Walk-in (staff-booked)</td><td className="reports-print-num">{data.booking_source.walk_in}</td><td className="reports-print-num">{walkInPct}%</td></tr>
+                      </tbody>
+                      <tfoot>
+                        <tr><td>Total</td><td className="reports-print-num">{bookingSourceTotal}</td><td className="reports-print-num">100%</td></tr>
                       </tfoot>
                     </table>
                   </div>
@@ -421,11 +501,11 @@ function Reports() {
                       </li>
                     ))}
                   </ul>
-                  {/* Print-only — Table 3. Share is of the top 5 shown
+                  {/* Print-only — Table 4. Share is of the top 5 shown
                       here (that's what the backend returns and what this
                       table lists), not of every appointment in range. */}
                   <div className="reports-print-table-block">
-                    <p className="reports-print-caption">TABLE 3 — SERVICES RENDERED</p>
+                    <p className="reports-print-caption">TABLE 4 — SERVICES RENDERED</p>
                     {printPeriod}
                     <table className="reports-print-table">
                       <thead>
@@ -470,12 +550,12 @@ function Reports() {
                       </li>
                     ))}
                   </ul>
-                  {/* Print-only — Table 4. Unlike top_services, by_dentist
+                  {/* Print-only — Table 5. Unlike top_services, by_dentist
                       isn't capped by the backend, so this share is genuinely
                       "of every appointment in range" (every appointment has
                       exactly one dentist). */}
                   <div className="reports-print-table-block">
-                    <p className="reports-print-caption">TABLE 4 — APPOINTMENTS BY DENTIST</p>
+                    <p className="reports-print-caption">TABLE 5 — APPOINTMENTS BY DENTIST</p>
                     {printPeriod}
                     <table className="reports-print-table">
                       <thead>

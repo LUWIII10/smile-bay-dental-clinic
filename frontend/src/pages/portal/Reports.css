@@ -130,6 +130,59 @@
   color: var(--portal-slate);
 }
 
+/* Payment Type Split / Booking Source carousel — the two breakdowns share
+   one card and one chart-grid slot (instead of a second chart card) so
+   "Appointments Over Time" next to it never shifts position. */
+.reports-split-nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.reports-split-arrow {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid var(--portal-border);
+  background: var(--portal-card);
+  color: var(--portal-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  line-height: 1;
+  padding: 0;
+}
+
+.reports-split-arrow:hover {
+  background: var(--portal-canvas);
+  color: var(--portal-navy);
+}
+
+.reports-split-dots {
+  display: flex;
+  gap: 5px;
+  justify-content: center;
+  margin-top: 12px;
+}
+
+.reports-split-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  background: var(--portal-border);
+}
+
+.reports-split-dot.is-active {
+  background: var(--portal-blue);
+  width: 16px;
+  border-radius: 4px;
+}
+
 @media (max-width: 600px) {
   .reports-bar-row {
     grid-template-columns: 1fr auto;
@@ -224,6 +277,14 @@
   .stat-grid,
   .reports-bar-list,
   .reports-insight-banner {
+    display: none !important;
+  }
+
+  /* The Payment Type Split / Booking Source carousel's own click controls —
+     meaningless on paper, where both breakdowns already print as their own
+     tables (2 and 3) regardless of which slide was open on screen. */
+  .reports-split-nav,
+  .reports-split-dots {
     display: none !important;
   }
 
