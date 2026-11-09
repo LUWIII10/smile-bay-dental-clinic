@@ -592,7 +592,7 @@ class AppointmentController extends Controller
         $oldDate = $appointment->appointment_date->toDateString();
         $oldTime = $appointment->appointment_time;
 
-        $proposed = DB::transaction(function () use ($appointment, $validated) {
+        $proposed = DB::transaction(function () use ($appointment, $validated, $oldDate, $oldTime) {
             $available = $this->slots->isSlotAvailable(
                 $appointment->dentist_id,
                 $validated['appointment_date'],
@@ -610,6 +610,13 @@ class AppointmentController extends Controller
                 'appointment_time' => $validated['appointment_time'],
                 'dentist_proposed_new_date_at' => now(),
                 'dentist_reschedule_reason' => $validated['reason'] ?? null,
+                // Stashed here (not applied as the "Rescheduled, was X" badge
+                // yet — that only renders once last_rescheduled_at is set,
+                // at actual confirmation below) so acceptReschedule()/
+                // reviewRescheduleRequest() still have the pre-proposal
+                // date to show once the patient confirms or counters.
+                'previous_appointment_date' => $oldDate,
+                'previous_appointment_time' => $oldTime,
             ]);
 
             return true;

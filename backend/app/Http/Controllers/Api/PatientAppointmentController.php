@@ -624,6 +624,12 @@ class PatientAppointmentController extends Controller
             $appointment->update([
                 'dentist_proposed_new_date_at' => null,
                 'dentist_reschedule_reason' => null,
+                // previous_appointment_date/time were already stashed at
+                // propose time (AppointmentController::proposeReschedule()/
+                // StaffAppointmentController::proposeReschedule()) — this is
+                // just the moment the "Rescheduled, was X" badge
+                // (wasJustRescheduled(), frontend) actually starts showing.
+                'last_rescheduled_at' => now(),
             ]);
 
             return true;

@@ -207,8 +207,9 @@ export async function backfillTreatmentRecord(appointmentId, { procedureName, to
 // Dentist's own "Reschedule" (My Schedule) — proposes a new date/time, it
 // does not apply immediately. The patient must confirm it (or counter with
 // a different time) via acceptReschedule()/requestDifferentRescheduleDate()
-// above before it's final. Distinct from rescheduleAppointmentAsStaff()
-// below ("Move to Another Schedule"), which still applies instantly.
+// above before it's final. proposeStaffReschedule() below is the clinic-wide
+// counterpart, same mechanics, used by both "Move to Another Schedule" and
+// Clinic Closures' reschedule-first flow.
 export async function rescheduleAppointment(appointmentId, date, time, reason) {
   await api.get('/sanctum/csrf-cookie');
   const response = await api.patch(`/api/appointments/${appointmentId}/reschedule`, {
@@ -418,19 +419,6 @@ export async function getAppointmentDetail(appointmentId) {
 export async function cancelAppointmentAsStaff(appointmentId, reason) {
   await api.get('/sanctum/csrf-cookie');
   const response = await api.patch(`/api/staff/appointments/${appointmentId}/cancel`, { reason });
-  return response.data;
-}
-
-// Staff-wide reschedule (any confirmed/pending appointment, any dentist) —
-// not scoped to a dentist's own schedule like rescheduleAppointment() above.
-// Instant-apply — used by the Clinic Closures reschedule-first flow, where
-// the old slot is being shut down and needs resolving right away.
-export async function rescheduleAppointmentAsStaff(appointmentId, date, time) {
-  await api.get('/sanctum/csrf-cookie');
-  const response = await api.patch(`/api/staff/appointments/${appointmentId}/reschedule`, {
-    appointment_date: date,
-    appointment_time: time,
-  });
   return response.data;
 }
 

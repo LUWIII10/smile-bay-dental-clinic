@@ -172,7 +172,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/staff/appointments/walk-in', [StaffAppointmentController::class, 'assignWalkIn']);
         Route::get('/staff/appointments/{appointment}', [StaffAppointmentController::class, 'show']);
         Route::patch('/staff/appointments/{appointment}/cancel', [StaffAppointmentController::class, 'cancel']);
-        Route::patch('/staff/appointments/{appointment}/reschedule', [StaffAppointmentController::class, 'reschedule']);
         Route::patch('/staff/appointments/{appointment}/propose-reschedule', [StaffAppointmentController::class, 'proposeReschedule']);
         Route::patch('/staff/appointments/{appointment}/review-reschedule-request', [StaffAppointmentController::class, 'reviewRescheduleRequest']);
         Route::patch('/staff/appointments/{appointment}/no-show', [StaffAppointmentController::class, 'noShow']);

@@ -16,7 +16,7 @@ import {
   addSpecialHour,
   deleteSpecialHour,
 } from '../../api/clinicSettings';
-import { rescheduleAppointmentAsStaff } from '../../api/appointments';
+import { proposeStaffReschedule } from '../../api/appointments';
 import {
   getBackupOverview, updateBackupFrequency, triggerManualBackup, downloadBackup, deleteBackup,
 } from '../../api/backups';
@@ -490,7 +490,7 @@ function Settings() {
   const handleConflictRescheduled = () => {
     setReschedTarget(null);
     refreshConflicts();
-    showSuccessToast('Appointment moved — the patient has been notified.');
+    showSuccessToast('New time sent to the patient for confirmation.');
   };
 
   const confirmCloseClinic = async () => {
@@ -1138,7 +1138,7 @@ function Settings() {
           <>
             <p style={{ margin: '0 0 12px', fontSize: '0.85rem', color: 'var(--portal-muted)' }}>
               {formatDateLong(pendingClosure.date)} has {originalConflictCount} appointment{originalConflictCount === 1 ? '' : 's'} booked.
-              Move each one to a new date before the clinic can be closed — the patient is emailed and notified automatically.
+              Move each one to a new date before the clinic can be closed — the patient is emailed and asked to confirm the new time.
             </p>
             <span className={`progress-pill${conflictAppointments.length === 0 ? ' progress-pill--done' : ''}`}>
               {conflictAppointments.length === 0 ? '✓' : '⏳'} {originalConflictCount - conflictAppointments.length} of {originalConflictCount} rescheduled
@@ -1175,8 +1175,8 @@ function Settings() {
         open={!!reschedTarget}
         onClose={() => setReschedTarget(null)}
         appointment={reschedTarget}
-        rescheduleFn={rescheduleAppointmentAsStaff}
-        needsConfirmation={false}
+        rescheduleFn={proposeStaffReschedule}
+        needsConfirmation
         onSuccess={handleConflictRescheduled}
       />
 
