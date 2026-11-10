@@ -781,7 +781,8 @@ function BookFollowUp() {
 
             <p className="summary-note">
               Picking this time reserves the full {selectedService?.duration_minutes}-minute window — same guarantee
-              as any other appointment. Need to reschedule or cancel? You can do so anytime from My Appointments.
+              as any other appointment. Avoid cancelling once confirmed — repeated cancellations or missed visits can
+              restrict new bookings on your account after {cancellationPolicy?.restriction_threshold ?? 3} strikes.
             </p>
 
             {submitError && (

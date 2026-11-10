@@ -1041,8 +1041,9 @@ function BookAppointment() {
             </div>
 
             <p className="summary-note">
-              Please arrive a few minutes before your scheduled time. Need to reschedule or cancel? You can do so
-              anytime from My Appointments, or by contacting the clinic directly.
+              Please arrive a few minutes before your scheduled time. Avoid cancelling once confirmed — repeated
+              cancellations or missed visits can restrict new bookings on your account after{' '}
+              {cancellationPolicy?.restriction_threshold ?? 3} strikes.
             </p>
 
             {submitError && (
