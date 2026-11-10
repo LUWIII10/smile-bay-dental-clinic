@@ -569,6 +569,25 @@ function BookAppointment() {
               </div>
             </div>
 
+            {/* General HMO disclaimer — shown the moment the patient lands
+                on this step, independent of which service/date they end up
+                picking, so they know upfront that an HMO booking isn't
+                instantly confirmed. The Date & Time step's own banner below
+                (patientType === 'hmo' && selectedDate === todayKey) is the
+                sharper, same-day-specific version of this same fact. */}
+            {patientType === 'hmo' && (
+              <div className="suggestion-banner" style={{ marginTop: 12 }}>
+                <span className="suggestion-banner-icon"><ShieldIcon /></span>
+                <div className="suggestion-banner-text">
+                  <p className="suggestion-banner-title">HMO bookings need staff verification</p>
+                  <p className="suggestion-banner-subtitle">
+                    Your appointment won't be confirmed right away — our staff reviews your HMO coverage first.
+                    We'll notify you once it's approved.
+                  </p>
+                </div>
+              </div>
+            )}
+
             {cancellationPolicy?.warning && (
               <div className="suggestion-banner" style={{ marginTop: 12 }}>
                 <span className="suggestion-banner-icon"><AlertIcon /></span>

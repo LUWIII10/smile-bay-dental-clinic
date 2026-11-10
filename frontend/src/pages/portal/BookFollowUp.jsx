@@ -426,6 +426,23 @@ function BookFollowUp() {
                 : 'You have more than one follow-up available — choose which to book now.'}
             </p>
 
+            {/* Same general HMO disclaimer as BookAppointment.jsx's Step
+                1 — shown here too since this wizard's own same-day banner
+                at the Date & Time step is the sharper, specific version of
+                this same fact. */}
+            {patientType === 'hmo' && (
+              <div className="suggestion-banner" style={{ marginBottom: 16 }}>
+                <span className="suggestion-banner-icon"><ShieldIcon /></span>
+                <div className="suggestion-banner-text">
+                  <p className="suggestion-banner-title">HMO bookings need staff verification</p>
+                  <p className="suggestion-banner-subtitle">
+                    Your appointment won't be confirmed right away — our staff reviews your HMO coverage first.
+                    We'll notify you once it's approved.
+                  </p>
+                </div>
+              </div>
+            )}
+
             <div className="followup-recommend-list">
               {recommendations.map((rec) => {
                 const isSelected = rec.id === selectedRecommendationId;
