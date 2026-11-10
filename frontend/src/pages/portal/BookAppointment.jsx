@@ -410,6 +410,7 @@ function BookAppointment() {
   }, [calendarMonth]);
 
   const today = startOfDay(new Date());
+  const todayKey = toDateKey(today);
   const isPrevDisabled =
     calendarMonth.getFullYear() === today.getFullYear() && calendarMonth.getMonth() === today.getMonth();
 
@@ -892,6 +893,27 @@ function BookAppointment() {
                         <h4 className="slots-panel-date">{formatDateLong(selectedDate)}</h4>
                       </div>
                     </div>
+
+                    {/* Soft warning, not a block — an HMO booking still goes
+                        through AppointmentController::store() normally and
+                        lands in pending_verification same as any other date.
+                        This just sets expectations: staff may not get to
+                        verify coverage before a same-day appointment time
+                        arrives. Cash has no verification step, so it's
+                        irrelevant there. */}
+                    {patientType === 'hmo' && selectedDate === todayKey && (
+                      <div className="suggestion-banner">
+                        <span className="suggestion-banner-icon"><AlertIcon /></span>
+                        <div className="suggestion-banner-text">
+                          <p className="suggestion-banner-title">This is a same-day request</p>
+                          <p className="suggestion-banner-subtitle">
+                            Our staff may not have enough time to verify your HMO coverage before your appointment
+                            time. You can still book — if we can't verify in time, we'll contact you to confirm or
+                            reschedule.
+                          </p>
+                        </div>
+                      </div>
+                    )}
 
                     {!loadingSlots && !slotsError && slots.length > 0 && !selectedTime && (
                       <p className="wizard-step-subtitle">
