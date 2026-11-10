@@ -30,7 +30,7 @@ class StoreAppointmentRequest extends FormRequest
                 Rule::exists('users', 'id')->where('role', 'dentist')->where('status', 'active'),
             ],
             'service_id' => ['required', 'integer', 'exists:services,id'],
-            'notes' => ['required', 'string', 'max:1000'],
+            'notes' => ['nullable', 'string', 'max:1000'],
             // Sent only by BookFollowUp.jsx — the completed appointment whose
             // recommendation this booking must fulfill. See
             // FollowUpRecommendationService::lockAndValidate(): existence

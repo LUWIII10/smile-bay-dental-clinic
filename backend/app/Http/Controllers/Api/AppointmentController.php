@@ -178,7 +178,7 @@ class AppointmentController extends Controller
                 'patient_id' => $patient->id,
                 'dentist_id' => $validated['dentist_id'],
                 'service_id' => $service->id,
-                'patient_notes' => $validated['notes'],
+                'patient_notes' => $validated['notes'] ?? null,
                 'appointment_date' => $validated['appointment_date'],
                 'appointment_time' => $validated['appointment_time'],
                 'status' => $status,

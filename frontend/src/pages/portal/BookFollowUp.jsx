@@ -211,7 +211,7 @@ function BookFollowUp() {
 
   const canGoNext = {
     1: !!selectedRecommendationId,
-    2: !!notes.trim(),
+    2: true,
     3: true,
     4: !!selectedDate && !!selectedTime,
     5: false,
@@ -538,21 +538,21 @@ function BookFollowUp() {
           </>
         )}
 
-        {/* ---- Step 2: Additional Information ---- */}
+        {/* ---- Step 2: Additional Information — optional, same as
+             BookAppointment.jsx's own Step 2. ---- */}
         {step === 2 && (
           <>
             <h3 className="wizard-step-heading">Additional Information</h3>
             <p className="wizard-step-subtitle">
-              Tell us more so the dentist can prepare for your follow-up visit.
+              Tell us more so the dentist can prepare for your follow-up visit (optional).
             </p>
             <textarea
               className="form-textarea"
               rows={5}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Please provide additional details about your appointment…"
+              placeholder="Please provide additional details about your appointment… (optional)"
               maxLength={1000}
-              required
             />
           </>
         )}
@@ -761,7 +761,7 @@ function BookFollowUp() {
               </div>
               <div className="summary-row">
                 <span className="summary-label">Additional Information</span>
-                <span className="summary-value">{notes}</span>
+                <span className="summary-value">{notes.trim() || 'None provided'}</span>
               </div>
               <div className="summary-row">
                 <span className="summary-label">Payment Method</span>

@@ -334,7 +334,7 @@ function BookAppointment() {
 
   const canGoNext = {
     1: !!selectedServiceId && !(isPediatricService(selectedService) && patientType === 'hmo'),
-    2: !!notes.trim(),
+    2: true,
     3: !!selectedDentistId,
     4: true,
     5: !!selectedDate && !!selectedTime,
@@ -654,25 +654,26 @@ function BookAppointment() {
         )}
 
         {/* ---- Step 2: Additional Information — free-text notes describing
-             the patient's concern/symptoms, required. Helps the dentist
+             the patient's concern/symptoms, optional. Helps the dentist
              prepare for the initial assessment, especially now that the
              patient-facing service list (is_patient_bookable) is
              deliberately generalized (e.g. "Tooth Extraction" no longer
-             distinguishes simple vs. surgical at booking time). ---- */}
+             distinguishes simple vs. surgical at booking time) — but not
+             every patient has more to add beyond the service they already
+             picked, so this no longer blocks the wizard. ---- */}
         {step === 2 && (
           <>
             <h3 className="wizard-step-heading">Additional Information</h3>
             <p className="wizard-step-subtitle">
-              Tell us more about your concern so the dentist can prepare for your visit.
+              Tell us more about your concern so the dentist can prepare for your visit (optional).
             </p>
             <textarea
               className="form-textarea"
               rows={5}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Please provide additional details about your appointment…"
+              placeholder="Please provide additional details about your appointment… (optional)"
               maxLength={1000}
-              required
             />
           </>
         )}
@@ -1021,7 +1022,7 @@ function BookAppointment() {
               </div>
               <div className="summary-row">
                 <span className="summary-label">Additional Information</span>
-                <span className="summary-value">{notes}</span>
+                <span className="summary-value">{notes.trim() || 'None provided'}</span>
               </div>
               <div className="summary-row">
                 <span className="summary-label">Payment Method</span>
