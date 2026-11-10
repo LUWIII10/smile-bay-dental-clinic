@@ -1040,11 +1040,18 @@ function BookAppointment() {
               </div>
             </div>
 
-            <p className="summary-note">
-              Please arrive a few minutes before your scheduled time. Avoid cancelling once confirmed — repeated
-              cancellations or missed visits can restrict new bookings on your account after{' '}
-              {cancellationPolicy?.restriction_threshold ?? 3} strikes.
-            </p>
+            <p className="summary-note">Please arrive a few minutes before your scheduled time.</p>
+
+            <div className="suggestion-banner" style={{ marginTop: 12 }}>
+              <span className="suggestion-banner-icon"><AlertIcon /></span>
+              <div className="suggestion-banner-text">
+                <p className="suggestion-banner-title">Avoid cancelling once confirmed</p>
+                <p className="suggestion-banner-subtitle">
+                  Repeated cancellations or missed visits can restrict new bookings on your account after{' '}
+                  {cancellationPolicy?.restriction_threshold ?? 3} strikes.
+                </p>
+              </div>
+            </div>
 
             {submitError && (
               <div className="dash-empty" style={{ marginTop: 12 }}>

@@ -781,9 +781,19 @@ function BookFollowUp() {
 
             <p className="summary-note">
               Picking this time reserves the full {selectedService?.duration_minutes}-minute window — same guarantee
-              as any other appointment. Avoid cancelling once confirmed — repeated cancellations or missed visits can
-              restrict new bookings on your account after {cancellationPolicy?.restriction_threshold ?? 3} strikes.
+              as any other appointment.
             </p>
+
+            <div className="suggestion-banner" style={{ marginTop: 12 }}>
+              <span className="suggestion-banner-icon"><AlertIcon /></span>
+              <div className="suggestion-banner-text">
+                <p className="suggestion-banner-title">Avoid cancelling once confirmed</p>
+                <p className="suggestion-banner-subtitle">
+                  Repeated cancellations or missed visits can restrict new bookings on your account after{' '}
+                  {cancellationPolicy?.restriction_threshold ?? 3} strikes.
+                </p>
+              </div>
+            </div>
 
             {submitError && (
               <div className="dash-empty" style={{ marginTop: 12 }}>
