@@ -702,6 +702,13 @@
   flex-grow: 1;
 }
 
+.timeline-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
 .timeline-card-title {
   font-size: 0.88rem;
   font-weight: 600;

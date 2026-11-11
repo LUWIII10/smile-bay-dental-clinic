@@ -136,6 +136,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/treatment-plans/{treatmentPlan}/items', [PatientRecordController::class, 'storeTreatmentPlanItem']);
         Route::patch('/treatment-plan-items/{treatmentPlanItem}', [PatientRecordController::class, 'updateTreatmentPlanItem']);
         Route::post('/patient-records/{patient}/treatment-history', [PatientRecordController::class, 'storeTreatmentHistory']);
+        Route::delete('/treatment-history/{treatmentHistory}', [PatientRecordController::class, 'destroyTreatmentHistory']);
         Route::patch('/patient-records/{patient}/primary-dentist', [PatientRecordController::class, 'updatePrimaryDentist']);
     });
 

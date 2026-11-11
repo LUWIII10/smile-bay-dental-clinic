@@ -648,6 +648,23 @@ class PatientRecordController extends Controller
     }
 
     /**
+     * Remove a treatment history entry — covers both a manually logged
+     * procedure and one auto-created by completing a treatment plan item
+     * (e.g. an accidental double-click on the item's status toggle), since
+     * neither flow currently offers any other way to undo itself.
+     */
+    public function destroyTreatmentHistory(Request $request, TreatmentHistory $treatmentHistory)
+    {
+        if ($treatmentHistory->performed_by !== $request->user()->id) {
+            return response()->json(['message' => 'This treatment record was not logged by you.'], 403);
+        }
+
+        $treatmentHistory->delete();
+
+        return response()->json(['message' => 'Treatment record deleted.']);
+    }
+
+    /**
      * Assign/change the patient's primary dentist.
      */
     public function updatePrimaryDentist(Request $request, Patient $patient)

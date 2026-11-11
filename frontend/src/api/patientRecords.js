@@ -132,6 +132,11 @@ export async function addTreatmentHistory(patientId, { procedure_name, tooth_num
   return response.data.data;
 }
 
+export async function deleteTreatmentHistory(historyId) {
+  await api.get('/sanctum/csrf-cookie');
+  await api.delete(`/api/treatment-history/${historyId}`);
+}
+
 export async function setPrimaryDentist(patientId, dentistId) {
   await api.get('/sanctum/csrf-cookie');
   const response = await api.patch(`/api/patient-records/${patientId}/primary-dentist`, { dentist_id: dentistId });

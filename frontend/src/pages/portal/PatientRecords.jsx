@@ -15,6 +15,7 @@ import {
   updateTreatmentPlanItemStatus,
   addTreatmentPlanItem,
   addTreatmentHistory,
+  deleteTreatmentHistory,
   downloadAppointmentsByDatePdf,
   downloadPatientRecordPdf,
   setPrimaryDentist,
@@ -469,6 +470,10 @@ function PatientRecords() {
   const [historyModalOpen, setHistoryModalOpen] = useState(false);
   const [historyForm, setHistoryForm] = useState({ procedure_name: '', tooth_number: '', performed_at: '', notes: '' });
   const [savingHistory, setSavingHistory] = useState(false);
+  const [historyDeleteTarget, setHistoryDeleteTarget] = useState(null);
+  const [deletingHistoryId, setDeletingHistoryId] = useState(null);
+  const [completeConfirmItem, setCompleteConfirmItem] = useState(null);
+  const [confirmingComplete, setConfirmingComplete] = useState(false);
 
   const [dentistModalOpen, setDentistModalOpen] = useState(false);
   const [dentistOptions, setDentistOptions] = useState([]);
@@ -753,13 +758,51 @@ function PatientRecords() {
   };
 
   const togglePlanItemStatus = async (item) => {
-    const next = item.status === 'completed' ? 'pending' : 'completed';
+    // Completing an item has a side effect (it logs a new, permanent
+    // Treatment History entry) — confirm that step specifically. Reverting
+    // to "pending" has no side effect, so it goes through immediately.
+    if (item.status !== 'completed') {
+      setCompleteConfirmItem(item);
+      return;
+    }
     try {
-      await updateTreatmentPlanItemStatus(item.id, next);
+      await updateTreatmentPlanItemStatus(item.id, 'pending');
       await loadDetail(selectedPatientId);
       showSuccessToast('Item updated.');
     } catch {
       showErrorToast('Could not update this item.');
+    }
+  };
+
+  const confirmCompleteItem = async () => {
+    if (!completeConfirmItem) return;
+    setConfirmingComplete(true);
+    try {
+      await updateTreatmentPlanItemStatus(completeConfirmItem.id, 'completed');
+      await loadDetail(selectedPatientId);
+      showSuccessToast('Item updated.');
+      setCompleteConfirmItem(null);
+    } catch {
+      showErrorToast('Could not update this item.');
+    } finally {
+      setConfirmingComplete(false);
+    }
+  };
+
+  const openDeleteHistory = (entry) => setHistoryDeleteTarget(entry);
+
+  const confirmDeleteHistory = async () => {
+    if (!historyDeleteTarget) return;
+    setDeletingHistoryId(historyDeleteTarget.id);
+    try {
+      await deleteTreatmentHistory(historyDeleteTarget.id);
+      await loadDetail(selectedPatientId);
+      showSuccessToast('Treatment record deleted.');
+      setHistoryDeleteTarget(null);
+    } catch {
+      showErrorToast('Could not delete this treatment record.');
+    } finally {
+      setDeletingHistoryId(null);
     }
   };
 
@@ -1867,10 +1910,23 @@ function PatientRecords() {
                             <span className="timeline-date-year">{dateParts.year}</span>
                           </div>
                           <div className="timeline-body">
-                            <span className="timeline-card-title">
-                              {h.procedure_name}
-                              {h.tooth_number ? ` — Tooth #${h.tooth_number}` : ''}
-                            </span>
+                            <div className="timeline-card-header">
+                              <span className="timeline-card-title">
+                                {h.procedure_name}
+                                {h.tooth_number ? ` — Tooth #${h.tooth_number}` : ''}
+                              </span>
+                              {isDentist && h.performed_by?.id === user?.id && (
+                                <button
+                                  type="button"
+                                  className="row-action-icon row-action-icon--danger"
+                                  aria-label="Delete treatment record"
+                                  disabled={deletingHistoryId === h.id}
+                                  onClick={() => openDeleteHistory(h)}
+                                >
+                                  <TrashIcon />
+                                </button>
+                              )}
+                            </div>
                             <span className="timeline-card-meta">
                               <UserIcon />
                               {h.performed_by?.name || 'Dentist'}
@@ -2244,6 +2300,51 @@ function PatientRecords() {
                   onClick={submitHistory}
                 >
                   {savingHistory ? 'Saving…' : 'Log Procedure'}
+                </button>
+              </div>
+            </Modal>
+
+            <Modal open={!!historyDeleteTarget} onClose={() => setHistoryDeleteTarget(null)} title="Delete Treatment Record">
+              <p style={{ margin: '0 0 12px', fontSize: '0.85rem', color: 'var(--portal-muted)' }}>
+                {historyDeleteTarget && (
+                  <>
+                    Delete &ldquo;{historyDeleteTarget.procedure_name}
+                    {historyDeleteTarget.tooth_number ? ` — Tooth #${historyDeleteTarget.tooth_number}` : ''}&rdquo;? This
+                    will remove it from the patient&rsquo;s Dental Treatment History. This can&rsquo;t be undone.
+                  </>
+                )}
+              </p>
+              <div className="modal-actions">
+                <button type="button" className="dash-btn dash-btn--outline" onClick={() => setHistoryDeleteTarget(null)}>
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="dash-btn dash-btn--danger"
+                  disabled={deletingHistoryId === historyDeleteTarget?.id}
+                  onClick={confirmDeleteHistory}
+                >
+                  {deletingHistoryId === historyDeleteTarget?.id ? 'Deleting…' : 'Delete'}
+                </button>
+              </div>
+            </Modal>
+
+            <Modal open={!!completeConfirmItem} onClose={() => setCompleteConfirmItem(null)} title="Mark Item as Completed">
+              <p style={{ margin: '0 0 12px', fontSize: '0.85rem', color: 'var(--portal-muted)' }}>
+                {completeConfirmItem && (
+                  <>
+                    Mark &ldquo;{completeConfirmItem.procedure_name}
+                    {completeConfirmItem.tooth_number ? ` — Tooth #${completeConfirmItem.tooth_number}` : ''}&rdquo; as
+                    completed? This will add a new entry to the patient&rsquo;s Dental Treatment History.
+                  </>
+                )}
+              </p>
+              <div className="modal-actions">
+                <button type="button" className="dash-btn dash-btn--outline" onClick={() => setCompleteConfirmItem(null)}>
+                  Cancel
+                </button>
+                <button type="button" className="dash-btn" disabled={confirmingComplete} onClick={confirmCompleteItem}>
+                  {confirmingComplete ? 'Saving…' : 'Mark Completed'}
                 </button>
               </div>
             </Modal>
