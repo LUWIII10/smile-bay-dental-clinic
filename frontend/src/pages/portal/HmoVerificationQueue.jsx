@@ -66,11 +66,21 @@ function insertCoverageStub(current, label) {
 // Approve & Reschedule, and plain Approve — so the chip row/last-verified
 // hint stay identical everywhere instead of drifting across three
 // hand-copied blocks. lastVerifiedAt is purely informational.
-function CoverageNotesField({ value, onChange, lastVerifiedAt }) {
+// required is false only for Edit Info — that modal just edits the
+// patient's stored HMO record, it doesn't itself verify coverage. Approve
+// and Approve & Reschedule both finalize verification (see their "marks
+// coverage as verified" copy), so leaving this blank there used to let
+// staff approve without ever recording what was actually verified.
+function CoverageNotesField({ value, onChange, lastVerifiedAt, required = false }) {
   return (
     <>
       <label className="modal-field-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-        <span>Coverage Details <span style={{ fontWeight: 400, color: 'var(--portal-muted)' }}>(optional — saved to the patient's account)</span></span>
+        <span>
+          Coverage Details{' '}
+          <span style={{ fontWeight: 400, color: 'var(--portal-muted)' }}>
+            {required ? '(saved to the patient\'s account)' : '(optional — saved to the patient\'s account)'}
+          </span>
+        </span>
         {lastVerifiedAt && (
           <span className="coverage-last-verified">
             Last verified {new Date(lastVerifiedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
@@ -1038,6 +1048,7 @@ function HmoVerificationQueue() {
                   value={proposeCoverageNotes}
                   onChange={setProposeCoverageNotes}
                   lastVerifiedAt={proposeTarget.patient?.hmo_coverage_verified_at}
+                  required
                 />
 
                 {proposeError && (
@@ -1048,7 +1059,12 @@ function HmoVerificationQueue() {
                   <button type="button" className="dash-btn dash-btn--outline" onClick={() => setProposeStep(1)}>
                     Back
                   </button>
-                  <button type="button" className="dash-btn" disabled={proposing || !proposeTime} onClick={handleProposeNewDate}>
+                  <button
+                    type="button"
+                    className="dash-btn"
+                    disabled={proposing || !proposeTime || !proposeCoverageNotes.trim()}
+                    onClick={handleProposeNewDate}
+                  >
                     {proposing ? 'Sending…' : 'Send New Date to Patient'}
                   </button>
                 </div>
@@ -1073,6 +1089,7 @@ function HmoVerificationQueue() {
               value={approveCoverageNotes}
               onChange={setApproveCoverageNotes}
               lastVerifiedAt={approveTarget.patient?.hmo_coverage_verified_at}
+              required
             />
 
             {approveError && (
@@ -1083,7 +1100,12 @@ function HmoVerificationQueue() {
               <button type="button" className="dash-btn dash-btn--outline" onClick={() => setApproveTarget(null)}>
                 Cancel
               </button>
-              <button type="button" className="dash-btn" disabled={actingId === approveTarget.id} onClick={handleApprove}>
+              <button
+                type="button"
+                className="dash-btn"
+                disabled={actingId === approveTarget.id || !approveCoverageNotes.trim()}
+                onClick={handleApprove}
+              >
                 {actingId === approveTarget.id ? 'Saving…' : 'Approve'}
               </button>
             </div>

@@ -74,7 +74,12 @@ class StaffVerificationController extends Controller
         $validated = $request->validate([
             'action' => ['required', 'in:approve,reject'],
             'reason' => ['nullable', 'string', 'max:1000'],
-            'hmo_coverage_notes' => ['nullable', 'string', 'max:2000'],
+            // Required only on approve — rejecting doesn't verify anything.
+            // Approving without ever recording what was actually verified
+            // used to be possible (the field was nullable here), which let
+            // staff confirm an HMO appointment with nothing on file to back
+            // it up.
+            'hmo_coverage_notes' => ['required_if:action,approve', 'string', 'max:2000'],
         ]);
 
         if ($appointment->status !== 'pending_verification') {
@@ -236,12 +241,12 @@ class StaffVerificationController extends Controller
      * those go straight to 'confirmed', since there's no further
      * verification left to wait on once coverage is already verified here.
      *
-     * hmo_coverage_notes is optional, same as updateHmoInfo()'s own copy of
-     * this field — staff may not have the detailed benefit breakdown yet, or
-     * may prefer to record it separately via Edit Info. Only overwrites the
-     * patient's stored notes (and bumps hmo_coverage_verified_at) when
-     * non-blank text actually different from what's on file is sent, so an
-     * empty submission never wipes a previously-recorded note.
+     * hmo_coverage_notes is required — this endpoint only ever runs for the
+     * "Approve & Reschedule" path, which verifies coverage the same as
+     * verify()'s plain approve does, so it can't go through with nothing on
+     * file to back up that verification. Only overwrites the patient's
+     * stored notes (and bumps hmo_coverage_verified_at) when the submitted
+     * text actually differs from what's already on file.
      */
     public function proposeNewDate(Request $request, Appointment $appointment)
     {
@@ -261,7 +266,7 @@ class StaffVerificationController extends Controller
             'appointment_date' => ['required', 'date_format:Y-m-d', 'after:today'],
             'appointment_time' => ['required', 'date_format:H:i'],
             'reason' => ['nullable', 'string', 'max:1000'],
-            'hmo_coverage_notes' => ['nullable', 'string', 'max:2000'],
+            'hmo_coverage_notes' => ['required', 'string', 'max:2000'],
         ]);
 
         $appointment->load('service:id,duration_minutes,is_pediatric');
