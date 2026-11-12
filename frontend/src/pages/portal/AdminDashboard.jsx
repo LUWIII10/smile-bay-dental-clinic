@@ -23,7 +23,7 @@ import StatCard from './components/StatCard';
 import Skeleton from './components/Skeleton';
 import DataTable from './components/DataTable';
 import StatusBadge from './components/StatusBadge';
-import { UsersIcon, CalendarIcon, UserIcon, ShieldIcon, CheckCircleIcon, ActivityIcon, TrendingUpIcon, ChartIcon, AlertIcon } from './icons';
+import { UsersIcon, CalendarIcon, UserIcon, ShieldIcon, CheckCircleIcon, ActivityIcon, TrendingUpIcon, ChartIcon, AlertIcon, MapPinIcon } from './icons';
 import { resolvePhotoUrl } from './avatarUtils';
 import './dashboards.css';
 import './Appointments.css';
@@ -151,6 +151,7 @@ function AdminDashboard() {
       pendingVerifications: summary?.pendingVerifications ?? 0,
       confirmedToday: summary?.confirmedToday ?? 0,
       completedThisWeek: summary?.completedThisWeek ?? 0,
+      walkInsToday: summary?.walkInsToday ?? 0,
       totalPatients: summary?.totalPatients ?? 0,
       activeUsers: summary?.activeUsers ?? 0,
       restrictedAccounts: summary?.restrictedAccounts ?? 0,
@@ -229,9 +230,9 @@ function AdminDashboard() {
             )}
           </div>
 
-          <div className="stat-grid stat-grid--3">
+          <div className="stat-grid stat-grid--4">
             {loading ? (
-              <Skeleton variant="stat-card" count={3} />
+              <Skeleton variant="stat-card" count={4} />
             ) : (
               <>
                 <div className={statEntranceClass} style={entranceStyle(4)}>
@@ -241,6 +242,9 @@ function AdminDashboard() {
                   <StatCard label="Active Users" value={counts.activeUsers} icon={UserIcon} tint="amber" />
                 </div>
                 <div className={statEntranceClass} style={entranceStyle(6)}>
+                  <StatCard label="Walk-Ins Today" value={counts.walkInsToday} subtitle="staff-booked in clinic" icon={MapPinIcon} tint="green" />
+                </div>
+                <div className={statEntranceClass} style={entranceStyle(7)}>
                   <StatCard
                     label="Restricted Accounts"
                     value={counts.restrictedAccounts}
@@ -255,7 +259,7 @@ function AdminDashboard() {
           </div>
 
           <div className="chart-grid">
-            <div className={`section-card ${entranceClass}`} style={entranceStyle(7)}>
+            <div className={`section-card ${entranceClass}`} style={entranceStyle(8)}>
               <div className="section-card-header">
                 <div className="section-card-heading">
                   <span className="section-card-icon"><TrendingUpIcon /></span>
@@ -271,7 +275,7 @@ function AdminDashboard() {
               )}
             </div>
 
-            <div className={`section-card ${entranceClass}`} style={entranceStyle(8)}>
+            <div className={`section-card ${entranceClass}`} style={entranceStyle(9)}>
               <div className="section-card-header">
                 <div className="section-card-heading">
                   <span className="section-card-icon"><ChartIcon /></span>
@@ -288,7 +292,7 @@ function AdminDashboard() {
             </div>
           </div>
 
-          <div className={`section-card ${entranceClass}`} style={entranceStyle(9)}>
+          <div className={`section-card ${entranceClass}`} style={entranceStyle(10)}>
             <div className="section-card-header">
               <div className="section-card-heading">
                 <span className="section-card-icon"><ActivityIcon /></span>

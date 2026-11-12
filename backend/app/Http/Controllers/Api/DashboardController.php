@@ -45,6 +45,16 @@ class DashboardController extends Controller
             ->whereBetween('appointment_date', [$weekStart, $weekEnd])
             ->count();
 
+        // Same booked_by convention the Reports page's "Walk-Ins" totals use
+        // (null = patient self-booked online, set = staff-booked in clinic)
+        // — scoped to "today" and the same confirmed/completed statuses as
+        // the "Appointments Today" card above, so the two numbers stay
+        // comparable at a glance.
+        $walkInsToday = Appointment::whereIn('status', ['confirmed', 'completed'])
+            ->where('appointment_date', $today)
+            ->whereNotNull('booked_by')
+            ->count();
+
         $totalPatients = Patient::count();
         $activeUsers = User::where('status', 'active')->count();
 
@@ -59,6 +69,7 @@ class DashboardController extends Controller
                 'pendingVerifications' => $pendingVerifications,
                 'confirmedToday' => $confirmedToday,
                 'completedThisWeek' => $completedThisWeek,
+                'walkInsToday' => $walkInsToday,
                 'totalPatients' => $totalPatients,
                 'activeUsers' => $activeUsers,
                 'restrictedAccounts' => $restrictedAccounts,
