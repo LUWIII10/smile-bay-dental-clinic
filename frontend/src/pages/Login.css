@@ -185,6 +185,16 @@
   text-align: center;
 }
 
+.login-info {
+  background: rgba(254, 243, 199, 0.9);
+  color: #b45309;
+  border-radius: 8px;
+  padding: 0.6rem 0.9rem;
+  font-size: 0.85rem;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
 .login-label {
   display: block;
   text-align: left;

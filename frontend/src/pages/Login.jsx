@@ -19,6 +19,7 @@ function Login() {
   const [searchParams] = useSearchParams();
   const justVerified = searchParams.get('verified') === '1';
   const justReset = searchParams.get('reset') === '1';
+  const loggedOutIdle = searchParams.get('idle') === '1';
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -57,6 +58,10 @@ function Login() {
 
         {justReset && !error && (
           <div className="login-success">Password reset successfully. Sign in with your new password.</div>
+        )}
+
+        {loggedOutIdle && !error && (
+          <div className="login-info">You were logged out due to inactivity. Please log in again.</div>
         )}
 
         {error && (

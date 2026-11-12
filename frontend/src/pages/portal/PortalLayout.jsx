@@ -1,12 +1,14 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useIdleTimeout } from '../../hooks/useIdleTimeout';
 import BrandLogo from '../../components/common/BrandLogo';
 import { NAV_CONFIG, ROLE_LABELS } from './navConfig';
 import { ICONS, LogoutIcon, MenuIcon, CloseIcon } from './icons';
 import NotificationBell from './components/NotificationBell';
 import Avatar from './components/Avatar';
 import AvatarMenu from './components/AvatarMenu';
+import IdleTimeoutModal from './components/IdleTimeoutModal';
 import './portalTokens.css';
 import './PortalLayout.css';
 
@@ -14,6 +16,12 @@ function PortalLayout() {
   const { user, role, logout } = useAuth();
   const navigate = useNavigate();
   const [drawerOpen, setDrawerOpen] = useState(false);
+
+  const handleIdleTimeout = useCallback(async () => {
+    await logout();
+    navigate('/login?idle=1', { replace: true });
+  }, [logout, navigate]);
+  const { showWarning, secondsLeft, stayLoggedIn, logoutNow } = useIdleTimeout(handleIdleTimeout);
 
   // "Pediatric Queue" only makes sense for the one dentist account actually
   // credentialed for pediatric bookings — Ramirez/Castro are role=dentist
@@ -96,6 +104,8 @@ function PortalLayout() {
           <Outlet />
         </main>
       </div>
+
+      <IdleTimeoutModal open={showWarning} secondsLeft={secondsLeft} onStay={stayLoggedIn} onLogout={logoutNow} />
     </div>
   );
 }

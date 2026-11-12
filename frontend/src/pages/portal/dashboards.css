@@ -1359,6 +1359,34 @@
   margin-top: 20px;
 }
 
+/* IdleTimeoutModal's countdown — reuses the amber tone of the chip above it
+   instead of introducing a new color. */
+.idle-countdown-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: var(--portal-canvas);
+  border: 1px solid var(--portal-amber-border);
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 4px;
+}
+
+.idle-countdown-number {
+  font-variant-numeric: tabular-nums;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--portal-amber-text);
+  min-width: 48px;
+  text-align: center;
+}
+
+.idle-countdown-label {
+  font-size: 12px;
+  color: var(--portal-muted);
+}
+
 /* Field label used inside modal forms (Add Note, New Treatment Plan,
    Create Staff Account, etc.) — a plain-text label, distinct from
    .form-input/.form-select/.form-textarea which own their own spacing. */
