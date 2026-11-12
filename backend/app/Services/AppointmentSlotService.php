@@ -16,14 +16,26 @@ use Illuminate\Support\Facades\DB;
 class AppointmentSlotService
 {
     // Absolute latest a slot may start, regardless of procedure length —
-    // e.g. a 45-min slot grid runs 9:00, 9:45, 10:30... and never offers a
-    // start past 16:30 even if the procedure would still finish before
-    // close. Combined with lastBookableStart()'s close_time - duration
-    // check below (belt-and-suspenders: today's 90-min max service always
-    // finishes exactly at 18:00 from a 16:30 start, but this stops a future,
-    // longer service from ever being offered a start that would run it past
-    // close).
+    // never offers a start past 16:30 even if the procedure would still
+    // finish before close. Combined with lastBookableStart()'s close_time -
+    // duration check below (belt-and-suspenders: today's 90-min max service
+    // always finishes exactly at 18:00 from a 16:30 start, but this stops a
+    // future, longer service from ever being offered a start that would run
+    // it past close).
     private const LAST_BOOKING_START = '16:30';
+
+    // Candidate start times are tested every 15 minutes — the greatest
+    // common factor of every seeded service length (30/45/60/90) — instead
+    // of in steps of whichever duration is being booked. Stepping by the
+    // new booking's own duration (the old behavior) meant a gap that didn't
+    // happen to be a multiple of that duration from opening time was never
+    // even considered as a candidate: a 30-min slot ending at 9:30 followed
+    // by a 45-min one ending at 10:15 left a genuinely free 10:15-10:45
+    // window that a 30-min grid (9:00, 9:30, 10:00, 10:30…) would skip right
+    // over, showing 10:30 as "next available" when 10:15 was actually free.
+    // The overlap check below (overlapsAny()) is unchanged either way — this
+    // only changes which start times get tested against it.
+    private const SLOT_GRANULARITY_MINUTES = 15;
 
     // Appointments in these statuses hold their slot on the calendar.
     // Cancelled/rejected/no_show free it back up (freed-slot walk-in logic).
@@ -610,10 +622,14 @@ class AppointmentSlotService
     }
 
     /**
-     * Slot start times stepped by the procedure's own duration — a 45-min
-     * service grids as 9:00, 9:45, 10:30..., not a flat 30-min interval —
-     * from opening time through the last bookable start, minus any that
-     * have already passed if the date is today.
+     * Slot start times stepped by the fixed SLOT_GRANULARITY_MINUTES grid
+     * (always 9:00, 9:15, 9:30…, regardless of the procedure's own
+     * duration) from opening time through the last bookable start for THIS
+     * duration, minus any that have already passed if the date is today.
+     * overlapsAny() below still only ever accepts a candidate whose full
+     * [start, start+duration) window is actually free, so a finer-grained
+     * grid only means more honest candidates get tested — it never offers
+     * a start that wouldn't otherwise be valid.
      */
     private function candidateStartTimes(string $date, array $schedule, int $durationMinutes): array
     {
@@ -626,7 +642,7 @@ class AppointmentSlotService
             if ($cursor->gt($now)) {
                 $slots[] = $cursor->copy();
             }
-            $cursor->addMinutes($durationMinutes);
+            $cursor->addMinutes(self::SLOT_GRANULARITY_MINUTES);
         }
 
         return $slots;
