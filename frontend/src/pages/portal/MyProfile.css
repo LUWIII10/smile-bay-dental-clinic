@@ -208,3 +208,90 @@
   font-weight: 600;
   color: #60a5fa;
 }
+
+/* ============ Sticky save bar — replaces the old .profile-save-row for
+   the main profile form only (Change Password keeps its own inline
+   button). Fixed to the viewport, not the page, so it's reachable no
+   matter how far down a 5-section form the patient has scrolled; hidden
+   until a field actually differs from what's saved (MyProfile.jsx's
+   isDirty), so it never sits in the way of someone just viewing their
+   profile. Left offset mirrors .portal-main's own sidebar-width
+   breakpoints (PortalLayout.css) so it never overlaps the sidebar. ============ */
+
+.profile-sticky-bar {
+  position: fixed;
+  left: var(--portal-sidebar-w);
+  right: 0;
+  bottom: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 14px 24px;
+  padding-bottom: max(14px, env(safe-area-inset-bottom, 0px));
+  background: var(--portal-card);
+  border-top: 1px solid var(--portal-amber-border);
+  box-shadow: 0 -8px 24px rgba(15, 23, 42, 0.1);
+  transform: translateY(100%);
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.profile-sticky-bar--visible {
+  transform: translateY(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Reserves room for the bar so it doesn't settle on top of the Change
+   Password form (a separate <form> right below this one) once visible. */
+.profile-form--bar-visible {
+  padding-bottom: 72px;
+}
+
+.profile-sticky-bar-text {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--portal-amber-text);
+}
+
+.profile-sticky-bar-text svg {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+}
+
+.profile-sticky-bar-actions {
+  display: flex;
+  gap: 10px;
+}
+
+@media (min-width: 768px) and (max-width: 1024px) {
+  .profile-sticky-bar {
+    left: var(--portal-sidebar-w-tablet);
+  }
+}
+
+@media (max-width: 767px) {
+  .profile-sticky-bar {
+    left: 0;
+    padding: 12px 16px;
+    padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
+  }
+}
+
+@media (max-width: 420px) {
+  .profile-sticky-bar-actions {
+    flex: 1;
+  }
+
+  .profile-sticky-bar-actions .dash-btn {
+    flex: 1;
+  }
+}

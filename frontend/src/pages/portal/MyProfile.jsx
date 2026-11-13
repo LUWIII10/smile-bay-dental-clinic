@@ -70,6 +70,42 @@ function joinAddress({ address_street: street, address_barangay: barangay, addre
   return [street, barangay, city, province].map((part) => part.trim()).filter(Boolean).join(', ');
 }
 
+// Shared by load() and handleSave() — both need to turn a fresh profile
+// payload (data from GET, updated from PATCH) into the exact same form
+// shape, and keeping this in one place means the two can never drift out
+// of sync with each other.
+function buildFormFromProfile(data) {
+  const legacyAddress = splitLegacyAddress(data.patient?.address_line || '');
+  return {
+    name: data.name || '',
+    mobile_number: data.mobile_number || '',
+    first_name: data.patient?.first_name || '',
+    middle_name: data.patient?.middle_name || '',
+    last_name: data.patient?.last_name || '',
+    civil_status: data.patient?.civil_status || '',
+    nationality: data.patient?.nationality || '',
+    religion: data.patient?.religion || '',
+    occupation: data.patient?.occupation || '',
+    address_street: legacyAddress.street,
+    address_barangay: legacyAddress.barangay,
+    address_city: legacyAddress.city,
+    address_province: legacyAddress.province,
+    emergency_contact_name: data.patient?.emergency_contact_name || '',
+    emergency_contact_relationship: data.patient?.emergency_contact_relationship || '',
+    emergency_contact_number: data.patient?.emergency_contact_number || '',
+    allergies: data.patient?.allergies || '',
+    current_medications: data.patient?.current_medications || '',
+    medical_conditions_notes: data.patient?.medical_conditions_other || '',
+    patient_type: data.patient?.patient_type || 'cash',
+    hmo_provider_id: data.patient?.hmo_provider_id ? String(data.patient.hmo_provider_id) : '',
+    hmo_number: data.patient?.hmo_number || '',
+    hmo_company_name: data.patient?.hmo_company_name || '',
+    specialization: data.dentist_profile?.specialization || '',
+    years_experience: data.dentist_profile?.years_experience ?? '',
+    bio: data.dentist_profile?.bio || '',
+  };
+}
+
 function CheckIcon() {
   return (
     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
@@ -126,6 +162,10 @@ function MyProfile() {
   const [avatarSaving, setAvatarSaving] = useState(false);
   const [avatarError, setAvatarError] = useState('');
   const avatarInputRef = useRef(null);
+  // What load() last populated form with — compared against the live form
+  // below to drive the sticky save bar, so it only ever shows once
+  // something actually differs from what's saved.
+  const initialFormRef = useRef(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -133,35 +173,12 @@ function MyProfile() {
     try {
       const data = await getMyProfile();
       setProfile(data);
-      const legacyAddress = splitLegacyAddress(data.patient?.address_line || '');
-      setForm({
-        name: data.name || '',
-        mobile_number: data.mobile_number || '',
-        first_name: data.patient?.first_name || '',
-        middle_name: data.patient?.middle_name || '',
-        last_name: data.patient?.last_name || '',
-        civil_status: data.patient?.civil_status || '',
-        nationality: data.patient?.nationality || '',
-        religion: data.patient?.religion || '',
-        occupation: data.patient?.occupation || '',
-        address_street: legacyAddress.street,
-        address_barangay: legacyAddress.barangay,
-        address_city: legacyAddress.city,
-        address_province: legacyAddress.province,
-        emergency_contact_name: data.patient?.emergency_contact_name || '',
-        emergency_contact_relationship: data.patient?.emergency_contact_relationship || '',
-        emergency_contact_number: data.patient?.emergency_contact_number || '',
-        allergies: data.patient?.allergies || '',
-        current_medications: data.patient?.current_medications || '',
-        medical_conditions_notes: data.patient?.medical_conditions_other || '',
-        patient_type: data.patient?.patient_type || 'cash',
-        hmo_provider_id: data.patient?.hmo_provider_id ? String(data.patient.hmo_provider_id) : '',
-        hmo_number: data.patient?.hmo_number || '',
-        hmo_company_name: data.patient?.hmo_company_name || '',
-        specialization: data.dentist_profile?.specialization || '',
-        years_experience: data.dentist_profile?.years_experience ?? '',
-        bio: data.dentist_profile?.bio || '',
-      });
+      const nextForm = buildFormFromProfile(data);
+      setForm(nextForm);
+      // Snapshot of what's actually saved — the sticky save bar compares
+      // against this, not against the initial empty-string defaults, so it
+      // never shows for a profile that simply hasn't changed since load.
+      initialFormRef.current = nextForm;
     } catch {
       setLoadError('Could not load your profile. Please refresh the page.');
     } finally {
@@ -198,6 +215,16 @@ function MyProfile() {
   // employer fields (FormField's titleCase prop) — on blur here instead,
   // since these are plain inputs, not FormField.
   const titleCaseBlur = (field) => (e) => set(field, toTitleCase(e.target.value));
+
+  // Drives the sticky save bar below — true the moment any field differs
+  // from what was actually loaded, regardless of which section it's in.
+  const isDirty = Boolean(form && initialFormRef.current && JSON.stringify(form) !== JSON.stringify(initialFormRef.current));
+
+  const handleDiscard = () => {
+    if (initialFormRef.current) setForm(initialFormRef.current);
+    setSaveError('');
+    setSaveSuccess('');
+  };
 
   const handleSave = async (e) => {
     e.preventDefault();
@@ -242,6 +269,13 @@ function MyProfile() {
     try {
       const updated = await updateMyProfile(payload);
       setProfile(updated);
+      // Re-derives form/initialFormRef from the just-saved response via the
+      // same mapping load() uses, instead of calling load() itself — that
+      // would flip `loading` back on and flash the whole-page skeleton over
+      // a form the patient is actively looking at mid-save.
+      const nextForm = buildFormFromProfile(updated);
+      setForm(nextForm);
+      initialFormRef.current = nextForm;
       setSaveSuccess('Your profile has been updated.');
       await refreshUser();
     } catch (err) {
@@ -389,7 +423,7 @@ function MyProfile() {
         </div>
       </div>
 
-      <form onSubmit={handleSave}>
+      <form onSubmit={handleSave} className={isDirty ? 'profile-form--bar-visible' : undefined}>
         <div className="section-card">
           <div className="section-card-header">
             <div className="section-card-heading">
@@ -657,10 +691,22 @@ function MyProfile() {
           </div>
         )}
 
-        <div className="profile-save-row">
-          <button type="submit" className="dash-btn" disabled={saving}>
-            {saving ? 'Saving…' : 'Save Changes'}
-          </button>
+        {/* Sticky, not inline — this form grew to 5 sections, so a save
+            button sitting only at the very bottom was easy to lose track
+            of after editing a field near the top. Hidden until isDirty,
+            so a patient just viewing their profile never sees it. */}
+        <div className={`profile-sticky-bar${isDirty ? ' profile-sticky-bar--visible' : ''}`}>
+          <span className="profile-sticky-bar-text">
+            <AlertIcon /> You have unsaved changes
+          </span>
+          <span className="profile-sticky-bar-actions">
+            <button type="button" className="dash-btn dash-btn--outline" onClick={handleDiscard} disabled={saving}>
+              Discard
+            </button>
+            <button type="submit" className="dash-btn" disabled={saving}>
+              {saving ? 'Saving…' : 'Save Changes'}
+            </button>
+          </span>
         </div>
       </form>
 
