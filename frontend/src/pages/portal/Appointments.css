@@ -111,6 +111,11 @@
    height/radius/border so it sits flush in the same toolbar row. */
 .filter-dd-wrap {
   position: relative;
+  /* Lets this shrink below its label's natural width when it shares a flex
+     row with something else (e.g. the Follow-up picker's Enable button) —
+     without it, a long option (a service name) just forced the whole row
+     wider than its container instead of giving up space. */
+  min-width: 0;
 }
 
 /* Opt-in variant for a modal form field (e.g. HMO Queue's Status/Service/
@@ -140,6 +145,10 @@
   color: var(--portal-slate);
   cursor: pointer;
   white-space: nowrap;
+  /* The label inside truncates itself (see .filter-dd-label) — this just
+     makes sure nothing ever visually spills past the trigger's own edge
+     before that truncation has a chance to apply. */
+  overflow: hidden;
 }
 
 .filter-dd-trigger:hover {
@@ -166,6 +175,9 @@
 
 .filter-dd-label {
   flex-grow: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   text-align: left;
 }
 
