@@ -84,6 +84,23 @@ class AppointmentController extends Controller
             ], 429);
         }
 
+        // Clinic-operations rule: a patient keeps full account access (can
+        // still view existing appointments/records) once their linked HMO
+        // provider is deactivated (ClinicSettingsController::
+        // toggleHmoProviderActive()) — but can't submit a NEW booking under
+        // it until they switch to Cash (My Profile) or the clinic
+        // reactivates the provider. Only blocks when hmo_provider_id points
+        // at an actual (now-inactive) provider row — a patient who typed a
+        // free-text company name only (no hmo_provider_id) has nothing here
+        // for the clinic to have disabled, so isn't affected. The frontend
+        // booking wizards mirror this same check for an inline warning, but
+        // this is the authoritative one.
+        if ($patient->patient_type === 'hmo' && $patient->hmoProvider && ! $patient->hmoProvider->is_active) {
+            return response()->json([
+                'message' => "Your HMO provider, {$patient->hmoProvider->name}, is currently not accepted by the clinic. Please switch your payment type to Cash in My Profile to continue booking, or contact the clinic for more information.",
+            ], 422);
+        }
+
         $service = Service::findOrFail($validated['service_id']);
 
         // Clinic-operations rule: a dentist may only be booked for a service

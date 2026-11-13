@@ -125,6 +125,12 @@ function BookFollowUp() {
 
   const patientType = user?.patient?.patient_type;
   const hmoProviderName = user?.patient?.hmo_provider?.name || user?.patient?.hmo_company_name;
+  // Same check as BookAppointment.jsx — see its own comment for why. A
+  // follow-up still goes through AppointmentController::store(), so it's
+  // blocked there the same way regardless of this banner.
+  const hmoProviderInactive = patientType === 'hmo'
+    && !!user?.patient?.hmo_provider
+    && user.patient.hmo_provider.is_active === false;
 
   useEffect(() => {
     getPatientDashboardSummary()
@@ -426,11 +432,30 @@ function BookFollowUp() {
                 : 'You have more than one follow-up available — choose which to book now.'}
             </p>
 
+            {/* Same disabled-provider block as BookAppointment.jsx's Step
+                1 — takes priority over the general "needs verification"
+                banner below. AppointmentController::store() enforces this
+                same block server-side regardless of this banner. */}
+            {hmoProviderInactive && (
+              <div className="suggestion-banner suggestion-banner--danger" style={{ marginBottom: 16 }}>
+                <span className="suggestion-banner-icon"><ShieldIcon /></span>
+                <div className="suggestion-banner-text">
+                  <p className="suggestion-banner-title">Your HMO — {hmoProviderName} — is currently disabled by the clinic</p>
+                  <p className="suggestion-banner-subtitle">
+                    Smile Bay Dental Clinic isn't accepting {hmoProviderName} coverage for new bookings right now.
+                    You can still view your existing appointments and records as usual. To book this follow-up,
+                    switch your payment type to Cash in My Profile, or contact the clinic to ask about{' '}
+                    {hmoProviderName}'s status.
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Same general HMO disclaimer as BookAppointment.jsx's Step
                 1 — shown here too since this wizard's own same-day banner
                 at the Date & Time step is the sharper, specific version of
                 this same fact. */}
-            {patientType === 'hmo' && (
+            {patientType === 'hmo' && !hmoProviderInactive && (
               <div className="suggestion-banner" style={{ marginBottom: 16 }}>
                 <span className="suggestion-banner-icon"><ShieldIcon /></span>
                 <div className="suggestion-banner-text">
@@ -579,6 +604,12 @@ function BookFollowUp() {
                   <p className="payment-card-subnote">
                     <AlertIcon />
                     This booking will also need confirmation from our Pediatric Dentistry specialist first.
+                  </p>
+                )}
+                {hmoProviderInactive && (
+                  <p className="payment-card-subnote">
+                    <AlertIcon />
+                    {hmoProviderName} is currently disabled by the clinic — switch to Cash in My Profile to book.
                   </p>
                 )}
               </div>
@@ -784,6 +815,19 @@ function BookFollowUp() {
               as any other appointment.
             </p>
 
+            {hmoProviderInactive && (
+              <div className="suggestion-banner suggestion-banner--danger" style={{ marginTop: 12 }}>
+                <span className="suggestion-banner-icon"><ShieldIcon /></span>
+                <div className="suggestion-banner-text">
+                  <p className="suggestion-banner-title">Can't confirm — {hmoProviderName} is disabled by the clinic</p>
+                  <p className="suggestion-banner-subtitle">
+                    Switch your payment type to Cash in My Profile to book this appointment, or contact the clinic
+                    to ask about {hmoProviderName}'s status.
+                  </p>
+                </div>
+              </div>
+            )}
+
             <div className="suggestion-banner" style={{ marginTop: 12 }}>
               <span className="suggestion-banner-icon"><AlertIcon /></span>
               <div className="suggestion-banner-text">
@@ -824,8 +868,8 @@ function BookFollowUp() {
               type="button"
               className="dash-btn"
               onClick={() => (nextAppointment ? setShowDuplicateWarning(true) : handleConfirm())}
-              disabled={submitting || bookingLimitBlocked}
-              title={bookingLimitBlocked ? bookingLimitBanner?.title : undefined}
+              disabled={submitting || bookingLimitBlocked || hmoProviderInactive}
+              title={hmoProviderInactive ? `${hmoProviderName} is disabled by the clinic` : bookingLimitBlocked ? bookingLimitBanner?.title : undefined}
             >
               {submitting ? 'Booking…' : 'Confirm Booking'}
             </button>
