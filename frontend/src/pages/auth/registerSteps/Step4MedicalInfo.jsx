@@ -74,6 +74,7 @@ function Step4MedicalInfo({ values, onChange, errors }) {
           error={errors.physician_name_specialty}
           icon={<UserIcon />}
           placeholder="Optional"
+          titleCase
         />
       </div>
 

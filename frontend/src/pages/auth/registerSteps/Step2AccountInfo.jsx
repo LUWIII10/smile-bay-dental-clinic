@@ -176,6 +176,7 @@ function Step2AccountInfo({ values, onChange, errors, onFieldError, emailStatus,
         error={errors.address_street}
         placeholder="e.g. Blk 5 Lot 12, Mabuhay Street"
         autoComplete="address-line1"
+        titleCase
         required
       />
 
@@ -187,6 +188,7 @@ function Step2AccountInfo({ values, onChange, errors, onFieldError, emailStatus,
         error={errors.address_barangay}
         placeholder="e.g. San Vicente"
         autoComplete="address-level3"
+        titleCase
         required
       />
 
@@ -198,6 +200,7 @@ function Step2AccountInfo({ values, onChange, errors, onFieldError, emailStatus,
         error={errors.address_city}
         placeholder="e.g. San Pedro"
         autoComplete="address-level2"
+        titleCase
         required
       />
 
@@ -210,6 +213,7 @@ function Step2AccountInfo({ values, onChange, errors, onFieldError, emailStatus,
         error={errors.address_province}
         placeholder="e.g. Laguna"
         autoComplete="address-level1"
+        titleCase
         required
       />
 
@@ -222,6 +226,7 @@ function Step2AccountInfo({ values, onChange, errors, onFieldError, emailStatus,
         error={errors.emergency_contact_name}
         icon={<UserIcon />}
         placeholder="Enter their full name"
+        titleCase
         required
       />
 
@@ -233,6 +238,7 @@ function Step2AccountInfo({ values, onChange, errors, onFieldError, emailStatus,
         error={errors.emergency_contact_relationship}
         icon={<PeopleIcon />}
         placeholder="e.g. Spouse, Parent"
+        titleCase
         required
       />
 
@@ -263,6 +269,7 @@ function Step2AccountInfo({ values, onChange, errors, onFieldError, emailStatus,
             error={errors.guardian_name}
             icon={<UserIcon />}
             placeholder="Enter their full name"
+            titleCase
           />
 
           <FormField
@@ -273,6 +280,7 @@ function Step2AccountInfo({ values, onChange, errors, onFieldError, emailStatus,
             error={errors.guardian_relationship}
             icon={<PeopleIcon />}
             placeholder="e.g. Mother, Father"
+            titleCase
           />
 
           <FormField

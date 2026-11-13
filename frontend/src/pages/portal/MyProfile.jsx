@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import api from '../../api';
 import { useAuth } from '../../context/AuthContext';
 import { getMyProfile, updateMyProfile, changeMyPassword, uploadMyAvatar, removeMyAvatar } from '../../api/profile';
+import { toTitleCase } from '../../utils/textCase';
 import { passwordChecklist } from '../auth/registerSteps/validation';
 import { getAvatarUrl } from './avatarUtils';
 import Skeleton from './components/Skeleton';
@@ -193,6 +194,10 @@ function MyProfile() {
   }, [isPatient]);
 
   const set = (field, value) => setForm((prev) => ({ ...prev, [field]: value }));
+  // Same proper-noun auto-correct as registration's own name/address/
+  // employer fields (FormField's titleCase prop) — on blur here instead,
+  // since these are plain inputs, not FormField.
+  const titleCaseBlur = (field) => (e) => set(field, toTitleCase(e.target.value));
 
   const handleSave = async (e) => {
     e.preventDefault();
@@ -412,13 +417,13 @@ function MyProfile() {
             {isPatient ? (
               <>
                 <Field label="First Name" icon={UserIcon} tone="navy">
-                  <input className="form-input" value={form.first_name} onChange={(e) => set('first_name', e.target.value)} />
+                  <input className="form-input" value={form.first_name} onChange={(e) => set('first_name', e.target.value)} onBlur={titleCaseBlur('first_name')} />
                 </Field>
                 <Field label="Middle Name" icon={UserIcon} tone="navy">
-                  <input className="form-input" value={form.middle_name} onChange={(e) => set('middle_name', e.target.value)} />
+                  <input className="form-input" value={form.middle_name} onChange={(e) => set('middle_name', e.target.value)} onBlur={titleCaseBlur('middle_name')} />
                 </Field>
                 <Field label="Last Name" icon={UserIcon} tone="navy">
-                  <input className="form-input" value={form.last_name} onChange={(e) => set('last_name', e.target.value)} />
+                  <input className="form-input" value={form.last_name} onChange={(e) => set('last_name', e.target.value)} onBlur={titleCaseBlur('last_name')} />
                 </Field>
                 <Field label="Patient No." icon={FileIcon} tone="slate">
                   <input className="form-input" value={profile.patient?.patient_number || ''} disabled />
@@ -431,13 +436,13 @@ function MyProfile() {
                   </select>
                 </Field>
                 <Field label="Nationality" icon={UserIcon} tone="navy">
-                  <input className="form-input" value={form.nationality} onChange={(e) => set('nationality', e.target.value)} placeholder="e.g. Filipino" />
+                  <input className="form-input" value={form.nationality} onChange={(e) => set('nationality', e.target.value)} onBlur={titleCaseBlur('nationality')} placeholder="e.g. Filipino" />
                 </Field>
                 <Field label="Religion" icon={UserIcon} tone="navy">
-                  <input className="form-input" value={form.religion} onChange={(e) => set('religion', e.target.value)} placeholder="Optional" />
+                  <input className="form-input" value={form.religion} onChange={(e) => set('religion', e.target.value)} onBlur={titleCaseBlur('religion')} placeholder="Optional" />
                 </Field>
                 <Field label="Occupation" icon={BuildingIcon} tone="slate">
-                  <input className="form-input" value={form.occupation} onChange={(e) => set('occupation', e.target.value)} placeholder="Optional" />
+                  <input className="form-input" value={form.occupation} onChange={(e) => set('occupation', e.target.value)} onBlur={titleCaseBlur('occupation')} placeholder="Optional" />
                 </Field>
               </>
             ) : (
@@ -463,6 +468,7 @@ function MyProfile() {
                     className="form-input"
                     value={form.address_street}
                     onChange={(e) => set('address_street', e.target.value)}
+                    onBlur={titleCaseBlur('address_street')}
                     placeholder="e.g. Blk 5 Lot 12, Mabuhay Street"
                   />
                 </Field>
@@ -471,6 +477,7 @@ function MyProfile() {
                     className="form-input"
                     value={form.address_barangay}
                     onChange={(e) => set('address_barangay', e.target.value)}
+                    onBlur={titleCaseBlur('address_barangay')}
                     placeholder="e.g. San Vicente"
                   />
                 </Field>
@@ -479,6 +486,7 @@ function MyProfile() {
                     className="form-input"
                     value={form.address_city}
                     onChange={(e) => set('address_city', e.target.value)}
+                    onBlur={titleCaseBlur('address_city')}
                     placeholder="e.g. San Pedro"
                   />
                 </Field>
@@ -487,6 +495,7 @@ function MyProfile() {
                     className="form-input"
                     value={form.address_province}
                     onChange={(e) => set('address_province', e.target.value)}
+                    onBlur={titleCaseBlur('address_province')}
                     placeholder="e.g. Laguna"
                   />
                 </Field>
@@ -495,6 +504,7 @@ function MyProfile() {
                     className="form-input"
                     value={form.emergency_contact_name}
                     onChange={(e) => set('emergency_contact_name', e.target.value)}
+                    onBlur={titleCaseBlur('emergency_contact_name')}
                   />
                 </Field>
                 <Field label="Relationship" icon={UsersIcon} tone="indigo">
@@ -502,6 +512,7 @@ function MyProfile() {
                     className="form-input"
                     value={form.emergency_contact_relationship}
                     onChange={(e) => set('emergency_contact_relationship', e.target.value)}
+                    onBlur={titleCaseBlur('emergency_contact_relationship')}
                   />
                 </Field>
                 <Field label="Emergency Contact Number" icon={PhoneIcon} tone="teal">
@@ -585,6 +596,7 @@ function MyProfile() {
                         className="form-input"
                         value={form.hmo_company_name}
                         onChange={(e) => set('hmo_company_name', e.target.value)}
+                        onBlur={titleCaseBlur('hmo_company_name')}
                         placeholder="Enter your company name or employer"
                       />
                     </Field>

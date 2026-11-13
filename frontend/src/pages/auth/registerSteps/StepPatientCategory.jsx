@@ -104,6 +104,7 @@ function StepPatientCategory({ values, onChange, errors }) {
             error={errors.hmo_company_name}
             icon={<BuildingIcon />}
             placeholder="Enter your company name or employer"
+            titleCase
             required
           />
         </div>

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { EyeIcon } from './icons';
+import { toTitleCase } from '../../../utils/textCase';
 
 // Shared controlled field used by every step: label + icon + input, or a
 // textarea variant. Renders the same login-input-wrap/login-label/login-label
@@ -25,6 +26,13 @@ function FormField({
   max,
   maxLength,
   fullWidth,
+  // Opt-in for a proper-noun-like field (a name, an address line, an
+  // employer) — corrects whatever case the patient typed in (ALL CAPS, all
+  // lowercase, mixed) to Title Case once they leave the field, same as the
+  // clinic's own paper forms/records read. Every existing caller omits it
+  // and keeps today's exact as-typed value — only the fields that are
+  // actually names/places opt in, never a free-text/sentence field.
+  titleCase,
 }) {
   const [showPassword, setShowPassword] = useState(false);
   const isPassword = type === 'password';
@@ -32,6 +40,10 @@ function FormField({
   const inputWrapClassName = `login-input-wrap${error ? ' login-input-wrap--error' : ''}`;
   const handleInputChange = (e) => {
     onChange(name, transform ? transform(e.target.value) : e.target.value);
+  };
+  const handleBlur = (e) => {
+    if (titleCase) onChange(name, toTitleCase(e.target.value));
+    onBlur?.(e);
   };
 
   if (type === 'textarea') {
@@ -70,7 +82,7 @@ function FormField({
             type={isPassword ? (showPassword ? 'text' : 'password') : type}
             value={value}
             onChange={handleInputChange}
-            onBlur={onBlur}
+            onBlur={handleBlur}
             placeholder={placeholder}
             autoComplete={autoComplete}
             required={required}

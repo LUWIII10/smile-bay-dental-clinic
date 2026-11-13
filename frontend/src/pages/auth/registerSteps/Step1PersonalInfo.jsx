@@ -31,6 +31,7 @@ function Step1PersonalInfo({ values, onChange, errors, onFieldError }) {
         icon={<UserIcon />}
         placeholder="Enter your first name"
         autoComplete="given-name"
+        titleCase
         required
       />
 
@@ -43,6 +44,7 @@ function Step1PersonalInfo({ values, onChange, errors, onFieldError }) {
         icon={<UserIcon />}
         placeholder="Optional"
         autoComplete="additional-name"
+        titleCase
       />
 
       <FormField
@@ -54,6 +56,7 @@ function Step1PersonalInfo({ values, onChange, errors, onFieldError }) {
         icon={<UserIcon />}
         placeholder="Enter your last name"
         autoComplete="family-name"
+        titleCase
         required
       />
 
@@ -118,6 +121,7 @@ function Step1PersonalInfo({ values, onChange, errors, onFieldError }) {
         icon={<UserIcon />}
         placeholder="e.g. Filipino"
         autoComplete="off"
+        titleCase
       />
 
       <FormField
@@ -128,6 +132,7 @@ function Step1PersonalInfo({ values, onChange, errors, onFieldError }) {
         error={errors.religion}
         icon={<UserIcon />}
         placeholder="Optional"
+        titleCase
       />
 
       <FormField
@@ -138,6 +143,7 @@ function Step1PersonalInfo({ values, onChange, errors, onFieldError }) {
         error={errors.occupation}
         icon={<BriefcaseIcon />}
         placeholder="Optional"
+        titleCase
       />
     </div>
   );

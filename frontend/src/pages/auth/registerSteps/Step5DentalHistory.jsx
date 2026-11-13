@@ -58,6 +58,7 @@ function Step5DentalHistory({ values, onChange, errors }) {
           error={errors.last_dental_treatment}
           icon={<ToothIcon />}
           placeholder="e.g. Tooth filling"
+          titleCase
         />
 
         <FormField
