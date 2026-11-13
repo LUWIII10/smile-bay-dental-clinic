@@ -54,7 +54,17 @@ const INITIAL_VALUES = {
   email: '',
   password: '',
   password_confirmation: '',
+  // address_* are the actual fields the form collects (see
+  // Step2AccountInfo.jsx) — complete_address is kept in sync from those by
+  // a derived-value effect there and is the one thing everything
+  // downstream (Step5Review's display, the register() payload below,
+  // STEP_OF_FIELD's backend-error routing) still reads, so none of that
+  // needed to change when the input itself was split into guided fields.
   complete_address: '',
+  address_street: '',
+  address_barangay: '',
+  address_city: '',
+  address_province: '',
   emergency_contact_name: '',
   emergency_contact_relationship: '',
   emergency_contact_number: '',

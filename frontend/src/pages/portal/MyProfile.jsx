@@ -31,6 +31,31 @@ const CHECKLIST_ITEMS = [
 const ROLE_LABELS = { patient: 'Patient', dentist: 'Dentist', dental_assistant: 'Dental Assistant' };
 const ROLE_TONE = { patient: 'blue', dentist: 'indigo', dental_assistant: 'teal' };
 
+// Best-effort split of the one stored address_line string (same format
+// registration's own address fields join into — see Step2AccountInfo.jsx)
+// back into its four pieces for editing. Older/incomplete addresses that
+// don't have all four parts fall back to filling in from the end (the
+// parts most likely to be unambiguous — city, then province) rather than
+// guessing at street/barangay, which are the two most likely to be
+// missing from a pre-existing single-line address.
+function splitLegacyAddress(addressLine) {
+  const parts = addressLine.split(',').map((p) => p.trim()).filter(Boolean);
+  if (parts.length === 0) return { street: '', barangay: '', city: '', province: '' };
+  if (parts.length === 1) return { street: parts[0], barangay: '', city: '', province: '' };
+  if (parts.length === 2) return { street: '', barangay: '', city: parts[0], province: parts[1] };
+  if (parts.length === 3) return { street: parts[0], barangay: '', city: parts[1], province: parts[2] };
+  return {
+    street: parts.slice(0, parts.length - 3).join(', '),
+    barangay: parts[parts.length - 3],
+    city: parts[parts.length - 2],
+    province: parts[parts.length - 1],
+  };
+}
+
+function joinAddress({ address_street: street, address_barangay: barangay, address_city: city, address_province: province }) {
+  return [street, barangay, city, province].map((part) => part.trim()).filter(Boolean).join(', ');
+}
+
 function CheckIcon() {
   return (
     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
@@ -94,13 +119,17 @@ function MyProfile() {
     try {
       const data = await getMyProfile();
       setProfile(data);
+      const legacyAddress = splitLegacyAddress(data.patient?.address_line || '');
       setForm({
         name: data.name || '',
         mobile_number: data.mobile_number || '',
         first_name: data.patient?.first_name || '',
         middle_name: data.patient?.middle_name || '',
         last_name: data.patient?.last_name || '',
-        complete_address: data.patient?.address_line || '',
+        address_street: legacyAddress.street,
+        address_barangay: legacyAddress.barangay,
+        address_city: legacyAddress.city,
+        address_province: legacyAddress.province,
         emergency_contact_name: data.patient?.emergency_contact_name || '',
         emergency_contact_relationship: data.patient?.emergency_contact_relationship || '',
         emergency_contact_number: data.patient?.emergency_contact_number || '',
@@ -161,7 +190,7 @@ function MyProfile() {
         first_name: form.first_name.trim(),
         middle_name: form.middle_name.trim() || null,
         last_name: form.last_name.trim(),
-        complete_address: form.complete_address.trim(),
+        complete_address: joinAddress(form),
         emergency_contact_name: form.emergency_contact_name.trim(),
         emergency_contact_relationship: form.emergency_contact_relationship.trim(),
         emergency_contact_number: form.emergency_contact_number.trim(),
@@ -392,11 +421,36 @@ function MyProfile() {
                 </div>
               </div>
               <div className="profile-grid">
-                <Field label="Complete Address" full icon={MapPinIcon} tone="slate">
+                <Field label="House/Unit No. &amp; Street" full icon={MapPinIcon} tone="slate">
                   <input
                     className="form-input"
-                    value={form.complete_address}
-                    onChange={(e) => set('complete_address', e.target.value)}
+                    value={form.address_street}
+                    onChange={(e) => set('address_street', e.target.value)}
+                    placeholder="e.g. Blk 5 Lot 12, Mabuhay Street"
+                  />
+                </Field>
+                <Field label="Barangay" icon={MapPinIcon} tone="slate">
+                  <input
+                    className="form-input"
+                    value={form.address_barangay}
+                    onChange={(e) => set('address_barangay', e.target.value)}
+                    placeholder="e.g. San Vicente"
+                  />
+                </Field>
+                <Field label="City / Municipality" icon={MapPinIcon} tone="slate">
+                  <input
+                    className="form-input"
+                    value={form.address_city}
+                    onChange={(e) => set('address_city', e.target.value)}
+                    placeholder="e.g. San Pedro"
+                  />
+                </Field>
+                <Field label="Province" full icon={MapPinIcon} tone="slate">
+                  <input
+                    className="form-input"
+                    value={form.address_province}
+                    onChange={(e) => set('address_province', e.target.value)}
+                    placeholder="e.g. Laguna"
                   />
                 </Field>
                 <Field label="Emergency Contact Name" icon={UsersIcon} tone="indigo">

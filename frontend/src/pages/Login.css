@@ -494,6 +494,25 @@
   margin: 0 0 1rem 0;
 }
 
+/* Groups the four address fields (Step2AccountInfo) under one heading
+   instead of each looking like an unrelated field in the grid. */
+.login-field-group-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #2952e3;
+  margin: 4px 0 -4px;
+}
+
+.login-field-group-label svg {
+  width: 13px;
+  height: 13px;
+}
+
 /* Extend the existing .login-input-wrap input look to <select> elements
    (e.g. Sex), since the base rule only targets input tags. */
 .login-input-wrap select {

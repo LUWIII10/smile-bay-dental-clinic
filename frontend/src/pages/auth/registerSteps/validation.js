@@ -139,7 +139,10 @@ export function validateStep2(values, context = {}) {
     errors.password_confirmation = 'Passwords do not match.';
   }
 
-  if (!values.complete_address.trim()) errors.complete_address = 'Complete address is required.';
+  if (!values.address_street.trim()) errors.address_street = 'House/unit number and street are required.';
+  if (!values.address_barangay.trim()) errors.address_barangay = 'Barangay is required.';
+  if (!values.address_city.trim()) errors.address_city = 'City/Municipality is required.';
+  if (!values.address_province.trim()) errors.address_province = 'Province is required.';
 
   if (!values.emergency_contact_name.trim()) {
     errors.emergency_contact_name = 'Emergency contact name is required.';

@@ -24,6 +24,21 @@ function Step2AccountInfo({ values, onChange, errors, onFieldError, emailStatus,
   const trimmedEmail = values.email.trim();
   const debouncedEmail = useDebounce(trimmedEmail, EMAIL_CHECK_DEBOUNCE_MS);
 
+  // complete_address itself is never typed directly anymore — it's derived
+  // from the four guided fields below, in the same order the old single
+  // field's own placeholder already implied ("House/Unit No., Street,
+  // Barangay, City, Province"), joined with commas. Nothing downstream
+  // (Step5Review's display, RegisterWizard's submit payload, the backend)
+  // needed to change, since this still lands in the same one field.
+  useEffect(() => {
+    const joined = [values.address_street, values.address_barangay, values.address_city, values.address_province]
+      .map((part) => part.trim())
+      .filter(Boolean)
+      .join(', ');
+    if (joined !== values.complete_address) onChange('complete_address', joined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [values.address_street, values.address_barangay, values.address_city, values.address_province]);
+
   // Cancels a stale in-flight request when a newer one starts, so a slow
   // response for an email the user already changed can never land after —
   // and overwrite — a more recent result.
@@ -148,16 +163,53 @@ function Step2AccountInfo({ values, onChange, errors, onFieldError, emailStatus,
         ))}
       </ul>
 
+      <p className="login-field-group-label login-field-grid-full">
+        <LocationIcon /> Complete Address
+      </p>
+
       <FormField
-        label="Complete Address"
-        name="complete_address"
+        label="House/Unit No. & Street"
+        name="address_street"
         fullWidth
-        value={values.complete_address}
+        value={values.address_street}
         onChange={onChange}
-        error={errors.complete_address}
-        icon={<LocationIcon />}
-        placeholder="House/Unit No., Street, Barangay, City, Province"
-        autoComplete="street-address"
+        error={errors.address_street}
+        placeholder="e.g. Blk 5 Lot 12, Mabuhay Street"
+        autoComplete="address-line1"
+        required
+      />
+
+      <FormField
+        label="Barangay"
+        name="address_barangay"
+        value={values.address_barangay}
+        onChange={onChange}
+        error={errors.address_barangay}
+        placeholder="e.g. San Vicente"
+        autoComplete="address-level3"
+        required
+      />
+
+      <FormField
+        label="City / Municipality"
+        name="address_city"
+        value={values.address_city}
+        onChange={onChange}
+        error={errors.address_city}
+        placeholder="e.g. San Pedro"
+        autoComplete="address-level2"
+        required
+      />
+
+      <FormField
+        label="Province"
+        name="address_province"
+        fullWidth
+        value={values.address_province}
+        onChange={onChange}
+        error={errors.address_province}
+        placeholder="e.g. Laguna"
+        autoComplete="address-level1"
         required
       />
 
