@@ -80,6 +80,17 @@ export async function toggleHmoProviderActive(hmoProviderId) {
   return response.data.data;
 }
 
+// A true hard delete — only succeeds when no patient is registered under
+// this provider (ClinicSettingsController::destroyHmoProvider() returns 409
+// otherwise). Settings.jsx disables the Remove button up front using each
+// provider's patients_count, so this call is really only reachable for a
+// provider that's genuinely unused.
+export async function deleteHmoProvider(hmoProviderId) {
+  await api.get('/sanctum/csrf-cookie');
+  const response = await api.delete(`/api/admin/settings/hmo-providers/${hmoProviderId}`);
+  return response.data.data;
+}
+
 // month: 'YYYY-MM'. Returns { 'YYYY-MM-DD': { appointment_count, closed } }
 // for every day in that month — what the "Add Closure Date" calendar colors
 // each cell by. Not per-dentist/service slot availability (there's no

@@ -9,6 +9,7 @@ import {
   createHmoProvider,
   updateHmoProvider,
   toggleHmoProviderActive,
+  deleteHmoProvider,
   getClosureDaySummary,
   addClinicClosure,
   getClosureConflicts,
@@ -750,6 +751,30 @@ function Settings() {
     }
   };
 
+  // Separate from handleToggleHmoProviderActive above — this permanently
+  // deletes the row instead of just hiding it. Only reachable when
+  // row.patients_count is 0 (hmoProviderColumns disables the button
+  // otherwise), but the backend re-checks anyway
+  // (ClinicSettingsController::destroyHmoProvider()) since that count can
+  // go stale between page load and click.
+  const handleDeleteHmoProvider = async (provider) => {
+    const confirmed = await confirmAction({
+      title: `Remove ${provider.name}?`,
+      text: 'This permanently deletes the provider and its logo. This cannot be undone.',
+      confirmButtonText: 'Remove Provider',
+      confirmButtonColor: '#b42318',
+    });
+    if (!confirmed) return;
+
+    try {
+      await deleteHmoProvider(provider.id);
+      load();
+      showSuccessToast(`${provider.name} removed.`);
+    } catch (err) {
+      showErrorToast(err.response?.data?.message || 'Could not remove this HMO provider.');
+    }
+  };
+
   const serviceColumns = [
     { key: 'name', label: 'Service', minWidth: '22%', render: (row) => row.name },
     {
@@ -839,20 +864,33 @@ function Settings() {
     {
       key: 'actions',
       label: '',
-      minWidth: '30%',
+      minWidth: '38%',
       align: 'right',
-      render: (row) => (
-        <div className="row-actions">
-          <button type="button" className="dash-btn dash-btn--outline row-btn" onClick={() => openEditHmoProvider(row)}>Edit</button>
-          <button
-            type="button"
-            className={`dash-btn row-btn${row.is_active ? ' dash-btn--danger' : ''}`}
-            onClick={() => handleToggleHmoProviderActive(row)}
-          >
-            {row.is_active ? 'Deactivate' : 'Activate'}
-          </button>
-        </div>
-      ),
+      render: (row) => {
+        const linkedPatients = row.patients_count || 0;
+        const canRemove = linkedPatients === 0;
+        return (
+          <div className="row-actions">
+            <button type="button" className="dash-btn dash-btn--outline row-btn" onClick={() => openEditHmoProvider(row)}>Edit</button>
+            <button
+              type="button"
+              className={`dash-btn row-btn${row.is_active ? ' dash-btn--danger' : ''}`}
+              onClick={() => handleToggleHmoProviderActive(row)}
+            >
+              {row.is_active ? 'Deactivate' : 'Activate'}
+            </button>
+            <button
+              type="button"
+              className="dash-btn dash-btn--outline-danger row-btn"
+              disabled={!canRemove}
+              title={canRemove ? undefined : `${linkedPatients} ${linkedPatients === 1 ? 'patient is' : 'patients are'} still registered under ${row.name} — deactivate instead.`}
+              onClick={() => handleDeleteHmoProvider(row)}
+            >
+              Remove
+            </button>
+          </div>
+        );
+      },
     },
   ];
 

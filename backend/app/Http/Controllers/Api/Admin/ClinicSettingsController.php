@@ -40,7 +40,11 @@ class ClinicSettingsController extends Controller
                 // (and be able to reactivate) a deactivated one, unlike
                 // HmoProviderController::index()'s registration-facing
                 // list, which only ever shows the active ones.
-                'hmo_providers' => HmoProvider::orderBy('name')->get(),
+                // withCount so Settings.jsx can disable "Remove" per row
+                // without a round trip — see destroyHmoProvider()'s own
+                // count check, which is the actual source of truth this
+                // mirrors.
+                'hmo_providers' => HmoProvider::withCount('patients')->orderBy('name')->get(),
                 'clinic_closures' => $this->closures->upcoming(),
                 'clinic_special_hours' => $this->specialHours->upcoming(),
             ],
@@ -257,6 +261,36 @@ class ClinicSettingsController extends Controller
         $hmoProvider->update(['is_active' => ! $hmoProvider->is_active]);
 
         return response()->json(['data' => $hmoProvider->fresh()]);
+    }
+
+    /**
+     * A true hard delete — unlike toggleHmoProviderActive() above, this
+     * actually removes the row and its logo file. Only safe to expose when
+     * nothing references it: patients.hmo_provider_id is nullOnDelete(), so
+     * an unguarded delete here would silently blank out which provider an
+     * existing HMO patient registered under. Blocked with a 409 (not a
+     * validation error — nothing about the request itself is invalid) the
+     * moment at least one patient is linked; the frontend then points the
+     * admin at Deactivate instead, same as a provider that's still in use
+     * has always had to do.
+     */
+    public function destroyHmoProvider(HmoProvider $hmoProvider)
+    {
+        $patientCount = $hmoProvider->patients()->count();
+
+        if ($patientCount > 0) {
+            return response()->json([
+                'message' => "Can't remove {$hmoProvider->name} — {$patientCount} ".
+                    ($patientCount === 1 ? 'patient is' : 'patients are').
+                    ' still registered under it. Deactivate it instead.',
+                'patient_count' => $patientCount,
+            ], 409);
+        }
+
+        $this->deleteLogoIfLocal($hmoProvider->logo_path);
+        $hmoProvider->delete();
+
+        return response()->json(['data' => HmoProvider::orderBy('name')->get()]);
     }
 
     /**

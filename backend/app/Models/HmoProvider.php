@@ -18,4 +18,12 @@ class HmoProvider extends Model
             'is_active' => 'boolean',
         ];
     }
+
+    // Used by ClinicSettingsController::show()/destroyHmoProvider() to let
+    // Settings.jsx know up front whether "Remove" is safe to enable for a
+    // given provider, without a round trip per row.
+    public function patients()
+    {
+        return $this->hasMany(Patient::class);
+    }
 }
