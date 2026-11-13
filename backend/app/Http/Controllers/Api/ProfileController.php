@@ -44,6 +44,10 @@ class ProfileController extends Controller
                 'first_name' => ['sometimes', 'string', 'max:100'],
                 'middle_name' => ['sometimes', 'nullable', 'string', 'max:100'],
                 'last_name' => ['sometimes', 'string', 'max:100'],
+                'civil_status' => ['sometimes', 'nullable', 'string', 'max:100'],
+                'nationality' => ['sometimes', 'nullable', 'string', 'max:100'],
+                'religion' => ['sometimes', 'nullable', 'string', 'max:100'],
+                'occupation' => ['sometimes', 'nullable', 'string', 'max:150'],
                 'complete_address' => ['sometimes', 'string', 'max:500'],
                 'emergency_contact_name' => ['sometimes', 'string', 'max:255'],
                 'emergency_contact_relationship' => ['sometimes', 'string', 'max:100'],
@@ -88,7 +92,8 @@ class ProfileController extends Controller
 
             if ($user->role === 'patient' && $user->patient) {
                 $patientFields = [
-                    'first_name', 'middle_name', 'last_name', 'emergency_contact_name',
+                    'first_name', 'middle_name', 'last_name', 'civil_status', 'nationality', 'religion', 'occupation',
+                    'emergency_contact_name',
                     'emergency_contact_relationship', 'emergency_contact_number', 'allergies', 'current_medications',
                 ];
                 $patientData = array_intersect_key($validated, array_flip($patientFields));

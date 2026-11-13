@@ -1304,6 +1304,9 @@ function PatientRecords() {
                   <div className="record-print-grid-item"><span>Medical Conditions</span><span>{medicalConditionsSummary}</span></div>
                   <div className="record-print-grid-item"><span>Previous Surgeries / Hospitalization</span><span>{patient.previous_surgeries || 'None'}</span></div>
                   <div className="record-print-grid-item"><span>Pregnancy Status</span><span>{pregnancyStatusLabel(patient)}</span></div>
+                  <div className="record-print-grid-item"><span>Blood Type</span><span>{patient.blood_type || 'Not on file'}</span></div>
+                  <div className="record-print-grid-item"><span>Last Physical Exam</span><span>{patient.last_physical_exam || 'Not on file'}</span></div>
+                  <div className="record-print-grid-item"><span>Physician Name / Specialty</span><span>{patient.physician_name_specialty || 'Not on file'}</span></div>
                 </div>
                 {/* Smoking/Alcohol here can only ever say whether the
                     registration checklist had that box ticked — not a
@@ -1314,6 +1317,8 @@ function PatientRecords() {
                   <div className="record-print-grid-item"><span>Alcohol History</span><span>{hasConditionFlag(patient, 'Alcohol Use') ? 'Reported' : 'None reported'}</span></div>
                   <div className="record-print-grid-item"><span>Previous Dental Treatment</span><span>{patient.last_dental_treatment || 'None on file'}</span></div>
                   <div className="record-print-grid-item"><span>Last Dental Visit</span><span>{patient.last_dental_visit || 'Not on file'}</span></div>
+                  <div className="record-print-grid-item"><span>Brushing Frequency</span><span>{patient.brushing_frequency || 'Not on file'}</span></div>
+                  <div className="record-print-grid-item"><span>Past Dental Procedures</span><span>{(patient.dental_procedures_history || []).join(', ') || 'None on file'}</span></div>
                   <div className="record-print-grid-item"><span>Dental Concerns</span><span>{dentalConcernsSummary}</span></div>
                 </div>
               </div>
@@ -1634,7 +1639,9 @@ function PatientRecords() {
               </div>
             </div>
 
-            {(patient.allergies || patient.current_medications || patient.medical_conditions_other || patient.previous_surgeries) && (
+            {(patient.allergies || patient.current_medications || patient.medical_conditions_other
+              || patient.previous_surgeries || patient.blood_type || patient.last_physical_exam
+              || patient.physician_name_specialty) && (
               <div className="section-card">
                 <div className="section-card-header">
                   <div className="section-card-heading">
@@ -1676,6 +1683,74 @@ function PatientRecords() {
                       <div className="record-info-item">
                         <span className="record-info-label">Previous Surgeries</span>
                         <span className="record-info-value">{patient.previous_surgeries}</span>
+                      </div>
+                    </div>
+                  )}
+                  {patient.blood_type && (
+                    <div className="record-field">
+                      <span className="record-field-icon record-field-icon--red"><SyringeIcon /></span>
+                      <div className="record-info-item">
+                        <span className="record-info-label">Blood Type</span>
+                        <span className="record-info-value">{patient.blood_type}</span>
+                      </div>
+                    </div>
+                  )}
+                  {patient.last_physical_exam && (
+                    <div className="record-field">
+                      <span className="record-field-icon record-field-icon--indigo"><ClockIcon /></span>
+                      <div className="record-info-item">
+                        <span className="record-info-label">Last Physical Exam</span>
+                        <span className="record-info-value">{patient.last_physical_exam}</span>
+                      </div>
+                    </div>
+                  )}
+                  {patient.physician_name_specialty && (
+                    <div className="record-field record-field--full">
+                      <span className="record-field-icon record-field-icon--slate"><UserIcon /></span>
+                      <div className="record-info-item">
+                        <span className="record-info-label">Physician Name / Specialty</span>
+                        <span className="record-info-value">{patient.physician_name_specialty}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {(patient.last_dental_visit || patient.brushing_frequency
+              || (patient.dental_procedures_history && patient.dental_procedures_history.length > 0)) && (
+              <div className="section-card">
+                <div className="section-card-header">
+                  <div className="section-card-heading">
+                    <span className="section-card-icon section-card-icon--indigo"><ToothIcon /></span>
+                    <h3 className="section-card-title">Dental History <span className="section-card-title-note">(from registration)</span></h3>
+                  </div>
+                </div>
+                <div className="record-info-card">
+                  {patient.last_dental_visit && (
+                    <div className="record-field">
+                      <span className="record-field-icon record-field-icon--indigo"><ClockIcon /></span>
+                      <div className="record-info-item">
+                        <span className="record-info-label">Last Dental Visit</span>
+                        <span className="record-info-value">{patient.last_dental_visit}</span>
+                      </div>
+                    </div>
+                  )}
+                  {patient.brushing_frequency && (
+                    <div className="record-field">
+                      <span className="record-field-icon record-field-icon--indigo"><ToothIcon /></span>
+                      <div className="record-info-item">
+                        <span className="record-info-label">Brushing Frequency</span>
+                        <span className="record-info-value">{patient.brushing_frequency}</span>
+                      </div>
+                    </div>
+                  )}
+                  {patient.dental_procedures_history && patient.dental_procedures_history.length > 0 && (
+                    <div className="record-field record-field--full">
+                      <span className="record-field-icon record-field-icon--slate"><ToothIcon /></span>
+                      <div className="record-info-item">
+                        <span className="record-info-label">Past Dental Procedures</span>
+                        <span className="record-info-value">{patient.dental_procedures_history.join(', ')}</span>
                       </div>
                     </div>
                   )}

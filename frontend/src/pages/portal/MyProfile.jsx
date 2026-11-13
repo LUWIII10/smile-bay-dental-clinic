@@ -11,6 +11,9 @@ import {
   AlertIcon, SyringeIcon, FileIcon, BuildingIcon, ToothIcon, ClockIcon,
 } from './icons';
 import './dashboards.css';
+// Just for .form-select's styling (Civil Status) — nothing else here
+// references anything from this file's table/toolbar rules.
+import './Appointments.css';
 import './MyProfile.css';
 
 function getInitials(name) {
@@ -30,6 +33,16 @@ const CHECKLIST_ITEMS = [
 
 const ROLE_LABELS = { patient: 'Patient', dentist: 'Dentist', dental_assistant: 'Dental Assistant' };
 const ROLE_TONE = { patient: 'blue', dentist: 'indigo', dental_assistant: 'teal' };
+
+// Same options registration's Step1PersonalInfo.jsx offers — kept in sync
+// manually since neither file imports from the other.
+const CIVIL_STATUS_OPTIONS = [
+  { value: '', label: 'Select civil status' },
+  { value: 'single', label: 'Single' },
+  { value: 'married', label: 'Married' },
+  { value: 'widowed', label: 'Widowed' },
+  { value: 'separated', label: 'Separated' },
+];
 
 // Best-effort split of the one stored address_line string (same format
 // registration's own address fields join into — see Step2AccountInfo.jsx)
@@ -126,6 +139,10 @@ function MyProfile() {
         first_name: data.patient?.first_name || '',
         middle_name: data.patient?.middle_name || '',
         last_name: data.patient?.last_name || '',
+        civil_status: data.patient?.civil_status || '',
+        nationality: data.patient?.nationality || '',
+        religion: data.patient?.religion || '',
+        occupation: data.patient?.occupation || '',
         address_street: legacyAddress.street,
         address_barangay: legacyAddress.barangay,
         address_city: legacyAddress.city,
@@ -190,6 +207,10 @@ function MyProfile() {
         first_name: form.first_name.trim(),
         middle_name: form.middle_name.trim() || null,
         last_name: form.last_name.trim(),
+        civil_status: form.civil_status || null,
+        nationality: form.nationality.trim() || null,
+        religion: form.religion.trim() || null,
+        occupation: form.occupation.trim() || null,
         complete_address: joinAddress(form),
         emergency_contact_name: form.emergency_contact_name.trim(),
         emergency_contact_relationship: form.emergency_contact_relationship.trim(),
@@ -401,6 +422,22 @@ function MyProfile() {
                 </Field>
                 <Field label="Patient No." icon={FileIcon} tone="slate">
                   <input className="form-input" value={profile.patient?.patient_number || ''} disabled />
+                </Field>
+                <Field label="Civil Status" icon={UsersIcon} tone="indigo">
+                  <select className="form-select" value={form.civil_status} onChange={(e) => set('civil_status', e.target.value)}>
+                    {CIVIL_STATUS_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Nationality" icon={UserIcon} tone="navy">
+                  <input className="form-input" value={form.nationality} onChange={(e) => set('nationality', e.target.value)} placeholder="e.g. Filipino" />
+                </Field>
+                <Field label="Religion" icon={UserIcon} tone="navy">
+                  <input className="form-input" value={form.religion} onChange={(e) => set('religion', e.target.value)} placeholder="Optional" />
+                </Field>
+                <Field label="Occupation" icon={BuildingIcon} tone="slate">
+                  <input className="form-input" value={form.occupation} onChange={(e) => set('occupation', e.target.value)} placeholder="Optional" />
                 </Field>
               </>
             ) : (
