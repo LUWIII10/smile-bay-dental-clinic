@@ -2,11 +2,12 @@ import { useEffect, useState } from 'react';
 import Modal from './Modal';
 import StatusBadge from './StatusBadge';
 import Skeleton from './Skeleton';
+import FilterDropdown from './FilterDropdown';
 import { getAppointmentDetail, getServices, enableFollowUp } from '../../../api/appointments';
 import { formatDateLong, formatTime12h } from '../dateTimeUtils';
 import { KNOWN_DENTIST_PHOTOS } from '../dentistPhotos';
 import { resolvePhotoUrl } from '../avatarUtils';
-import { CalendarPlusIcon, CheckCircleIcon } from '../icons';
+import { CalendarPlusIcon, CheckCircleIcon, EditIcon, AlertIcon, ChevronLeftIcon } from '../icons';
 
 // Kept in sync with Appointment::FOLLOW_UP_WINDOWS — purely a display label
 // shown to the patient next to a follow-up recommendation, never used in
@@ -37,6 +38,12 @@ function AppointmentDetailModal({ appointmentId, onClose }) {
   const [selectedWindow, setSelectedWindow] = useState('');
   const [enabling, setEnabling] = useState(false);
   const [enableError, setEnableError] = useState('');
+  // Only relevant while a dentist's suggestion is still pending (not yet
+  // enabled) — false shows it as a locked confirmation, true reveals the
+  // editable procedure picker so changing it away from what the dentist
+  // said is a deliberate, separate step instead of just another dropdown
+  // option.
+  const [overridingFollowUp, setOverridingFollowUp] = useState(false);
 
   useEffect(() => {
     if (!appointmentId) return;
@@ -44,6 +51,7 @@ function AppointmentDetailModal({ appointmentId, onClose }) {
     setError('');
     setDetail(null);
     setEnableError('');
+    setOverridingFollowUp(false);
     getAppointmentDetail(appointmentId)
       .then((data) => {
         setDetail(data);
@@ -84,6 +92,21 @@ function AppointmentDetailModal({ appointmentId, onClose }) {
   const hmoProviderName = detail?.patient?.hmo_provider?.name || detail?.patient?.hmo_company_name;
   const dentistName = detail?.dentist?.name || 'Unassigned';
   const dentistPhoto = resolvePhotoUrl(detail?.dentist?.dentist_profile?.photo_path) || KNOWN_DENTIST_PHOTOS[dentistName];
+
+  // Only this specific case gets the locked-confirmation treatment: a
+  // dentist's suggestion that staff haven't acted on yet. Once a
+  // recommendation is already enabled, or there was never a dentist
+  // suggestion to begin with (just picking a follow-up from scratch), the
+  // plain always-editable picker below is the right behavior unchanged.
+  const pendingDentistSuggestion = !detail?.recommended_follow_up_service && !!detail?.dentist_suggested_follow_up_service;
+  const showLockedConfirm = pendingDentistSuggestion && !overridingFollowUp;
+  const serviceOptions = [
+    { value: '', label: 'Select a procedure…' },
+    ...services.map((service) => ({ value: String(service.id), label: `${service.name} (${service.duration_minutes} min)` })),
+  ];
+  const isOverridingFromSuggestion = pendingDentistSuggestion
+    && !!selectedServiceId
+    && String(selectedServiceId) !== String(detail?.dentist_suggested_follow_up_service?.id);
 
   return (
     <Modal open={!!appointmentId} onClose={onClose} title={appointmentId ? `Appointment #${appointmentId}` : ''} size="lg">
@@ -204,72 +227,107 @@ function AppointmentDetailModal({ appointmentId, onClose }) {
                 </div>
               )}
 
-              {!detail.recommended_follow_up_service && detail.dentist_suggested_follow_up_service && (
-                <div className="detail-followup-status detail-followup-status--open">
-                  <CalendarPlusIcon />
-                  <span>
-                    Dentist recommends: {detail.dentist_suggested_follow_up_service.name}
-                    {detail.dentist_suggested_follow_up_window ? ` within ${detail.dentist_suggested_follow_up_window}` : ''}
-                    — review and enable below.
-                  </span>
-                </div>
-              )}
-
-              <p className="detail-followup-note">
-                Select the procedure this patient can now self-book as a follow-up, per the dentist's assessment.
-              </p>
-
-              <div className="detail-followup-controls">
-                <select
-                  className="form-select"
-                  value={selectedServiceId}
-                  onChange={(e) => setSelectedServiceId(e.target.value)}
-                  disabled={enabling}
-                >
-                  <option value="">Select a procedure…</option>
-                  {services.map((service) => (
-                    <option key={service.id} value={service.id}>
-                      {service.name} ({service.duration_minutes} min)
-                    </option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  className="dash-btn"
-                  onClick={handleEnableFollowUp}
-                  disabled={enabling || !selectedServiceId}
-                >
-                  {enabling ? 'Enabling…' : 'Enable Follow-up'}
-                </button>
-              </div>
-
-              {selectedServiceId && (
-                <div style={{ marginTop: 10 }}>
-                  <span className="detail-label" style={{ display: 'block', marginBottom: 6 }}>
-                    Recommended within <span style={{ fontWeight: 400, textTransform: 'none' }}>(optional)</span>
-                  </span>
-                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                    {FOLLOW_UP_WINDOWS.map((window) => {
-                      const windowSelected = selectedWindow === window;
-                      return (
-                        <button
-                          key={window}
-                          type="button"
-                          disabled={enabling}
-                          style={{
-                            padding: '5px 12px', fontSize: '0.74rem', fontWeight: 600, borderRadius: 999, cursor: 'pointer',
-                            border: `1.5px solid ${windowSelected ? 'var(--portal-green-border)' : 'var(--portal-border)'}`,
-                            background: windowSelected ? 'var(--portal-green-bg)' : '#fff',
-                            color: windowSelected ? 'var(--portal-green-text)' : 'var(--portal-muted)',
-                          }}
-                          onClick={() => setSelectedWindow(windowSelected ? '' : window)}
-                        >
-                          {window}
-                        </button>
-                      );
-                    })}
+              {showLockedConfirm ? (
+                <>
+                  <p className="detail-followup-note" style={{ marginBottom: 2 }}>Per the dentist&rsquo;s assessment:</p>
+                  <div className="followup-confirm-card">
+                    <span className="followup-confirm-text">
+                      <b>{detail.dentist_suggested_follow_up_service.name}</b> ({detail.dentist_suggested_follow_up_service.duration_minutes} min)
+                      {detail.dentist_suggested_follow_up_window ? ` · within ${detail.dentist_suggested_follow_up_window}` : ''}
+                    </span>
+                    <div className="followup-confirm-actions">
+                      <button type="button" className="followup-change-btn" onClick={() => setOverridingFollowUp(true)}>
+                        <EditIcon /> Change procedure
+                      </button>
+                      <button
+                        type="button"
+                        className="dash-btn"
+                        onClick={handleEnableFollowUp}
+                        disabled={enabling || !selectedServiceId}
+                      >
+                        {enabling ? 'Enabling…' : 'Enable Follow-up'}
+                      </button>
+                    </div>
                   </div>
-                </div>
+                </>
+              ) : (
+                <>
+                  <p className="detail-followup-note">
+                    {pendingDentistSuggestion
+                      ? `Choosing a different procedure than ${dentistName} recommended:`
+                      : 'Select the procedure this patient can now self-book as a follow-up, per the dentist’s assessment.'}
+                  </p>
+
+                  <div className="detail-followup-controls">
+                    <FilterDropdown
+                      className="filter-dd-wrap--block"
+                      options={serviceOptions}
+                      value={String(selectedServiceId ?? '')}
+                      onChange={setSelectedServiceId}
+                      disabled={enabling}
+                    />
+                    <button
+                      type="button"
+                      className="dash-btn"
+                      onClick={handleEnableFollowUp}
+                      disabled={enabling || !selectedServiceId}
+                    >
+                      {enabling ? 'Enabling…' : 'Enable Follow-up'}
+                    </button>
+                  </div>
+
+                  {isOverridingFromSuggestion && (
+                    <div className="followup-override-warning">
+                      <AlertIcon />
+                      <span>
+                        <b>Different from the dentist&rsquo;s recommendation</b> ({detail.dentist_suggested_follow_up_service.name}).
+                      </span>
+                    </div>
+                  )}
+
+                  {pendingDentistSuggestion && (
+                    <button
+                      type="button"
+                      className="followup-back-link"
+                      onClick={() => {
+                        setOverridingFollowUp(false);
+                        setSelectedServiceId(detail.dentist_suggested_follow_up_service.id);
+                        setSelectedWindow(detail.dentist_suggested_follow_up_window ?? '');
+                      }}
+                    >
+                      <ChevronLeftIcon /> Back to the dentist&rsquo;s recommendation
+                    </button>
+                  )}
+
+                  {selectedServiceId && (
+                    <div style={{ marginTop: 10 }}>
+                      <span className="detail-label" style={{ display: 'block', marginBottom: 6 }}>
+                        Recommended within <span style={{ fontWeight: 400, textTransform: 'none' }}>(optional)</span>
+                      </span>
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                        {FOLLOW_UP_WINDOWS.map((window) => {
+                          const windowSelected = selectedWindow === window;
+                          return (
+                            <button
+                              key={window}
+                              type="button"
+                              disabled={enabling}
+                              style={{
+                                padding: '5px 12px', fontSize: '0.74rem', fontWeight: 600, borderRadius: 999, cursor: 'pointer',
+                                border: `1.5px solid ${windowSelected ? 'var(--portal-green-border)' : 'var(--portal-border)'}`,
+                                background: windowSelected ? 'var(--portal-green-bg)' : '#fff',
+                                color: windowSelected ? 'var(--portal-green-text)' : 'var(--portal-muted)',
+                              }}
+                              onClick={() => setSelectedWindow(windowSelected ? '' : window)}
+                            >
+                              {window}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
 
               {enableError && <p className="detail-followup-error">{enableError}</p>}

@@ -944,9 +944,130 @@
   color: var(--portal-red-text);
 }
 
+/* Locked confirmation card for a pending dentist suggestion — enabling it
+   as-is is one click; changing the procedure is a deliberate, separate
+   action (.followup-change-btn) instead of just another dropdown option. */
+.followup-confirm-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  background: var(--portal-card);
+  border: 1px solid var(--portal-green-border);
+  border-radius: var(--portal-radius-sm);
+  padding: 10px 14px;
+}
+
+.followup-confirm-text {
+  font-size: 0.82rem;
+  color: var(--portal-slate);
+}
+
+.followup-confirm-text b {
+  color: var(--portal-navy);
+}
+
+.followup-confirm-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.followup-change-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--portal-border);
+  background: #fff;
+  color: var(--portal-slate);
+  font-family: inherit;
+  font-size: 0.74rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 7px 13px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.followup-change-btn:hover {
+  border-color: var(--portal-blue);
+  color: var(--portal-blue-text);
+  background: var(--portal-blue-bg);
+}
+
+.followup-change-btn svg {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+}
+
+.followup-override-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  background: var(--portal-amber-bg);
+  border: 1px solid var(--portal-amber-border);
+  border-radius: var(--portal-radius-sm);
+  padding: 10px 12px;
+  margin-top: 10px;
+  font-size: 0.78rem;
+  line-height: 1.55;
+  color: #78350f;
+}
+
+.followup-override-warning svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+  width: 14px;
+  height: 14px;
+}
+
+.followup-override-warning b {
+  color: #78350f;
+}
+
+.followup-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: none;
+  background: none;
+  color: var(--portal-muted);
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  margin-top: 10px;
+}
+
+.followup-back-link:hover {
+  color: var(--portal-blue-text);
+}
+
+.followup-back-link svg {
+  width: 12px;
+  height: 12px;
+}
+
 @media (max-width: 560px) {
   .detail-followup-controls {
     flex-direction: column;
+  }
+
+  .followup-confirm-card {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .followup-confirm-actions {
+    width: 100%;
+  }
+
+  .followup-confirm-actions .dash-btn {
+    flex: 1;
   }
 }
 
