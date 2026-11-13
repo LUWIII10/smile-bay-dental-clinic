@@ -80,7 +80,7 @@ function startOfDay(date) {
 }
 
 function BookFollowUp() {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const navigate = useNavigate();
 
   const [step, setStep] = useState(1);
@@ -131,6 +131,14 @@ function BookFollowUp() {
   const hmoProviderInactive = patientType === 'hmo'
     && !!user?.patient?.hmo_provider
     && user.patient.hmo_provider.is_active === false;
+
+  // Same reasoning as BookAppointment.jsx's own copy of this effect —
+  // AuthContext only fetches /api/auth/me on the app's initial mount, so
+  // this refetches on every open of this page to keep hmoProviderInactive
+  // from showing a stale is_active value.
+  useEffect(() => {
+    refreshUser();
+  }, [refreshUser]);
 
   useEffect(() => {
     getPatientDashboardSummary()

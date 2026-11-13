@@ -99,7 +99,7 @@ function startOfDay(date) {
 }
 
 function BookAppointment() {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const navigate = useNavigate();
 
   const [step, setStep] = useState(1);
@@ -180,6 +180,17 @@ function BookAppointment() {
   const hmoProviderInactive = patientType === 'hmo'
     && !!user?.patient?.hmo_provider
     && user.patient.hmo_provider.is_active === false;
+
+  // AuthContext only fetches /api/auth/me once, on the app's initial
+  // mount — navigating here later via the sidebar (no full page reload)
+  // would otherwise keep showing whatever hmo_provider.is_active value
+  // was true back when this tab first logged in, even if admin disables
+  // the provider in a different tab/session afterward. Refetching here,
+  // every time this page is opened, is what makes hmoProviderInactive
+  // above actually reflect the current state instead of a stale one.
+  useEffect(() => {
+    refreshUser();
+  }, [refreshUser]);
 
   useEffect(() => {
     // Best-effort — a failed fetch here just means the duplicate-booking
