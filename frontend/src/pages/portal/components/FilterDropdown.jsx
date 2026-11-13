@@ -54,7 +54,13 @@ function FilterDropdown({ icon, options, value, onChange, className, disabled })
         <div
           ref={dropdownRef}
           className="filter-dd-panel"
-          style={{ top: position.top, left: position.left, right: position.right }}
+          style={{
+            top: position.top,
+            bottom: position.bottom,
+            left: position.left,
+            right: position.right,
+            maxHeight: position.maxHeight,
+          }}
         >
           {options.map((opt) => (
             <button

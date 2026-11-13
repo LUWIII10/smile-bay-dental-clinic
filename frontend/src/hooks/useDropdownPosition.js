@@ -18,6 +18,13 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 // width rather than assuming one, so it holds for any dropdown width,
 // trigger position, or screen size, not just the one case that was seen.
 const MARGIN = 12;
+const PANEL_GAP = 10;
+// Below this, flipping the panel above the trigger (when there's more room
+// up there) beats leaving it pinned below and running off the bottom of the
+// viewport with no way to reach its lower options — the bug this constant
+// exists to catch (FilterDropdown's full services list, opened from a
+// trigger low in a modal, had no flip and no internal scroll at all).
+const MIN_PANEL_HEIGHT = 160;
 
 export function useDropdownPosition() {
   const [open, setOpen] = useState(false);
@@ -50,7 +57,26 @@ export function useDropdownPosition() {
     const rect = triggerRef.current.getBoundingClientRect();
     triggerRectRef.current = rect;
     correctedRef.current = false;
-    setPosition({ top: rect.bottom + 10, right: Math.max(MARGIN, window.innerWidth - rect.right) });
+
+    // Caps how tall the panel may grow before it has to scroll internally,
+    // and — when the space below the trigger is both tight AND worse than
+    // what's available above — flips it to open upward instead. Every
+    // existing short-list consumer (NotificationBell, ActionMenu,
+    // AvatarMenu, DateRangePicker) keeps today's exact `top` placement,
+    // since none of them are short on room below; this only ever kicks in
+    // for a panel that would otherwise run off the bottom of the viewport
+    // with no way to reach its lower options.
+    const spaceBelow = window.innerHeight - rect.bottom - PANEL_GAP - MARGIN;
+    const spaceAbove = rect.top - PANEL_GAP - MARGIN;
+    const openUpward = spaceBelow < MIN_PANEL_HEIGHT && spaceAbove > spaceBelow;
+    const maxHeight = Math.max(MIN_PANEL_HEIGHT, openUpward ? spaceAbove : spaceBelow);
+    const right = Math.max(MARGIN, window.innerWidth - rect.right);
+
+    setPosition(
+      openUpward
+        ? { bottom: window.innerHeight - rect.top + PANEL_GAP, right, maxHeight }
+        : { top: rect.bottom + PANEL_GAP, right, maxHeight }
+    );
     setOpen(true);
   };
 
