@@ -14,7 +14,14 @@ import { downloadFile } from '../utils/downloadFile';
 // PHP-style array[] query param — see those two functions' own comment for why.
 export async function searchPatientRecords({ search = '', page = 1, per_page = 10, types = [], providerIds = [] } = {}) {
   const params = Object.fromEntries(Object.entries({ search, page, per_page }).filter(([, v]) => v !== '' && v != null));
-  if (types.length === 1) params.patient_type = types[0];
+  // patient_type must also be sent — as both values — whenever a provider
+  // narrowing is active, even though "both chips on" alone needs no filter:
+  // the backend only ever applies the HMO Provider dropdown from *inside*
+  // its patient_type handling (PatientRecordController::applyPatientTypeFilter()),
+  // so omitting patient_type here silently dropped the provider filter too,
+  // the moment both chips were on — which is exactly when someone most
+  // likely has a provider actually narrowed.
+  if (types.length === 1 || providerIds.length > 0) params.patient_type = types.join(',');
   if (providerIds.length > 0) params.hmo_provider = providerIds.join(',');
   const response = await api.get('/api/patient-records', { params });
   return response.data;
@@ -37,7 +44,10 @@ export async function getPatientRecord(patientId) {
 // no such ambiguity. Both chips on (or an empty array) means "no filter".
 export async function getAppointmentsByDate({ from, to }, types = [], providerIds = []) {
   const params = { date_from: from, date_to: to };
-  if (types.length === 1) params.patient_type = types[0];
+  // See searchPatientRecords()'s own comment — patient_type must still be
+  // sent (as both values) whenever a provider narrowing is active, or the
+  // backend never gets a chance to apply it.
+  if (types.length === 1 || providerIds.length > 0) params.patient_type = types.join(',');
   if (providerIds.length > 0) params.hmo_provider = providerIds.join(',');
   const response = await api.get('/api/patient-records/by-date', { params });
   return response.data.data;
@@ -49,7 +59,7 @@ export async function downloadAppointmentsByDatePdf({ from, to }, types = [], pr
     ? `patient-appointments${typeSuffix}-${from}.pdf`
     : `patient-appointments${typeSuffix}-${from}_to_${to}.pdf`;
   const params = { date_from: from, date_to: to };
-  if (types.length === 1) params.patient_type = types[0];
+  if (types.length === 1 || providerIds.length > 0) params.patient_type = types.join(',');
   if (providerIds.length > 0) params.hmo_provider = providerIds.join(',');
   await downloadFile('/api/patient-records/by-date/pdf', params, filename);
 }
