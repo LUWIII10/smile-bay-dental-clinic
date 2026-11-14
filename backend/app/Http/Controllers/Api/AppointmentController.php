@@ -142,6 +142,18 @@ class AppointmentController extends Controller
             ], 422);
         }
 
+        // Retries up to 3 times — Laravel's own DB::transaction() only does
+        // this for a deadlock or lock-wait-timeout specifically (any other
+        // exception still rethrows immediately on the first attempt).
+        // Confirmed by a real concurrency test: two patients both picking
+        // overlapping times (same dentist/date, e.g. 9:00 and 9:15 for a
+        // 30-min service) within milliseconds of each other can make MySQL
+        // deadlock between the two inserts, since neither has committed yet
+        // when isSlotAvailable()'s own lockForUpdate() query runs — one side
+        // used to see that raw deadlock as an uncaught 500 instead of the
+        // friendly "slot no longer available" below. The retry re-runs the
+        // whole closure, so the losing side's isSlotAvailable() correctly
+        // sees the winner's now-committed row the second time.
         $appointment = DB::transaction(function () use ($validated, $patient, $service, $request, $isPediatric) {
             // Locked lookup/validation first, still inside this same
             // transaction. Two modes — see FollowUpRecommendationService:
@@ -215,7 +227,7 @@ class AppointmentController extends Controller
             ]);
 
             return $appointment;
-        });
+        }, 3);
 
         if ($appointment === 'patient_conflict') {
             return response()->json([
