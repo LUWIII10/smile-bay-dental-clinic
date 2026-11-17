@@ -287,11 +287,6 @@ function PatientRecords() {
   // since status can change mid-session.
   const incoming = location.state || {};
   const isDentist = role === 'dentist';
-  // Assistants get a read-only, front-desk-appropriate slice of the record —
-  // no tooth chart (nothing to chart from a coordination role), no
-  // treatment plans or clinical notes (dentist's clinical judgment, not
-  // reception's). Dentist and Admin views are untouched below.
-  const isAssistantView = role === 'dental_assistant';
 
   // ---- List state ----
   const [patients, setPatients] = useState([]);
@@ -1197,8 +1192,8 @@ function PatientRecords() {
           {/* Visible to all three roles that can reach this page at all —
               dentist, dental_assistant, admin. Printing a record someone is
               already allowed to view isn't a clinical-editing action, so
-              it isn't gated by isDentist/isAssistantView the way the
-              on-screen edit affordances below are. */}
+              it isn't gated by isDentist the way the on-screen edit
+              affordances below are. */}
           {patient && record && (
             <div className="record-print-controls">
               <DateRangePicker
@@ -1246,14 +1241,13 @@ function PatientRecords() {
             )}
 
           {/* Print-only — the entire formal report. Built directly from
-              patient/record/printRange, independent of isDentist/
-              isAssistantView: unlike the interactive on-screen sections
-              below (which hide the tooth chart, treatment plans and
-              clinical notes from dental_assistant), a printed record is
-              informational output any of the three roles that can open
-              this page should be able to produce in full — the same
-              reasoning behind moving the print button out of a
-              dentist-only section in the first place. Supersedes the old
+              patient/record/printRange, independent of isDentist: the
+              tooth chart, treatment plans and clinical notes below are
+              now visible read-only to dental_assistant too (the only
+              access this page ever withholds is from the patient the
+              record belongs to), and a printed record was always full
+              output any of the three staff roles that can open this page
+              could produce. Supersedes the old
               .record-print-header/.record-print-tooth-summary entirely;
               .record-detail-print itself is hidden in print now
               (DentalRecords.css) since every part of it has an equivalent
@@ -1882,8 +1876,7 @@ function PatientRecords() {
               </div>
             )}
 
-            {!isAssistantView && (
-              <div className="section-card">
+            <div className="section-card">
                 <div className="section-card-header">
                   <h3 className="section-card-title">Tooth Chart</h3>
                 </div>
@@ -1962,10 +1955,8 @@ function PatientRecords() {
                   </div>
                 )}
               </div>
-            )}
 
-            {!isAssistantView && (
-              <div className="section-card">
+            <div className="section-card">
                 <div className="section-card-header">
                   <h3 className="section-card-title">Treatment Plans</h3>
                   {isDentist && (
@@ -2072,7 +2063,6 @@ function PatientRecords() {
                   </div>
                 )}
               </div>
-            )}
 
             <div className="section-card">
               <div className="section-card-header">
@@ -2140,8 +2130,7 @@ function PatientRecords() {
               )}
             </div>
 
-            {!isAssistantView && (
-              <div className="section-card">
+            <div className="section-card">
                 <div className="section-card-header">
                   <h3 className="section-card-title">Clinical Notes</h3>
                   {isDentist && (
@@ -2219,7 +2208,6 @@ function PatientRecords() {
                   </ul>
                 )}
               </div>
-            )}
           </div>
 
           {isVisitFlow && (
