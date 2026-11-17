@@ -56,6 +56,11 @@ import './DentalRecords.css';
 import './components/PrintLetterhead.css';
 
 const SEARCH_DEBOUNCE_MS = 400;
+// Medical Record History, Clinical Notes, and Dental Treatment History all
+// cap their always-visible rows at this count — everything older sits
+// behind a "Show older" reveal so a long-time patient's record doesn't
+// render dozens of rows at once.
+const RECENT_RECORDS_VISIBLE_COUNT = 5;
 // Kept in sync with Appointment::FOLLOW_UP_WINDOWS — purely a display label
 // shown to the patient next to a follow-up recommendation, never used in
 // any scheduling/availability check.
@@ -384,10 +389,13 @@ function PatientRecords() {
   const [checklistShownIds, setChecklistShownIds] = useState([]);
   const toggleChecklistShown = (id) =>
     setChecklistShownIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
-  // Only the MEDREC_VISIBLE_COUNT most recent Medical Record entries render
-  // by default — a long-time patient's history otherwise renders every
-  // past visit's accordion row at once with no cap.
+  // Only the RECENT_RECORDS_VISIBLE_COUNT most recent Medical Record
+  // entries render by default — a long-time patient's history otherwise
+  // renders every past visit's accordion row at once with no cap. Same
+  // idea for Clinical Notes and Dental Treatment History below.
   const [showOlderMedicalRecords, setShowOlderMedicalRecords] = useState(false);
+  const [showOlderNotes, setShowOlderNotes] = useState(false);
+  const [showOlderHistory, setShowOlderHistory] = useState(false);
   const [toothForm, setToothForm] = useState({ condition: 'healthy', notes: '' });
   const [savingTooth, setSavingTooth] = useState(false);
   // Print-only date filter — scopes Treatment History (by performed_at) and
@@ -587,6 +595,8 @@ function PatientRecords() {
       setExpandedMedicalRecordIds([]);
       setChecklistShownIds([]);
       setShowOlderMedicalRecords(false);
+      setShowOlderNotes(false);
+      setShowOlderHistory(false);
       loadDetail(selectedPatientId);
     }
   }, [selectedPatientId, loadDetail]);
@@ -1187,12 +1197,8 @@ function PatientRecords() {
     // toggling a row flips it away from that default rather than tracking
     // every row's state explicitly.
     const medicalRecordHistory = patient?.medical_records || [];
-    // Only the MEDREC_VISIBLE_COUNT most recent entries render up front —
-    // everything older sits behind the "Show older records" button below,
-    // so a years-long patient history doesn't render every row at once.
-    const MEDREC_VISIBLE_COUNT = 5;
-    const visibleMedicalRecords = medicalRecordHistory.slice(0, MEDREC_VISIBLE_COUNT);
-    const olderMedicalRecords = medicalRecordHistory.slice(MEDREC_VISIBLE_COUNT);
+    const visibleMedicalRecords = medicalRecordHistory.slice(0, RECENT_RECORDS_VISIBLE_COUNT);
+    const olderMedicalRecords = medicalRecordHistory.slice(RECENT_RECORDS_VISIBLE_COUNT);
     const medicalRecordFlaggedVisitCount = medicalRecordHistory.filter((rec) => medicalRecordFlags(rec).length > 0).length;
     const medicalRecordTopFlagLabel = (() => {
       const counts = {};
@@ -1842,13 +1848,13 @@ function PatientRecords() {
                   {visibleMedicalRecords.map((rec, index) => renderMedicalRecordRow(rec, index))}
                 </div>
                 {olderMedicalRecords.length > 0 && (
-                  <div className="medrec-older-wrap">
+                  <div className="list-older-wrap">
                     {showOlderMedicalRecords && (
                       <div className="medrec-timeline medrec-timeline--older">
                         {olderMedicalRecords.map((rec, index) => renderMedicalRecordRow(rec, index + visibleMedicalRecords.length))}
                       </div>
                     )}
-                    <button type="button" className="medrec-older-btn" onClick={() => setShowOlderMedicalRecords((v) => !v)}>
+                    <button type="button" className="list-older-btn" onClick={() => setShowOlderMedicalRecords((v) => !v)}>
                       {showOlderMedicalRecords ? 'Hide older records ↑' : `Show ${olderMedicalRecords.length} older record${olderMedicalRecords.length === 1 ? '' : 's'} ↓`}
                     </button>
                   </div>
@@ -2179,7 +2185,7 @@ function PatientRecords() {
               </div>
               <DataTable
                 emptyMessage="No completed procedures yet"
-                rows={record.treatment_history}
+                rows={showOlderHistory ? record.treatment_history : record.treatment_history.slice(0, RECENT_RECORDS_VISIBLE_COUNT)}
                 columns={[
                   {
                     key: 'date',
@@ -2244,6 +2250,15 @@ function PatientRecords() {
                   },
                 ]}
               />
+              {record.treatment_history.length > RECENT_RECORDS_VISIBLE_COUNT && (
+                <div className="list-older-wrap">
+                  <button type="button" className="list-older-btn" onClick={() => setShowOlderHistory((v) => !v)}>
+                    {showOlderHistory
+                      ? 'Hide older records ↑'
+                      : `Show ${record.treatment_history.length - RECENT_RECORDS_VISIBLE_COUNT} older record${record.treatment_history.length - RECENT_RECORDS_VISIBLE_COUNT === 1 ? '' : 's'} ↓`}
+                  </button>
+                </div>
+              )}
             </div>
 
             <div className="section-card">
@@ -2257,7 +2272,7 @@ function PatientRecords() {
                 </div>
                 <DataTable
                   emptyMessage="No clinical notes yet"
-                  rows={record.clinical_notes}
+                  rows={showOlderNotes ? record.clinical_notes : record.clinical_notes.slice(0, RECENT_RECORDS_VISIBLE_COUNT)}
                   columns={[
                     {
                       key: 'date',
@@ -2354,6 +2369,15 @@ function PatientRecords() {
                     },
                   ]}
                 />
+                {record.clinical_notes.length > RECENT_RECORDS_VISIBLE_COUNT && (
+                  <div className="list-older-wrap">
+                    <button type="button" className="list-older-btn" onClick={() => setShowOlderNotes((v) => !v)}>
+                      {showOlderNotes
+                        ? 'Hide older notes ↑'
+                        : `Show ${record.clinical_notes.length - RECENT_RECORDS_VISIBLE_COUNT} older note${record.clinical_notes.length - RECENT_RECORDS_VISIBLE_COUNT === 1 ? '' : 's'} ↓`}
+                    </button>
+                  </div>
+                )}
               </div>
           </div>
 

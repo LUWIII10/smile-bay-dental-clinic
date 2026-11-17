@@ -497,19 +497,21 @@
   text-decoration: underline;
 }
 
-/* "Show N older records" reveal — only the MEDREC_VISIBLE_COUNT most
+/* "Show N older records" reveal, shared by Medical Record History,
+   Clinical Notes, and Dental Treatment History (see
+   RECENT_RECORDS_VISIBLE_COUNT in PatientRecords.jsx) — only the most
    recent rows render by default; everything before that sits behind this
    button so a years-long patient history doesn't render (or need to be
    scrolled past) as one unbounded list. */
-.medrec-older-wrap {
-  margin-top: 4px;
+.list-older-wrap {
+  margin-top: 10px;
 }
 
 .medrec-timeline--older {
   margin-bottom: 8px;
 }
 
-.medrec-older-btn {
+.list-older-btn {
   width: 100%;
   padding: 10px;
   border: 1px dashed var(--portal-border);
@@ -522,7 +524,7 @@
   font-family: inherit;
 }
 
-.medrec-older-btn:hover {
+.list-older-btn:hover {
   background: var(--portal-blue-tint);
 }
 
