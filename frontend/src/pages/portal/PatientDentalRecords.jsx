@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { getMyDentalRecord } from '../../api/dentalRecords';
 import { getMedicalRecordHistory } from '../../api/appointments';
+import { getDependents, getDependentDentalRecord } from '../../api/dependents';
 import { MEDICAL_RECORD_QUESTIONS, PREGNANCY_QUESTION } from './components/MedicalRecordStep';
 import StatusBadge from './components/StatusBadge';
 import Modal from './components/Modal';
@@ -59,6 +60,20 @@ const HISTORY_CATEGORY_DOT = {
 function PatientDentalRecords() {
   const location = useLocation();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const dependentId = searchParams.get('dependent') ? Number(searchParams.get('dependent')) : null;
+
+  const [dependents, setDependents] = useState([]);
+  useEffect(() => {
+    getDependents().then(setDependents).catch(() => setDependents([]));
+  }, []);
+
+  const viewingDependent = dependents.find((d) => d.id === dependentId) || null;
+  const switchTo = (id) => {
+    if (id) setSearchParams({ dependent: String(id) });
+    else setSearchParams({});
+  };
+
   const [record, setRecord] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -89,23 +104,24 @@ function PatientDentalRecords() {
   };
 
   useEffect(() => {
-    getMedicalRecordHistory()
+    setMedicalRecordsLoading(true);
+    getMedicalRecordHistory(dependentId)
       .then(setMedicalRecords)
       .catch(() => setMedicalRecords([]))
       .finally(() => setMedicalRecordsLoading(false));
-  }, []);
+  }, [dependentId]);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
-      setRecord(await getMyDentalRecord());
+      setRecord(dependentId ? await getDependentDentalRecord(dependentId) : await getMyDentalRecord());
     } catch {
-      setError('Could not load your dental records. Please refresh the page.');
+      setError(dependentId ? 'Could not load this dependent\'s dental records.' : 'Could not load your dental records. Please refresh the page.');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [dependentId]);
 
   useEffect(() => {
     load();
@@ -160,8 +176,40 @@ function PatientDentalRecords() {
       <PageHeader
         icon={ToothIcon}
         title="My Dental Records"
-        subtitle="Your dental treatment history and clinical records from Smile Bay."
+        subtitle="Full treatment history and medical record — for you and your dependents."
       />
+
+      {dependents.length > 0 && (
+        <div className="dentalrec-switcher">
+          <button type="button" className={`dentalrec-switcher-pill${!dependentId ? ' active' : ''}`} onClick={() => switchTo(null)}>
+            <span className="dentalrec-switcher-avatar" style={{ background: 'var(--portal-blue)' }}><UserIcon /></span>
+            Myself
+          </button>
+          {dependents.map((dep) => (
+            <button
+              type="button"
+              key={dep.id}
+              className={`dentalrec-switcher-pill${dependentId === dep.id ? ' active' : ''}`}
+              onClick={() => switchTo(dep.id)}
+            >
+              <span
+                className="dentalrec-switcher-avatar"
+                style={{ background: dep.sex === 'female' ? 'linear-gradient(135deg, #f472b6, #be185d)' : 'linear-gradient(135deg, #60a5fa, var(--portal-blue))' }}
+              >
+                {dep.first_name[0]}{dep.last_name[0]}
+              </span>
+              {dep.full_name}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {viewingDependent && (
+        <div className="dentalrec-viewing-banner">
+          <ShieldIcon />
+          Viewing <strong>{viewingDependent.full_name}'s</strong> records — their own history, separate from yours.
+        </div>
+      )}
 
       {loading ? (
         <Skeleton variant="block" height="400px" />

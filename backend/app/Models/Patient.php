@@ -11,6 +11,9 @@ class Patient extends Model
 {
     protected $fillable = [
         'user_id',
+        'parent_patient_id',
+        'is_dependent',
+        'relationship_to_parent',
         'patient_number',
         'first_name',
         'middle_name',
@@ -65,6 +68,7 @@ class Patient extends Model
     {
         return [
             'date_of_birth' => 'date:Y-m-d',
+            'is_dependent' => 'boolean',
             'medical_conditions' => 'array',
             'dental_procedures_history' => 'array',
             'current_dental_symptoms' => 'array',
@@ -84,6 +88,43 @@ class Patient extends Model
     public function appointments(): HasMany
     {
         return $this->hasMany(Appointment::class);
+    }
+
+    // A dependent is just another patients row with no login of its own
+    // (user_id null) — parent_patient_id links it back to the account
+    // that manages it. Self-referential, so these only ever resolve
+    // something on a parent's own row (a dependent's own dependents()
+    // is always empty — nothing ever sets parent_patient_id to a row
+    // that is itself a dependent).
+    public function parent(): BelongsTo
+    {
+        return $this->belongsTo(Patient::class, 'parent_patient_id');
+    }
+
+    public function dependents(): HasMany
+    {
+        return $this->hasMany(Patient::class, 'parent_patient_id')->orderBy('first_name');
+    }
+
+    // Every patient_id this account may act on — its own, plus every
+    // dependent it manages. Used wherever "My Appointments" needs to
+    // show/manage a booking made for a dependent, since the dependent has
+    // no login of their own to do that themselves.
+    public function relevantPatientIds(): array
+    {
+        return [$this->id, ...$this->dependents()->pluck('id')->all()];
+    }
+
+    public function ownsAppointment(Appointment $appointment): bool
+    {
+        return in_array($appointment->patient_id, $this->relevantPatientIds(), true);
+    }
+
+    // Null when date_of_birth somehow isn't set yet — shouldn't happen
+    // (the column is NOT NULL), but keeps this safe to call defensively.
+    public function age(): ?int
+    {
+        return $this->date_of_birth?->age;
     }
 
     public function hmoProvider(): BelongsTo

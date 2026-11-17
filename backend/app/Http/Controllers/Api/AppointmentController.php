@@ -57,6 +57,23 @@ class AppointmentController extends Controller
             return response()->json(['message' => 'No patient profile is linked to this account.'], 422);
         }
 
+        // Booking for a dependent: swap $patient to the dependent's own
+        // row (ownership already checked by StoreAppointmentRequest's
+        // Rule::exists, re-checked here) so every rule below — booking
+        // limits, HMO status, the created Appointment/medical record, the
+        // notification text dentists see — applies to and names the
+        // dependent, not the logged-in parent account. The parent (
+        // $request->user()) stays who every email/notification is
+        // actually delivered to, since a dependent has no login/email of
+        // its own.
+        if (! empty($validated['dependent_id'])) {
+            $dependent = $patient->dependents()->find($validated['dependent_id']);
+            if (! $dependent) {
+                return response()->json(['message' => 'Selected dependent not found on this account.'], 422);
+            }
+            $patient = $dependent;
+        }
+
         // 3-strike cancellation policy (CancellationPolicyService) —
         // self-service booking only. Staff can still book this patient in
         // directly (StaffAppointmentController::assignWalkIn()), since that

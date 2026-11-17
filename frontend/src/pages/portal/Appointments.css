@@ -617,6 +617,25 @@
   color: var(--portal-slate);
 }
 
+.cell-service-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+/* Marks a row as booked for a dependent rather than the logged-in patient
+   themselves — PatientAppointments.jsx now lists both under one account. */
+.cell-dependent-tag {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--portal-indigo-text);
+  background: var(--portal-indigo-bg);
+  border: 1px solid var(--portal-indigo-border);
+  padding: 1px 8px;
+  border-radius: 999px;
+}
+
 /* One-line treatment-record preview under a completed visit's service name
    (PatientAppointments.jsx) — the real clinical note, not a summary of any
    kind that's invented client-side. */
@@ -884,6 +903,13 @@
 .detail-value {
   font-size: 0.9rem;
   color: var(--portal-slate);
+}
+
+.detail-subnote {
+  display: block;
+  font-size: 0.76rem;
+  color: var(--portal-muted);
+  margin-top: 2px;
 }
 
 /* ============ Medical Record quick-check (AppointmentDetailModal) ============ */

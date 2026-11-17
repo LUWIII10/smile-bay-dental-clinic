@@ -28,6 +28,7 @@ export const NAV_CONFIG = {
     { label: 'Book a Follow-up', path: '/patient/book-follow-up', icon: 'calendarPlus', hidden: true },
     { label: 'My Appointments', path: '/patient/appointments', icon: 'calendar' },
     { label: 'My Dental Records', path: '/patient/dental-records', icon: 'tooth' },
+    { label: 'My Dependents', path: '/patient/dependents', icon: 'users' },
     { label: 'My Profile', path: '/patient/profile', icon: 'user' },
   ],
   dentist: [

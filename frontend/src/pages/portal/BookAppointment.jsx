@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import {
   getServices,
@@ -11,6 +11,7 @@ import {
   getPatientDashboardSummary,
   getLatestMedicalRecord,
 } from '../../api/appointments';
+import { getDependents } from '../../api/dependents';
 import Modal from './components/Modal';
 import ServiceSelector from './components/ServiceSelector';
 import MedicalRecordStep, {
@@ -33,7 +34,8 @@ import './BookAppointment.css';
 // (free-text notes) was replaced outright by the structured Medical Record
 // step — notes is still nullable server-side so old rows/clients aren't
 // broken, but this wizard no longer sends it.
-const STEPS = ['Service', 'Date & Time', 'Doctor', 'Medical Record', 'Payment', 'Summary'];
+const STEPS = ['Patient', 'Service', 'Date & Time', 'Doctor', 'Medical Record', 'Payment', 'Summary'];
+const RELATIONSHIP_LABELS = { son: 'Son', daughter: 'Daughter', ward: 'Ward' };
 const WEEKDAY_LABELS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 const MONTH_LABELS = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -130,6 +132,13 @@ function BookAppointment() {
   const [loadingReference, setLoadingReference] = useState(true);
   const [referenceError, setReferenceError] = useState('');
 
+  // Step 1 (Patient) — who this booking is for. null means "myself", the
+  // default. Adding a dependent only happens on My Dependents (not part
+  // of this flow) — this step only ever picks among ones that already
+  // exist on the account.
+  const [dependents, setDependents] = useState([]);
+  const [selectedDependentId, setSelectedDependentId] = useState(null);
+
   const [selectedDentistId, setSelectedDentistId] = useState(null);
   const [selectedServiceId, setSelectedServiceId] = useState(null);
   const [medicalRecordForm, setMedicalRecordForm] = useState(() => emptyMedicalRecordForm());
@@ -198,10 +207,16 @@ function BookAppointment() {
   const hmoProviderInactive = patientType === 'hmo'
     && !!user?.patient?.hmo_provider
     && user.patient.hmo_provider.is_active === false;
+  const selectedDependent = useMemo(
+    () => dependents.find((d) => d.id === selectedDependentId) || null,
+    [dependents, selectedDependentId]
+  );
   // Decides whether the Medical Record step's pregnancy question shows at
-  // all — never shown (and never required) for a male patient, matching
-  // the backend's own nullable validation for this one answer.
-  const isFemale = user?.patient?.sex === 'female';
+  // all — never shown (and never required) for a male subject, matching
+  // the backend's own nullable validation for this one answer. Reads the
+  // SELECTED DEPENDENT's own sex when booking for one, not the logged-in
+  // patient's.
+  const isFemale = selectedDependent ? selectedDependent.sex === 'female' : user?.patient?.sex === 'female';
 
   // AuthContext only fetches /api/auth/me once, on the app's initial
   // mount — navigating here later via the sidebar (no full page reload)
@@ -214,21 +229,27 @@ function BookAppointment() {
     refreshUser();
   }, [refreshUser]);
 
-  // One-time prefill for the Medical Record step — the patient's own last
-  // visit's answers, or an empty form if they've never completed one under
-  // this flow yet (see MedicalRecordController::latest()). isFemale isn't
-  // in the dependency array on purpose: it's already known by the time
-  // this fires (user loads before this page's first render), and refiring
-  // on every refreshUser() tick would silently discard in-progress edits.
+  // Step 1's own card grid — "myself" plus every dependent already added
+  // on My Dependents (never fetched/created from this flow itself).
   useEffect(() => {
-    getLatestMedicalRecord()
+    getDependents().then(setDependents).catch(() => setDependents([]));
+  }, []);
+
+  // Prefill for the Medical Record step — the booking SUBJECT's (self, or
+  // the selected dependent's) own last visit's answers, or an empty form
+  // if nobody's ever completed one yet (MedicalRecordController::latest()).
+  // Re-fires when the dependent selection changes (step 1, always before
+  // step 5 is reached) — isFemale itself isn't in the dependency array,
+  // same reasoning as before: it's already known the moment this fires.
+  useEffect(() => {
+    getLatestMedicalRecord(selectedDependentId)
       .then((latest) => {
         setMedicalRecordForm(prefillMedicalRecordForm(latest, isFemale));
         setMedicalRecordPrefilled(!!latest);
       })
       .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [selectedDependentId]);
 
   useEffect(() => {
     // Best-effort — a failed fetch here just means the duplicate-booking
@@ -409,12 +430,13 @@ function BookAppointment() {
   }, [selectedService, medicalRecordForm]);
 
   const canGoNext = {
-    1: !!selectedServiceId && !(isPediatricService(selectedService) && patientType === 'hmo'),
-    2: !!selectedDate && !!selectedTime,
-    3: !!selectedDentistId && !resolvingDentist,
-    4: isMedicalRecordComplete(medicalRecordForm, isFemale),
-    5: true,
-    6: false,
+    1: true,
+    2: !!selectedServiceId && !(isPediatricService(selectedService) && patientType === 'hmo'),
+    3: !!selectedDate && !!selectedTime,
+    4: !!selectedDentistId && !resolvingDentist,
+    5: isMedicalRecordComplete(medicalRecordForm, isFemale),
+    6: true,
+    7: false,
   }[step];
 
   const goNext = () => setStep((s) => Math.min(s + 1, STEPS.length));
@@ -430,6 +452,7 @@ function BookAppointment() {
         date: selectedDate,
         time: selectedTime,
         medicalRecord: medicalRecordForm,
+        dependentId: selectedDependentId,
       });
       const isConfirmed = response.data.status === 'confirmed';
       const isPediatric = isPediatricService(selectedService);
@@ -450,12 +473,12 @@ function BookAppointment() {
       if (err.response?.status === 409) {
         setSubmitError(err.response.data.message);
         // The slot grid the patient saw is now stale — send them back to
-        // Date & Time (now step 2) to re-pick, and clear the doctor choice
+        // Date & Time (now step 3) to re-pick, and clear the doctor choice
         // too since it was filtered against the time that's no longer
         // actually free.
         setSelectedTime(null);
         setSelectedDentistId(null);
-        setStep(2);
+        setStep(3);
         if (selectedDate) {
           try {
             const refreshed = await getAvailableSlots('any', selectedServiceId, selectedDate);
@@ -617,8 +640,66 @@ function BookAppointment() {
           </div>
         )}
 
-        {/* ---- Step 1: Service ---- */}
+        {/* ---- Step 1: Patient — who this booking is for. Adding a
+             dependent is deliberately NOT reachable from here (only My
+             Dependents) — this step only ever picks among ones that
+             already exist. ---- */}
         {step === 1 && (
+          <>
+            <h3 className="wizard-step-heading">Who is this appointment for?</h3>
+            <p className="wizard-step-subtitle">Choose yourself or one of your registered dependents.</p>
+
+            <div className="who-grid">
+              <div
+                className={`who-card${!selectedDependentId ? ' who-card--selected' : ''}`}
+                onClick={() => setSelectedDependentId(null)}
+              >
+                {!selectedDependentId && <span className="who-check"><CheckCircleIcon /></span>}
+                <span className="who-avatar who-avatar--self"><UserIcon /></span>
+                <h4 className="who-name">Myself</h4>
+                <span className="who-sub">{user?.name}</span>
+              </div>
+
+              {dependents.map((dep) => {
+                const isSelected = selectedDependentId === dep.id;
+                return (
+                  <div
+                    key={dep.id}
+                    className={`who-card${isSelected ? ' who-card--selected' : ''}`}
+                    onClick={() => setSelectedDependentId(dep.id)}
+                  >
+                    {isSelected && <span className="who-check"><CheckCircleIcon /></span>}
+                    <span className={`who-avatar${dep.sex === 'female' ? ' who-avatar--girl' : ' who-avatar--boy'}`}>
+                      {dep.first_name[0]}{dep.last_name[0]}
+                    </span>
+                    <h4 className="who-name">{dep.full_name}</h4>
+                    <span className="who-sub">{RELATIONSHIP_LABELS[dep.relationship_to_parent] || dep.relationship_to_parent} · {dep.age} {dep.age === 1 ? 'yr' : 'yrs'} old</span>
+                  </div>
+                );
+              })}
+            </div>
+
+            <p className="who-manage-link">
+              <AlertIcon /> Don&rsquo;t see your child here? <Link to="/patient/dependents">Add them on My Dependents</Link> first — not part of this booking flow.
+            </p>
+
+            {selectedDependent && (
+              <div className="suggestion-banner" style={{ marginTop: 12 }}>
+                <span className="suggestion-banner-icon"><AlertIcon /></span>
+                <div className="suggestion-banner-text">
+                  <p className="suggestion-banner-title">Booking for a minor</p>
+                  <p className="suggestion-banner-subtitle">
+                    Every later step uses {selectedDependent.full_name}&rsquo;s own info — their own Medical Record
+                    and dental history, not yours. You&rsquo;ll give consent on their behalf at the Medical Record step.
+                  </p>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* ---- Step 2: Service ---- */}
+        {step === 2 && (
           <>
             <h3 className="section-card-title" style={{ marginBottom: 14 }}>Choose a Service</h3>
             <ServiceSelector
@@ -749,7 +830,7 @@ function BookAppointment() {
              getAvailableSlotsAnyDentist()/getDayAvailabilitySummaryAnyDentist(),
              the same aggregate the old "Any Available Doctor" card used) —
              a date/time is offered if AT LEAST ONE of them is free then. ---- */}
-        {step === 2 && (
+        {step === 3 && (
           <>
             <h3 className="wizard-step-heading">Pick a Date &amp; Time</h3>
             <p className="wizard-step-subtitle">Day colors reflect real-time availability across every doctor for this service.</p>
@@ -912,7 +993,7 @@ function BookAppointment() {
              params), so every card here is already confirmed free then;
              no more "Off Today" hint, which would be comparing against the
              wrong date now that a date is already picked. ---- */}
-        {step === 3 && (
+        {step === 4 && (
           <>
             <h3 className="wizard-step-heading">Choose a Doctor</h3>
             <p className="wizard-step-subtitle">
@@ -938,7 +1019,7 @@ function BookAppointment() {
                   {formatDateLong(selectedDate)} anymore — someone else booked it first. Please go back and choose
                   another time.
                 </p>
-                <button type="button" className="dash-btn" style={{ marginTop: 12 }} onClick={() => setStep(2)}>
+                <button type="button" className="dash-btn" style={{ marginTop: 12 }} onClick={() => setStep(3)}>
                   Back to Date &amp; Time
                 </button>
               </div>
@@ -1010,11 +1091,11 @@ function BookAppointment() {
           </>
         )}
 
-        {/* ---- Step 4: Medical Record (new) — prefilled from the patient's
-             last visit (see the fetch-on-mount effect above), re-answered
-             fresh every booking so it's never stale by the time a dentist
-             actually needs it. ---- */}
-        {step === 4 && (
+        {/* ---- Step 5: Medical Record (new) — prefilled from the patient's
+             (or selected dependent's) last visit (see the fetch-on-mount
+             effect above), re-answered fresh every booking so it's never
+             stale by the time a dentist actually needs it. ---- */}
+        {step === 5 && (
           <MedicalRecordStep
             form={medicalRecordForm}
             onChange={setMedicalRecordForm}
@@ -1023,8 +1104,8 @@ function BookAppointment() {
           />
         )}
 
-        {/* ---- Step 5: Payment (read-only) ---- */}
-        {step === 5 && (
+        {/* ---- Step 6: Payment (read-only) ---- */}
+        {step === 6 && (
           <>
             <h3 className="wizard-step-heading">Payment Method</h3>
             <p className="wizard-step-subtitle">This is set on your account and can’t be changed here.</p>
@@ -1065,12 +1146,18 @@ function BookAppointment() {
           </>
         )}
 
-        {/* ---- Step 6: Summary ---- */}
-        {step === 6 && (
+        {/* ---- Step 7: Summary ---- */}
+        {step === 7 && (
           <>
             <h3 className="wizard-step-heading">Review &amp; Confirm</h3>
             <p className="wizard-step-subtitle">Please check your appointment details before confirming.</p>
             <div className="summary-card">
+              <div className="summary-row">
+                <span className="summary-label">Patient</span>
+                <span className="summary-value">
+                  {selectedDependent ? `${selectedDependent.full_name} (${RELATIONSHIP_LABELS[selectedDependent.relationship_to_parent] || selectedDependent.relationship_to_parent})` : 'Myself'}
+                </span>
+              </div>
               <div className="summary-row">
                 <span className="summary-label">Doctor</span>
                 <span className="summary-value">{selectedDentist?.name}</span>
@@ -1241,6 +1328,7 @@ function BookAppointment() {
                 : PENDING_MESSAGES[result.pendingReason]}
             </p>
             <div className="modal-feedback-details">
+              {selectedDependent && <><strong>Patient:</strong> {selectedDependent.full_name}<br /></>}
               <strong>Doctor:</strong> {selectedDentist?.name}<br />
               <strong>Service:</strong> {selectedService?.name}<br />
               <strong>Date:</strong> {formatDateLong(selectedDate)}<br />

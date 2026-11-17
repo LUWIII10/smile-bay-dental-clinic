@@ -289,6 +289,15 @@ class PatientRecordController extends Controller
         // AppointmentMedicalRecord's own doc comment on why these are
         // immutable snapshots rather than one row kept up to date.
         $patient->load(['medicalRecords' => fn ($q) => $q->with('appointment.service:id,name')]);
+        // Minor-dependent context, whichever direction applies: if this
+        // row IS a dependent, staff see whose account manages it (and can
+        // jump to that parent's own record); if this row HAS dependents,
+        // staff see them listed here too, each linking to their own
+        // record — same page, just opened with a different patient id.
+        $patient->load([
+            'parent:id,first_name,last_name',
+            'dependents:id,parent_patient_id,first_name,last_name,date_of_birth,relationship_to_parent',
+        ]);
 
         $record = $patient->dentalRecord;
 

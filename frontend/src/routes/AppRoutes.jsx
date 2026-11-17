@@ -17,6 +17,7 @@ import BookAppointment from '../pages/portal/BookAppointment';
 import BookFollowUp from '../pages/portal/BookFollowUp';
 import PatientAppointments from '../pages/portal/PatientAppointments';
 import PatientDentalRecords from '../pages/portal/PatientDentalRecords';
+import MyDependents from '../pages/portal/MyDependents';
 import PatientRecords from '../pages/portal/PatientRecords';
 import MyProfile from '../pages/portal/MyProfile';
 import UserManagement from '../pages/portal/UserManagement';
@@ -70,6 +71,7 @@ function AppRoutes() {
                     '/patient/book-follow-up': BookFollowUp,
                     '/patient/appointments': PatientAppointments,
                     '/patient/dental-records': PatientDentalRecords,
+                    '/patient/dependents': MyDependents,
                     '/patient/profile': MyProfile,
                 })}
             </Route>

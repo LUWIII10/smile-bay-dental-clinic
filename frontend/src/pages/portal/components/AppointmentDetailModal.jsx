@@ -145,7 +145,16 @@ function AppointmentDetailModal({ appointmentId, onClose }) {
           <div className="detail-grid">
             <div className="detail-field">
               <span className="detail-label">Patient</span>
-              <span className="detail-value">{detail.patient.first_name} {detail.patient.last_name}</span>
+              <span className="detail-value">
+                {detail.patient.first_name} {detail.patient.last_name}
+                {detail.patient.is_dependent && <span className="minor-dependent-chip">Minor Dependent</span>}
+              </span>
+              {detail.patient.is_dependent && detail.patient.parent && (
+                <span className="detail-subnote">
+                  {detail.patient.relationship_to_parent ? `${detail.patient.relationship_to_parent.charAt(0).toUpperCase()}${detail.patient.relationship_to_parent.slice(1)} of ` : 'Dependent of '}
+                  {detail.patient.parent.first_name} {detail.patient.parent.last_name}
+                </span>
+              )}
             </div>
             {detail.patient.patient_number && (
               <div className="detail-field">

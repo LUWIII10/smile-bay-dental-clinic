@@ -127,8 +127,12 @@ class PatientAppointmentController extends Controller
             return response()->json(['data' => []]);
         }
 
-        $appointments = Appointment::where('patient_id', $patient->id)
+        $appointments = Appointment::whereIn('patient_id', $patient->relevantPatientIds())
             ->with([
+                // Only meaningful when this row belongs to a dependent
+                // rather than the logged-in patient themselves — lets the
+                // frontend show whose appointment each row actually is.
+                'patient:id,first_name,last_name,is_dependent',
                 'dentist:id,name',
                 'dentist.dentistProfile:id,user_id,photo_path',
                 'service:id,name,duration_minutes',
@@ -171,7 +175,7 @@ class PatientAppointmentController extends Controller
             return response()->json(['data' => []]);
         }
 
-        $recommendations = Appointment::where('patient_id', $patient->id)
+        $recommendations = Appointment::whereIn('patient_id', $patient->relevantPatientIds())
             ->withOpenFollowUpRecommendation()
             ->with([
                 'recommendedFollowUpService:id,name,duration_minutes',
@@ -195,7 +199,7 @@ class PatientAppointmentController extends Controller
     {
         $patient = $request->user()->patient;
 
-        if (! $patient || $appointment->patient_id !== $patient->id) {
+        if (! $patient || ! $patient->ownsAppointment($appointment)) {
             return response()->json(['message' => 'This appointment does not belong to you.'], 403);
         }
 
@@ -264,8 +268,10 @@ class PatientAppointmentController extends Controller
         // After the cancellation itself is safely committed — the 3-strike
         // policy escalation (see CancellationPolicyService) is a secondary
         // consequence, not something that should ever block or roll back
-        // the cancel it's reacting to.
-        $this->cancellationPolicy->evaluateAfterCancellation($patient);
+        // the cancel it's reacting to. Evaluated against whoever the
+        // appointment was actually FOR (a dependent has their own separate
+        // cancellation count from the parent managing their bookings).
+        $this->cancellationPolicy->evaluateAfterCancellation($appointment->patient);
 
         return response()->json(['message' => 'Appointment cancelled.', 'data' => $appointment]);
     }
@@ -283,7 +289,7 @@ class PatientAppointmentController extends Controller
     {
         $patient = $request->user()->patient;
 
-        if (! $patient || $appointment->patient_id !== $patient->id) {
+        if (! $patient || ! $patient->ownsAppointment($appointment)) {
             return response()->json(['message' => 'This appointment does not belong to you.'], 403);
         }
 
@@ -356,7 +362,7 @@ class PatientAppointmentController extends Controller
     {
         $patient = $request->user()->patient;
 
-        if (! $patient || $appointment->patient_id !== $patient->id) {
+        if (! $patient || ! $patient->ownsAppointment($appointment)) {
             return response()->json(['message' => 'This appointment does not belong to you.'], 403);
         }
 
@@ -440,7 +446,7 @@ class PatientAppointmentController extends Controller
     {
         $patient = $request->user()->patient;
 
-        if (! $patient || $appointment->patient_id !== $patient->id) {
+        if (! $patient || ! $patient->ownsAppointment($appointment)) {
             return response()->json(['message' => 'This appointment does not belong to you.'], 403);
         }
 
@@ -523,7 +529,7 @@ class PatientAppointmentController extends Controller
     {
         $patient = $request->user()->patient;
 
-        if (! $patient || $appointment->patient_id !== $patient->id) {
+        if (! $patient || ! $patient->ownsAppointment($appointment)) {
             return response()->json(['message' => 'This appointment does not belong to you.'], 403);
         }
 
@@ -598,7 +604,7 @@ class PatientAppointmentController extends Controller
     {
         $patient = $request->user()->patient;
 
-        if (! $patient || $appointment->patient_id !== $patient->id) {
+        if (! $patient || ! $patient->ownsAppointment($appointment)) {
             return response()->json(['message' => 'This appointment does not belong to you.'], 403);
         }
 
@@ -686,7 +692,7 @@ class PatientAppointmentController extends Controller
     {
         $patient = $request->user()->patient;
 
-        if (! $patient || $appointment->patient_id !== $patient->id) {
+        if (! $patient || ! $patient->ownsAppointment($appointment)) {
             return response()->json(['message' => 'This appointment does not belong to you.'], 403);
         }
 

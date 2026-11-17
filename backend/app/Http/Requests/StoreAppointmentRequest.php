@@ -31,6 +31,18 @@ class StoreAppointmentRequest extends FormRequest
                 Rule::exists('users', 'id')->where('role', 'dentist')->where('status', 'active'),
             ],
             'service_id' => ['required', 'integer', 'exists:services,id'],
+            // Omitted/null means "myself" — present means this booking is
+            // for one of the logged-in patient's own minor dependents.
+            // Re-checked (ownership, is_dependent) in AppointmentController
+            // ::store() itself; this is defense-in-depth, not the
+            // authoritative check, since the authoritative one needs the
+            // already-resolved $patient row anyway.
+            'dependent_id' => [
+                'nullable', 'integer',
+                Rule::exists('patients', 'id')
+                    ->where('is_dependent', true)
+                    ->where('parent_patient_id', $this->user()?->patient?->id),
+            ],
             // Additional Info (free-text notes) was dropped from the
             // booking wizard in favor of the structured Medical Record step
             // below — kept nullable (not removed) so old clients/rows never

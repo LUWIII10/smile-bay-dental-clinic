@@ -1002,7 +1002,10 @@ function PatientRecords() {
           <span className="cell-person">
             <span className="cell-avatar">{avatarUrl ? <img src={avatarUrl} alt="" /> : getInitials(name)}</span>
             <span className="cell-person-text">
-              <span className="cell-person-name" title={name}>{name}</span>
+              <span className="cell-person-name" title={name}>
+                {name}
+                {row.is_dependent && <span className="minor-dependent-chip">Minor</span>}
+              </span>
               <span className="cell-person-sub">{row.patient_number}</span>
             </span>
           </span>
@@ -1533,8 +1536,18 @@ function PatientRecords() {
                     {patientAvatarUrl ? <img src={patientAvatarUrl} alt="" /> : getInitials(patientFullName)}
                   </span>
                   <div>
-                    <div className="record-identity-name">{patient.first_name} {patient.middle_name} {patient.last_name}</div>
-                    <div className="record-identity-sub">{patient.patient_number}</div>
+                    <div className="record-identity-name">
+                      {patient.first_name} {patient.middle_name} {patient.last_name}
+                      {patient.is_dependent && <span className="minor-dependent-chip">Minor Dependent</span>}
+                    </div>
+                    {patient.is_dependent && patient.parent ? (
+                      <button type="button" className="record-identity-parent-link" onClick={() => openPatient(patient.parent.id)}>
+                        {patient.relationship_to_parent ? `${patient.relationship_to_parent.charAt(0).toUpperCase()}${patient.relationship_to_parent.slice(1)} of ` : 'Dependent of '}
+                        {patient.parent.first_name} {patient.parent.last_name}
+                      </button>
+                    ) : (
+                      <div className="record-identity-sub">{patient.patient_number}</div>
+                    )}
                   </div>
                 </div>
                 <StatusBadge
@@ -1543,6 +1556,18 @@ function PatientRecords() {
                   icon={patient.patient_type === 'cash' ? undefined : ShieldIcon}
                 />
               </div>
+
+              {patient.dependents?.length > 0 && (
+                <div className="dependents-of-strip">
+                  <span className="dependents-of-label">Dependents:</span>
+                  {patient.dependents.map((dep) => (
+                    <button type="button" key={dep.id} className="dep-chip-btn" onClick={() => openPatient(dep.id)}>
+                      {dep.first_name} {dep.last_name}
+                      <span className="dep-chip-rel">({dep.relationship_to_parent})</span>
+                    </button>
+                  ))}
+                </div>
+              )}
 
               <div className="record-info-card">
                 <div className="record-field">

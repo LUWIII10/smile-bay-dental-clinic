@@ -2557,3 +2557,24 @@
     padding: 0 !important;
   }
 }
+
+/* Minor-dependent context — a dependent is its own patients row with no
+   login of its own (see the 2026_11_17_000100 migration's doc comment).
+   This one small badge is shared across every place a patient's name
+   renders for staff: Patient Records' header and search table,
+   AppointmentDetailModal. Lives here (not a page-specific stylesheet)
+   since dashboards.css is already imported by all of them. */
+.minor-dependent-chip {
+  display: inline-block;
+  margin-left: 8px;
+  vertical-align: middle;
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--portal-indigo-bg);
+  color: var(--portal-indigo-text);
+  border: 1px solid var(--portal-indigo-border);
+}

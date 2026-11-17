@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\DentistAvailabilityController;
 use App\Http\Controllers\Api\DentistController;
 use App\Http\Controllers\Api\DentistScheduleController;
+use App\Http\Controllers\Api\DependentController;
 use App\Http\Controllers\Api\HmoProviderController;
 use App\Http\Controllers\Api\MedicalRecordController;
 use App\Http\Controllers\Api\MedicalReviewController;
@@ -100,6 +101,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/patient/dashboard-summary', [PatientAppointmentController::class, 'summary']);
         Route::get('/patient/medical-record/latest', [MedicalRecordController::class, 'latest']);
         Route::get('/patient/medical-record/history', [MedicalRecordController::class, 'history']);
+        Route::get('/patient/dependents', [DependentController::class, 'index']);
+        Route::post('/patient/dependents', [DependentController::class, 'store']);
+        Route::put('/patient/dependents/{dependent}', [DependentController::class, 'update']);
+        Route::delete('/patient/dependents/{dependent}', [DependentController::class, 'destroy']);
+        Route::get('/patient/dependents/{dependent}/dental-record', [DependentController::class, 'dentalRecord']);
     });
 
     Route::middleware('role:dentist')->group(function () {

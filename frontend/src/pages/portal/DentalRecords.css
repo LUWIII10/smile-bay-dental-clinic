@@ -128,6 +128,60 @@
   margin-top: 1px;
 }
 
+.record-identity-parent-link {
+  border: none;
+  background: none;
+  padding: 0;
+  font-size: 0.78rem;
+  color: var(--portal-blue);
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 1px;
+}
+
+.record-identity-parent-link:hover {
+  text-decoration: underline;
+}
+
+.dependents-of-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.dependents-of-label {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--portal-muted);
+}
+
+.dep-chip-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid var(--portal-border-light);
+  background: #fff;
+  border-radius: 999px;
+  padding: 4px 11px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--portal-slate);
+  cursor: pointer;
+}
+
+.dep-chip-btn:hover {
+  border-color: var(--portal-blue-border);
+  color: var(--portal-blue);
+}
+
+.dep-chip-rel {
+  font-weight: 400;
+  color: var(--portal-muted);
+  text-transform: lowercase;
+}
+
 .record-field {
   display: flex;
   gap: 11px;
@@ -1649,6 +1703,72 @@
     color: var(--portal-muted);
     text-align: center;
   }
+}
+
+/* ---- "Myself" / dependent switcher, My Dental Records ---- */
+.dentalrec-switcher {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.dentalrec-switcher-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1.5px solid var(--portal-border-light);
+  background: var(--portal-card);
+  border-radius: 999px;
+  padding: 7px 15px 7px 7px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--portal-slate);
+  cursor: pointer;
+}
+
+.dentalrec-switcher-pill.active {
+  border-color: var(--portal-blue);
+  background: var(--portal-blue-tint);
+  color: var(--portal-blue);
+}
+
+.dentalrec-switcher-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.64rem;
+  font-weight: 700;
+  color: #fff;
+  flex: none;
+}
+
+.dentalrec-switcher-avatar svg {
+  width: 13px;
+  height: 13px;
+}
+
+.dentalrec-viewing-banner {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 0.82rem;
+  color: var(--portal-navy);
+  background: var(--portal-indigo-bg);
+  border: 1px solid var(--portal-indigo-border);
+  border-radius: var(--portal-radius-sm);
+  padding: 10px 14px;
+  margin-bottom: 16px;
+}
+
+.dentalrec-viewing-banner svg {
+  width: 16px;
+  height: 16px;
+  color: var(--portal-indigo-text);
+  flex: none;
 }
 
 /* A4 portrait, 15mm margins — same values as Reports.css's @page rule.

@@ -409,7 +409,14 @@ function PatientAppointments() {
       minWidthPx: '170px',
       clampLines: 2,
       align: 'center',
-      render: (row) => <span className="cell-service" title={row.service?.name}>{row.service?.name}</span>,
+      render: (row) => (
+        <span className="cell-service-wrap">
+          <span className="cell-service" title={row.service?.name}>{row.service?.name}</span>
+          {row.patient?.is_dependent && (
+            <span className="cell-dependent-tag">for {row.patient.first_name} {row.patient.last_name}</span>
+          )}
+        </span>
+      ),
     },
     {
       key: 'dentist',

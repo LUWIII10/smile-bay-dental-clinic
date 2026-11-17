@@ -211,6 +211,9 @@ class StaffAppointmentController extends Controller
         $appointment->load([
             'patient.user',
             'patient.hmoProvider:id,name',
+            // Minor-dependent context for the appointment detail modal's
+            // own badge — null for every ordinary (non-dependent) patient.
+            'patient.parent:id,first_name,last_name',
             'dentist:id,name,email',
             'dentist.dentistProfile:id,user_id,photo_path',
             'service',

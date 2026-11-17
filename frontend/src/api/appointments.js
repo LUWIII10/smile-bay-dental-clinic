@@ -74,8 +74,10 @@ export async function resolveDentist(serviceId, date, time) {
 // completed appointment whose recommendation this booking must fulfill.
 // Omit it for a regular booking. medicalRecord is the Medical Record step's
 // full answer set (see MedicalRecordStep.jsx) — required on every booking
-// now that Additional Info (notes) has been replaced by it.
-export async function createAppointment({ dentistId, serviceId, date, time, fulfillsAppointmentId, medicalRecord }) {
+// now that Additional Info (notes) has been replaced by it. dependentId is
+// optional — set when the "Who is this for?" step picked one of the
+// patient's own minor dependents instead of "Myself".
+export async function createAppointment({ dentistId, serviceId, date, time, fulfillsAppointmentId, medicalRecord, dependentId }) {
   await api.get('/sanctum/csrf-cookie');
   const response = await api.post('/api/appointments', {
     dentist_id: dentistId,
@@ -84,23 +86,27 @@ export async function createAppointment({ dentistId, serviceId, date, time, fulf
     appointment_time: time,
     fulfills_appointment_id: fulfillsAppointmentId,
     medical_record: medicalRecord,
+    dependent_id: dependentId || undefined,
   });
   return response.data;
 }
 
-// Prefill source for the Medical Record step — the patient's own most
-// recent visit's answers, or null if they've never completed one under
-// this flow yet (a brand-new patient, or one who registered before this
-// feature shipped).
-export async function getLatestMedicalRecord() {
-  const response = await api.get('/api/patient/medical-record/latest');
+// Prefill source for the Medical Record step — the patient's own (or, with
+// dependentId, a dependent's own) most recent visit's answers, or null if
+// nobody's ever completed one under this flow yet.
+export async function getLatestMedicalRecord(dependentId) {
+  const response = await api.get('/api/patient/medical-record/latest', {
+    params: dependentId ? { dependent_id: dependentId } : {},
+  });
   return response.data.data;
 }
 
 // Every visit's Medical Record, newest first — "My Dental Records" page's
-// own read-only history section.
-export async function getMedicalRecordHistory() {
-  const response = await api.get('/api/patient/medical-record/history');
+// own read-only history section. dependentId optional, same as above.
+export async function getMedicalRecordHistory(dependentId) {
+  const response = await api.get('/api/patient/medical-record/history', {
+    params: dependentId ? { dependent_id: dependentId } : {},
+  });
   return response.data.data;
 }
 
