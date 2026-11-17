@@ -397,6 +397,135 @@
   color: var(--portal-muted);
 }
 
+/* Quick-read digest above the row list — total visits, how many were
+   flagged, and the single most frequently flagged condition, so staff
+   don't have to scroll a long history just to get the gist. */
+.medrec-stats {
+  display: flex;
+  gap: 22px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.medrec-stat-num {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--portal-navy);
+  font-variant-numeric: tabular-nums;
+}
+
+.medrec-stat-label {
+  font-size: 0.68rem;
+  color: var(--portal-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-top: 1px;
+}
+
+.medrec-stat--flag .medrec-stat-num {
+  color: var(--portal-amber-text);
+}
+
+/* Collapsed-row flag badges cap at 2 (see PatientRecords.jsx) — this is
+   the "+N" overflow count, kept on one line instead of letting a
+   third/fourth badge wrap the row onto a second line. */
+.medrec-flag-more {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--portal-muted);
+  flex-shrink: 0;
+  align-self: center;
+}
+
+/* Expanded-row detail: flagged ("Yes") questions lead, each in its own
+   highlighted line with its note — instead of a full 6-row Yes/No grid
+   where only one or two rows actually matter. */
+.medrec-flagged-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.medrec-flagged-item {
+  display: flex;
+  gap: 10px;
+  padding: 9px 11px;
+  background: var(--portal-red-bg);
+  border: 1px solid var(--portal-red-border);
+  border-radius: var(--portal-radius-sm);
+  font-size: 0.82rem;
+}
+
+.medrec-flagged-item strong {
+  color: var(--portal-red-text);
+  flex-shrink: 0;
+}
+
+.medrec-flagged-item span {
+  color: var(--portal-slate);
+}
+
+/* Either the "everything was No" summary, or the complement list next to
+   .medrec-flagged-list above ("X, Y and Z were answered No") — same
+   muted, low-emphasis treatment either way. */
+.medrec-clear-note {
+  font-size: 0.78rem;
+  color: var(--portal-muted);
+  background: var(--portal-canvas);
+  border: 1px dashed var(--portal-border-light);
+  border-radius: var(--portal-radius-sm);
+  padding: 8px 11px;
+  margin: 0 0 10px;
+  line-height: 1.5;
+}
+
+.medrec-showall-btn {
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--portal-blue);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  margin-bottom: 10px;
+  font-family: inherit;
+  display: inline-block;
+}
+
+.medrec-showall-btn:hover {
+  text-decoration: underline;
+}
+
+/* "Show N older records" reveal — only the MEDREC_VISIBLE_COUNT most
+   recent rows render by default; everything before that sits behind this
+   button so a years-long patient history doesn't render (or need to be
+   scrolled past) as one unbounded list. */
+.medrec-older-wrap {
+  margin-top: 4px;
+}
+
+.medrec-timeline--older {
+  margin-bottom: 8px;
+}
+
+.medrec-older-btn {
+  width: 100%;
+  padding: 10px;
+  border: 1px dashed var(--portal-border);
+  border-radius: var(--portal-radius-sm);
+  background: var(--portal-canvas);
+  color: var(--portal-blue);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.medrec-older-btn:hover {
+  background: var(--portal-blue-tint);
+}
+
 .record-field--with-action {
   justify-content: space-between;
   width: 100%;

@@ -200,9 +200,22 @@ function checkNoteLengthForCompletion(note) {
 
 // Same question list the booking wizard and the appointment quick-check
 // panel both read from — a condition reads identically everywhere.
-function flaggedLabels(record) {
+// Pairs each flagged ("Yes") question with its note, if any, so the
+// Medical Record History row can lead with what's actually flagged
+// instead of a full Yes/No grid.
+function medicalRecordFlags(record) {
   return [...MEDICAL_RECORD_QUESTIONS, PREGNANCY_QUESTION]
     .filter((q) => record[q.key] === true)
+    .map((q) => ({ label: q.label, note: record[`${q.key}_notes`] || null }));
+}
+
+// The complementary "No" list — everything NOT flagged for this visit,
+// collapsed into one summary line instead of one row per question.
+// Pregnant/breastfeeding only counts when it was actually asked (male
+// patients have it stored as null, not false).
+function medicalRecordClearLabels(record) {
+  return [...MEDICAL_RECORD_QUESTIONS, ...(record.pregnant_or_breastfeeding !== null ? [PREGNANCY_QUESTION] : [])]
+    .filter((q) => record[q.key] === false)
     .map((q) => q.label);
 }
 
@@ -365,6 +378,16 @@ function PatientRecords() {
   const [expandedMedicalRecordIds, setExpandedMedicalRecordIds] = useState([]);
   const toggleMedicalRecordExpanded = (id) =>
     setExpandedMedicalRecordIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  // Per-row "Show full checklist" reveal inside an expanded Medical Record
+  // entry — separate from expandedMedicalRecordIds above, which only
+  // controls whether the row is open at all.
+  const [checklistShownIds, setChecklistShownIds] = useState([]);
+  const toggleChecklistShown = (id) =>
+    setChecklistShownIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  // Only the MEDREC_VISIBLE_COUNT most recent Medical Record entries render
+  // by default — a long-time patient's history otherwise renders every
+  // past visit's accordion row at once with no cap.
+  const [showOlderMedicalRecords, setShowOlderMedicalRecords] = useState(false);
   const [toothForm, setToothForm] = useState({ condition: 'healthy', notes: '' });
   const [savingTooth, setSavingTooth] = useState(false);
   // Print-only date filter — scopes Treatment History (by performed_at) and
@@ -562,6 +585,8 @@ function PatientRecords() {
     if (selectedPatientId) {
       setSelectedTooth(null);
       setExpandedMedicalRecordIds([]);
+      setChecklistShownIds([]);
+      setShowOlderMedicalRecords(false);
       loadDetail(selectedPatientId);
     }
   }, [selectedPatientId, loadDetail]);
@@ -1162,6 +1187,103 @@ function PatientRecords() {
     // toggling a row flips it away from that default rather than tracking
     // every row's state explicitly.
     const medicalRecordHistory = patient?.medical_records || [];
+    // Only the MEDREC_VISIBLE_COUNT most recent entries render up front —
+    // everything older sits behind the "Show older records" button below,
+    // so a years-long patient history doesn't render every row at once.
+    const MEDREC_VISIBLE_COUNT = 5;
+    const visibleMedicalRecords = medicalRecordHistory.slice(0, MEDREC_VISIBLE_COUNT);
+    const olderMedicalRecords = medicalRecordHistory.slice(MEDREC_VISIBLE_COUNT);
+    const medicalRecordFlaggedVisitCount = medicalRecordHistory.filter((rec) => medicalRecordFlags(rec).length > 0).length;
+    const medicalRecordTopFlagLabel = (() => {
+      const counts = {};
+      medicalRecordHistory.forEach((rec) => {
+        medicalRecordFlags(rec).forEach(({ label }) => {
+          counts[label] = (counts[label] || 0) + 1;
+        });
+      });
+      const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+      return sorted[0]?.[0] || null;
+    })();
+
+    // Shared row renderer for both the always-visible recent entries and
+    // the "older records" reveal below them — same markup either way.
+    const renderMedicalRecordRow = (rec, index) => {
+      const open = isMedicalRecordOpen(rec, index);
+      const flags = medicalRecordFlags(rec);
+      const clearLabels = medicalRecordClearLabels(rec);
+      const checklistShown = checklistShownIds.includes(rec.id);
+      const visibleFlags = flags.slice(0, 2);
+      const extraFlagCount = flags.length - visibleFlags.length;
+      const checklistCount = MEDICAL_RECORD_QUESTIONS.length + (rec.pregnant_or_breastfeeding !== null ? 1 : 0);
+      return (
+        <div key={rec.id} className={`medrec-timeline-item${open ? ' medrec-timeline-item--open' : ''}`}>
+          <button type="button" className="medrec-timeline-top" onClick={() => toggleMedicalRecordExpanded(rec.id)}>
+            <span>
+              <span className="medrec-timeline-date">
+                {formatDate(rec.created_at)}{index === 0 && <span className="medrec-latest-chip">LATEST</span>}
+              </span>
+              <span className="medrec-timeline-service">{rec.appointment?.service?.name || 'Visit'}</span>
+            </span>
+            <span className="medrec-timeline-right">
+              <span className="medrec-timeline-flags">
+                {visibleFlags.length > 0 ? visibleFlags.map((flag) => (
+                  <span key={flag.label} className="medrec-flag-badge">{flag.label}</span>
+                )) : <span className="medrec-flag-badge medrec-flag-badge--none">None flagged</span>}
+                {extraFlagCount > 0 && <span className="medrec-flag-more">+{extraFlagCount}</span>}
+              </span>
+              <ChevronDownIcon open={open} />
+            </span>
+          </button>
+          {open && (
+            <div className="medrec-timeline-body">
+              {flags.length > 0 ? (
+                <div className="medrec-flagged-list">
+                  {flags.map((flag) => (
+                    <div key={flag.label} className="medrec-flagged-item">
+                      <strong>{flag.label}</strong>
+                      {flag.note && <span>{flag.note}</span>}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="medrec-clear-note">All health questions were answered &ldquo;No&rdquo; at this visit.</p>
+              )}
+              {flags.length > 0 && clearLabels.length > 0 && (
+                <p className="medrec-clear-note">
+                  {clearLabels.join(', ')} {clearLabels.length === 1 ? 'was' : 'were'} answered &ldquo;No&rdquo;.
+                </p>
+              )}
+              <button type="button" className="medrec-showall-btn" onClick={() => toggleChecklistShown(rec.id)}>
+                {checklistShown ? 'Hide full checklist' : `Show full checklist (${checklistCount} questions)`}
+              </button>
+              {checklistShown && (
+                <div className="medrec-qa-grid">
+                  {[...MEDICAL_RECORD_QUESTIONS, ...(rec.pregnant_or_breastfeeding !== null ? [PREGNANCY_QUESTION] : [])].map(({ key, label }) => (
+                    <div key={key} className="medrec-qa-row">
+                      <span className="medrec-qa-label">{label}</span>
+                      <span className={`medrec-qa-answer${rec[key] ? ' medrec-qa-answer--yes' : ' medrec-qa-answer--no'}`}>
+                        {rec[key] ? 'Yes' : 'No'}
+                      </span>
+                      {rec[key] && rec[`${key}_notes`] && (
+                        <span className="medrec-qa-note">&#8618; {rec[`${key}_notes`]}</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="medrec-timeline-footer">
+                <span>Other concerns: {rec.other_concerns || 'None declared'}</span>
+                <span>
+                  {rec.consent_given && rec.consent_at
+                    ? `Consent given ${new Date(rec.consent_at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}`
+                    : 'Consent not on file'}
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    };
     const isMedicalRecordOpen = (rec, index) => {
       const toggled = expandedMedicalRecordIds.includes(rec.id);
       const defaultOpen = index === 0;
@@ -1700,61 +1822,37 @@ function PatientRecords() {
                 <p className="medrec-history-intro">
                   Collected fresh at every booking — each visit below is exactly what the patient told us at that time, kept rather than overwritten.
                 </p>
-                <div className="medrec-timeline">
-                  {medicalRecordHistory.map((rec, index) => {
-                    const open = isMedicalRecordOpen(rec, index);
-                    const flags = flaggedLabels(rec);
-                    return (
-                      <div key={rec.id} className={`medrec-timeline-item${open ? ' medrec-timeline-item--open' : ''}`}>
-                        <button
-                          type="button"
-                          className="medrec-timeline-top"
-                          onClick={() => toggleMedicalRecordExpanded(rec.id)}
-                        >
-                          <span>
-                            <span className="medrec-timeline-date">
-                              {formatDate(rec.created_at)}{index === 0 && <span className="medrec-latest-chip">LATEST</span>}
-                            </span>
-                            <span className="medrec-timeline-service">{rec.appointment?.service?.name || 'Visit'}</span>
-                          </span>
-                          <span className="medrec-timeline-right">
-                            <span className="medrec-timeline-flags">
-                              {flags.length > 0 ? flags.map((label) => (
-                                <span key={label} className="medrec-flag-badge">{label}</span>
-                              )) : <span className="medrec-flag-badge medrec-flag-badge--none">None flagged</span>}
-                            </span>
-                            <ChevronDownIcon open={open} />
-                          </span>
-                        </button>
-                        {open && (
-                          <div className="medrec-timeline-body">
-                            <div className="medrec-qa-grid">
-                              {[...MEDICAL_RECORD_QUESTIONS, ...(rec.pregnant_or_breastfeeding !== null ? [PREGNANCY_QUESTION] : [])].map(({ key, label }) => (
-                                <div key={key} className="medrec-qa-row">
-                                  <span className="medrec-qa-label">{label}</span>
-                                  <span className={`medrec-qa-answer${rec[key] ? ' medrec-qa-answer--yes' : ' medrec-qa-answer--no'}`}>
-                                    {rec[key] ? 'Yes' : 'No'}
-                                  </span>
-                                  {rec[key] && rec[`${key}_notes`] && (
-                                    <span className="medrec-qa-note">&#8618; {rec[`${key}_notes`]}</span>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                            <div className="medrec-timeline-footer">
-                              <span>Other concerns: {rec.other_concerns || 'None declared'}</span>
-                              <span>
-                                {rec.consent_given && rec.consent_at
-                                  ? `Consent given ${new Date(rec.consent_at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}`
-                                  : 'Consent not on file'}
-                              </span>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
+                <div className="medrec-stats">
+                  <div>
+                    <div className="medrec-stat-num">{medicalRecordHistory.length}</div>
+                    <div className="medrec-stat-label">Total visits recorded</div>
+                  </div>
+                  <div className="medrec-stat--flag">
+                    <div className="medrec-stat-num">{medicalRecordFlaggedVisitCount}</div>
+                    <div className="medrec-stat-label">Visits with a flag</div>
+                  </div>
+                  {medicalRecordTopFlagLabel && (
+                    <div>
+                      <div className="medrec-stat-num">{medicalRecordTopFlagLabel}</div>
+                      <div className="medrec-stat-label">Most common flag</div>
+                    </div>
+                  )}
                 </div>
+                <div className="medrec-timeline">
+                  {visibleMedicalRecords.map((rec, index) => renderMedicalRecordRow(rec, index))}
+                </div>
+                {olderMedicalRecords.length > 0 && (
+                  <div className="medrec-older-wrap">
+                    {showOlderMedicalRecords && (
+                      <div className="medrec-timeline medrec-timeline--older">
+                        {olderMedicalRecords.map((rec, index) => renderMedicalRecordRow(rec, index + visibleMedicalRecords.length))}
+                      </div>
+                    )}
+                    <button type="button" className="medrec-older-btn" onClick={() => setShowOlderMedicalRecords((v) => !v)}>
+                      {showOlderMedicalRecords ? 'Hide older records ↑' : `Show ${olderMedicalRecords.length} older record${olderMedicalRecords.length === 1 ? '' : 's'} ↓`}
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
