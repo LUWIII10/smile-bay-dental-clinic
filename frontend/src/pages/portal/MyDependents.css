@@ -146,12 +146,6 @@
   justify-content: center;
 }
 
-.dep-card-foot-danger:hover {
-  border-color: var(--portal-red-border);
-  color: var(--portal-red-text);
-  background: var(--portal-red-bg);
-}
-
 .note-strip {
   display: flex;
   gap: 10px;

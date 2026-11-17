@@ -343,15 +343,15 @@ function MyDependents() {
                   </div>
                   <div className="dep-card-foot">
                     <div className="dep-card-foot-row">
-                      <Link className="dash-btn dash-btn--outline dash-btn--sm" to={`/patient/dental-records?dependent=${dep.id}`}>
+                      <Link className="dash-btn dash-btn--sm" to={`/patient/dental-records?dependent=${dep.id}`}>
                         <ToothIcon /> View Dental Record
                       </Link>
                     </div>
                     <div className="dep-card-foot-row">
-                      <button type="button" className="dash-btn dash-btn--outline dash-btn--sm" onClick={() => openEdit(dep)}>
+                      <button type="button" className="dash-btn dash-btn--success dash-btn--sm" onClick={() => openEdit(dep)}>
                         <EditIcon /> Edit
                       </button>
-                      <button type="button" className="dash-btn dash-btn--outline dash-btn--sm dep-card-foot-danger" onClick={() => { setRemoving(dep); setRemoveError(''); }}>
+                      <button type="button" className="dash-btn dash-btn--danger dash-btn--sm" onClick={() => { setRemoving(dep); setRemoveError(''); }}>
                         <TrashIcon /> Remove
                       </button>
                     </div>
