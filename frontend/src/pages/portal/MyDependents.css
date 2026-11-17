@@ -5,11 +5,18 @@
 
 .dep-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  /* auto-fit (not auto-fill): with only one or two cards, auto-fill still
+     reserves empty same-width tracks to fill the row, which squeezes the
+     real card(s) down to the 230px minimum instead of letting them grow
+     into that space — the exact bug that pushed the footer row's buttons
+     past the card's own right edge. auto-fit collapses those empty tracks
+     so a lone card actually gets the extra width the 1fr promises. */
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
   gap: 14px;
 }
 
 .dep-card {
+  min-width: 0;
   border: 1px solid var(--portal-border-light);
   border-radius: 14px;
   padding: 16px;
@@ -28,6 +35,17 @@
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+.dep-card-top > div {
+  min-width: 0;
+}
+
+.dep-name,
+.dep-meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .dep-avatar {
@@ -110,33 +128,25 @@
 
 .dep-card-foot {
   display: flex;
-  gap: 7px;
-  align-items: center;
+  flex-direction: column;
+  gap: 8px;
   margin-top: auto;
   padding-top: 11px;
   border-top: 1px solid var(--portal-border-light);
 }
 
-.icon-btn {
-  width: 32px;
-  height: 32px;
-  flex: none;
-  border-radius: 8px;
-  border: 1px solid var(--portal-border-light);
-  background: #fff;
-  color: var(--portal-muted);
+.dep-card-foot-row {
   display: flex;
-  align-items: center;
+  gap: 7px;
+}
+
+.dep-card-foot-row .dash-btn,
+.dep-card-foot-row .dash-btn--outline {
+  flex: 1;
   justify-content: center;
-  cursor: pointer;
 }
 
-.icon-btn:hover {
-  border-color: var(--portal-border);
-  color: var(--portal-slate);
-}
-
-.icon-btn--danger:hover {
+.dep-card-foot-danger:hover {
   border-color: var(--portal-red-border);
   color: var(--portal-red-text);
   background: var(--portal-red-bg);
