@@ -29,16 +29,23 @@ class MedicalReviewController extends Controller
     public function __construct(private ClinicalSafetyService $clinicalSafety) {}
 
     /**
-     * This dentist's own bookings still awaiting their clinical-safety
-     * call. Same dentist_id-scoping reasoning as
+     * A dentist sees only their own bookings still awaiting their
+     * clinical-safety call (same dentist_id-scoping reasoning as
      * PediatricVerificationController::index() — a flagged booking is
-     * only ever assigned to the dentist who'd perform it.
+     * only ever decided by the dentist who'd perform it). dental_assistant
+     * and admin see every dentist's flagged bookings instead, for
+     * coordination/visibility — they can look, but only the assigned
+     * dentist can decide one (decide() is dentist-only, route and
+     * ownership check alike).
      */
     public function index(Request $request)
     {
-        $appointments = Appointment::awaitingMedicalReview($request->user()->id)
+        $isDentist = $request->user()->role === 'dentist';
+
+        $appointments = Appointment::awaitingMedicalReview($isDentist ? $request->user()->id : null)
             ->with([
                 'patient:id,patient_number,first_name,last_name',
+                'dentist:id,name',
                 'service:id,name,duration_minutes,involves_xray,involves_sedation,is_surgical',
                 'medicalRecord',
             ])

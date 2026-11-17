@@ -334,6 +334,15 @@
   color: var(--portal-muted);
 }
 
+.mrq-footnote--waiting {
+  margin: 0;
+  padding: 10px 12px;
+  background: var(--portal-blue-tint);
+  border-radius: 10px;
+  font-weight: 500;
+  color: var(--portal-blue-text);
+}
+
 /* ---- empty states ---- */
 .mrq-empty {
   text-align: center;

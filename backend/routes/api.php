@@ -128,7 +128,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::patch('/pediatric/appointments/{appointment}/verify', [PediatricVerificationController::class, 'verify']);
         Route::patch('/pediatric/appointments/{appointment}/propose-new-date', [PediatricVerificationController::class, 'proposeNewDate']);
 
-        Route::get('/medical-review/queue', [MedicalReviewController::class, 'index']);
+        // Deciding one is dentist-only — see decide()'s own ownership
+        // check. The queue listing itself moved to the shared
+        // dentist/dental_assistant/admin group below, since staff can see
+        // every dentist's flagged bookings for coordination.
         Route::patch('/medical-review/appointments/{appointment}/decide', [MedicalReviewController::class, 'decide']);
 
         // Dental-record writes are dentist-only (matches those tables' own
@@ -148,6 +151,8 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     Route::middleware('role:dentist,dental_assistant,admin')->group(function () {
+        Route::get('/medical-review/queue', [MedicalReviewController::class, 'index']);
+
         Route::get('/patient-records', [PatientRecordController::class, 'index']);
         // Must resolve before /patient-records/{patient} below, or Laravel
         // tries (and fails) to route-model-bind "by-date" as a patient id —

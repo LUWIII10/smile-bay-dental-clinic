@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useAuth } from '../../context/AuthContext';
 import { getMedicalReviewQueue, decideMedicalReview } from '../../api/appointments';
 import { MEDICAL_RECORD_QUESTIONS, PREGNANCY_QUESTION } from './components/MedicalRecordStep';
 import Modal from './components/Modal';
@@ -58,7 +59,7 @@ function flaggedLabels(record) {
     .map((q) => q.label);
 }
 
-function QueueCard({ appointment, actingId, onApprove, onDecide }) {
+function QueueCard({ appointment, actingId, onApprove, onDecide, isDentist }) {
   const isCash = appointment.patient_type_snapshot === 'cash';
   const isActing = actingId === appointment.id;
   const patientName = `${appointment.patient?.first_name || ''} ${appointment.patient?.last_name || ''}`.trim();
@@ -96,6 +97,12 @@ function QueueCard({ appointment, actingId, onApprove, onDecide }) {
       ))}
 
       <div className="mrq-grid">
+        {!isDentist && (
+          <div>
+            <span className="mrq-field-label">Assigned Dentist</span>
+            <span className="mrq-field-value">{appointment.dentist?.name || 'Unassigned'}</span>
+          </div>
+        )}
         <div>
           <span className="mrq-field-label">Requested</span>
           <span className="mrq-field-value">
@@ -112,16 +119,22 @@ function QueueCard({ appointment, actingId, onApprove, onDecide }) {
         </div>
       </div>
 
-      <div className="mrq-actions">
-        <button type="button" className="mrq-btn mrq-btn--approve" disabled={isActing} onClick={() => onApprove(appointment)}>
-          <CheckCircleIcon /> {isActing ? 'Saving…' : 'Approve'}
-        </button>
-        <button type="button" className="mrq-btn mrq-btn--decline" disabled={isActing} onClick={() => onDecide(appointment)}>
-          Can&rsquo;t Confirm
-        </button>
-      </div>
+      {isDentist ? (
+        <div className="mrq-actions">
+          <button type="button" className="mrq-btn mrq-btn--approve" disabled={isActing} onClick={() => onApprove(appointment)}>
+            <CheckCircleIcon /> {isActing ? 'Saving…' : 'Approve'}
+          </button>
+          <button type="button" className="mrq-btn mrq-btn--decline" disabled={isActing} onClick={() => onDecide(appointment)}>
+            Can&rsquo;t Confirm
+          </button>
+        </div>
+      ) : (
+        <p className="mrq-footnote mrq-footnote--waiting">
+          Waiting on {appointment.dentist?.name || 'the assigned dentist'}&rsquo;s own clinical review — view only here.
+        </p>
+      )}
 
-      {!isCash && (
+      {isDentist && !isCash && (
         <p className="mrq-footnote">
           Approving moves this to HMO coverage verification next (not straight to confirmed) — it&rsquo;s still an HMO booking.
         </p>
@@ -137,6 +150,8 @@ function QueueCard({ appointment, actingId, onApprove, onDecide }) {
 // dentist_id = auth user, so a dentist with nothing flagged just sees an
 // empty queue.
 function MedicalReviewQueue() {
+  const { role } = useAuth();
+  const isDentist = role === 'dentist';
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -232,7 +247,11 @@ function MedicalReviewQueue() {
       <PageHeader
         icon={AlertIcon}
         title="Clinical Review Queue"
-        subtitle="Bookings flagged for a health-information conflict with the service — only you can clear these."
+        subtitle={
+          isDentist
+            ? "Bookings flagged for a health-information conflict with the service — only you can clear these."
+            : "Bookings flagged for a health-information conflict with the service, across every dentist — view only; each dentist clears their own."
+        }
       >
         <span className="mrq-count-pill"><b>{loading ? '…' : filtered.length}</b> awaiting review</span>
       </PageHeader>
@@ -301,6 +320,7 @@ function MedicalReviewQueue() {
             actingId={actingId}
             onApprove={handleApprove}
             onDecide={openDecide}
+            isDentist={isDentist}
           />
         ))
       )}

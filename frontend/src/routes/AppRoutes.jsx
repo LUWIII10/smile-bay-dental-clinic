@@ -104,6 +104,7 @@ function AppRoutes() {
                     '/assistant/dashboard': AssistantDashboard,
                     '/assistant/appointments': AllAppointments,
                     '/assistant/hmo-verification': HmoVerificationQueue,
+                    '/assistant/medical-review': MedicalReviewQueue,
                     '/assistant/patient-records': PatientRecords,
                     '/assistant/profile': MyProfile,
                 })}
@@ -120,6 +121,7 @@ function AppRoutes() {
                     '/admin/dashboard': AdminDashboard,
                     '/admin/appointments': AllAppointments,
                     '/admin/hmo-verification': HmoVerificationQueue,
+                    '/admin/medical-review': MedicalReviewQueue,
                     '/admin/patient-records': PatientRecords,
                     '/admin/users': UserManagement,
                     '/admin/activity-log': ActivityLog,

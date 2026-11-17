@@ -127,11 +127,18 @@ class Appointment extends Model
     // This dentist's own bookings still waiting on their clinical-safety
     // call — mirrors scopeAwaitingPediatricReview()'s own shape/reasoning,
     // a separate queue since this is a clinical judgment, not insurance.
-    public function scopeAwaitingMedicalReview(Builder $query, int $dentistId): Builder
+    // $dentistId is null for dental_assistant/admin's own read-only view of
+    // this same queue (MedicalReviewController::index()) — they can see
+    // every dentist's flagged bookings for coordination, but only the
+    // assigned dentist can actually decide one (still enforced in decide()
+    // itself, not just by which routes reach it).
+    public function scopeAwaitingMedicalReview(Builder $query, ?int $dentistId = null): Builder
     {
-        return $query->where('dentist_id', $dentistId)
-            ->where('medical_review_required', true)
-            ->where('medical_review_status', 'pending');
+        $query->where('medical_review_required', true)->where('medical_review_status', 'pending');
+        if ($dentistId !== null) {
+            $query->where('dentist_id', $dentistId);
+        }
+        return $query;
     }
 
     public function recommendedFollowUpService(): BelongsTo
