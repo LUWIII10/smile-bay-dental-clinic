@@ -132,6 +132,12 @@ class ClinicSettingsController extends Controller
             // rarer staff-only/walk-in-assessment case, not as an
             // extra required step every time.
             'is_patient_bookable' => ['sometimes', 'boolean'],
+            // Feeds ClinicalSafetyService — e.g. a service tagged
+            // involves_xray flags any booking where the patient declared
+            // pregnant/breastfeeding, for the assigned dentist to review.
+            'involves_xray' => ['sometimes', 'boolean'],
+            'involves_sedation' => ['sometimes', 'boolean'],
+            'is_surgical' => ['sometimes', 'boolean'],
         ]);
 
         $service = Service::create([
@@ -139,6 +145,9 @@ class ClinicSettingsController extends Controller
             'is_active' => true,
             'is_pediatric' => $validated['is_pediatric'] ?? false,
             'is_patient_bookable' => $validated['is_patient_bookable'] ?? true,
+            'involves_xray' => $validated['involves_xray'] ?? false,
+            'involves_sedation' => $validated['involves_sedation'] ?? false,
+            'is_surgical' => $validated['is_surgical'] ?? false,
         ]);
 
         return response()->json(['data' => $service], 201);
@@ -153,6 +162,9 @@ class ClinicSettingsController extends Controller
             'duration_minutes' => ['sometimes', 'integer', 'min:5', 'max:480'],
             'is_pediatric' => ['sometimes', 'boolean'],
             'is_patient_bookable' => ['sometimes', 'boolean'],
+            'involves_xray' => ['sometimes', 'boolean'],
+            'involves_sedation' => ['sometimes', 'boolean'],
+            'is_surgical' => ['sometimes', 'boolean'],
         ]);
 
         $service->update($validated);

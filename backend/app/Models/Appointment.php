@@ -52,6 +52,12 @@ class Appointment extends Model
         'hmo_status_note',
         'hmo_status_updated_at',
         'slot_released_at',
+        'medical_review_required',
+        'medical_review_status',
+        'medical_review_action',
+        'medical_review_notes',
+        'medical_reviewed_by',
+        'medical_reviewed_at',
     ];
 
     protected function casts(): array
@@ -69,6 +75,8 @@ class Appointment extends Model
             'follow_up_recommended_at' => 'datetime',
             'follow_up_fulfilled_at' => 'datetime',
             'slot_released_at' => 'datetime',
+            'medical_review_required' => 'boolean',
+            'medical_reviewed_at' => 'datetime',
         ];
     }
 
@@ -104,6 +112,26 @@ class Appointment extends Model
     public function pediatricConfirmedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'pediatric_confirmed_by');
+    }
+
+    public function medicalRecord(): HasOne
+    {
+        return $this->hasOne(AppointmentMedicalRecord::class);
+    }
+
+    public function medicalReviewedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'medical_reviewed_by');
+    }
+
+    // This dentist's own bookings still waiting on their clinical-safety
+    // call — mirrors scopeAwaitingPediatricReview()'s own shape/reasoning,
+    // a separate queue since this is a clinical judgment, not insurance.
+    public function scopeAwaitingMedicalReview(Builder $query, int $dentistId): Builder
+    {
+        return $query->where('dentist_id', $dentistId)
+            ->where('medical_review_required', true)
+            ->where('medical_review_status', 'pending');
     }
 
     public function recommendedFollowUpService(): BelongsTo

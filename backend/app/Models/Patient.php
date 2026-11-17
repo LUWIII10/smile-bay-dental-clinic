@@ -96,6 +96,20 @@ class Patient extends Model
         return $this->hasOne(DentalRecord::class);
     }
 
+    // Every visit's Medical Record, newest first — see
+    // AppointmentMedicalRecord's own doc comment on why these are never
+    // edited after creation. Denormalized patient_id means this never
+    // needs to join through appointments.
+    public function medicalRecords(): HasMany
+    {
+        return $this->hasMany(AppointmentMedicalRecord::class)->orderByDesc('created_at');
+    }
+
+    public function latestMedicalRecord(): HasOne
+    {
+        return $this->hasOne(AppointmentMedicalRecord::class)->latestOfMany('created_at');
+    }
+
     /**
      * "PT-{registration year}-{sequence}" — sequence is this row's own
      * auto-increment id, zero-padded to 4 digits (grows naturally past

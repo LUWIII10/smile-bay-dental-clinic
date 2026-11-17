@@ -40,7 +40,11 @@ import './Settings.css';
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const SERVICE_CATEGORIES = ['General Dentistry', 'Cosmetic Dentistry', 'Orthodontics', 'Specialist Services'];
-const EMPTY_SERVICE_FORM = { name: '', category: SERVICE_CATEGORIES[0], duration_minutes: 30, description: '', is_patient_bookable: true, is_pediatric: false };
+const EMPTY_SERVICE_FORM = {
+  name: '', category: SERVICE_CATEGORIES[0], duration_minutes: 30, description: '',
+  is_patient_bookable: true, is_pediatric: false,
+  involves_xray: false, involves_sedation: false, is_surgical: false,
+};
 const MONTH_LABELS = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December',
@@ -615,6 +619,9 @@ function Settings() {
       description: service.description || '',
       is_patient_bookable: service.is_patient_bookable ?? true,
       is_pediatric: service.is_pediatric ?? false,
+      involves_xray: service.involves_xray ?? false,
+      involves_sedation: service.involves_sedation ?? false,
+      is_surgical: service.is_surgical ?? false,
     });
     setServiceError('');
     setServiceModalOpen(true);
@@ -631,6 +638,9 @@ function Settings() {
         description: serviceForm.description.trim() || null,
         is_patient_bookable: serviceForm.is_patient_bookable,
         is_pediatric: serviceForm.is_pediatric,
+        involves_xray: serviceForm.involves_xray,
+        involves_sedation: serviceForm.involves_sedation,
+        is_surgical: serviceForm.is_surgical,
       };
       if (editingService) {
         await updateService(editingService.id, payload);
@@ -1287,6 +1297,55 @@ function Settings() {
             checked={serviceForm.is_pediatric}
             onChange={(v) => setServiceForm((p) => ({ ...p, is_pediatric: v }))}
             label="Pediatric service"
+          />
+        </div>
+
+        {/* Feeds ClinicalSafetyService: a booking is flagged for the
+            dentist's own clinical review (separate from HMO verification)
+            when a Medical Record answer conflicts with a tag checked here —
+            e.g. a patient who declared pregnant/breastfeeding booking any
+            service tagged "Involves X-ray" below. Never auto-rejects, only
+            flags for a human decision. */}
+        <div className="service-bookable-field service-bookable-field--pediatric">
+          <div>
+            <span className="service-bookable-field-title">Involves X-ray</span>
+            <p className="service-bookable-field-desc">
+              Flags a booking for dentist review when the patient declared pregnant/breastfeeding.
+            </p>
+          </div>
+          <ToggleSwitch
+            checked={serviceForm.involves_xray}
+            onChange={(v) => setServiceForm((p) => ({ ...p, involves_xray: v }))}
+            label="Involves X-ray"
+          />
+        </div>
+
+        <div className="service-bookable-field service-bookable-field--pediatric">
+          <div>
+            <span className="service-bookable-field-title">Involves Sedation / Anesthesia</span>
+            <p className="service-bookable-field-desc">
+              Flags a booking for dentist review when the patient declared pregnant/breastfeeding, a heart
+              condition, or asthma/breathing problems.
+            </p>
+          </div>
+          <ToggleSwitch
+            checked={serviceForm.involves_sedation}
+            onChange={(v) => setServiceForm((p) => ({ ...p, involves_sedation: v }))}
+            label="Involves sedation or anesthesia"
+          />
+        </div>
+
+        <div className="service-bookable-field service-bookable-field--pediatric">
+          <div>
+            <span className="service-bookable-field-title">Surgical Procedure</span>
+            <p className="service-bookable-field-desc">
+              Flags a booking for dentist review when the patient declared a bleeding disorder.
+            </p>
+          </div>
+          <ToggleSwitch
+            checked={serviceForm.is_surgical}
+            onChange={(v) => setServiceForm((p) => ({ ...p, is_surgical: v }))}
+            label="Surgical procedure"
           />
         </div>
 

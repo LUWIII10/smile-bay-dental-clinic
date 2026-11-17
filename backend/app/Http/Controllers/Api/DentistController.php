@@ -34,10 +34,18 @@ class DentistController extends Controller
     {
         $validated = $request->validate([
             'service_id' => ['nullable', 'integer', 'exists:services,id'],
+            // Both optional, but only meaningful together — the reordered
+            // wizard (Date & Time before Doctor) passes these so this step
+            // only offers dentists actually free at that exact slot,
+            // instead of every dentist credentialed for the service
+            // regardless of whether they're free then.
+            'date' => ['nullable', 'date_format:Y-m-d'],
+            'time' => ['nullable', 'date_format:H:i'],
         ]);
 
         $query = User::where('role', 'dentist')->where('status', 'active')->with('dentistProfile');
 
+        $service = null;
         if (! empty($validated['service_id'])) {
             $service = Service::findOrFail($validated['service_id']);
             $query->whereHas('services', fn ($q) => $q->where('services.id', $service->id));
@@ -47,6 +55,14 @@ class DentistController extends Controller
 
         $dentists = $query->orderBy('name')
             ->get()
+            ->filter(function (User $dentist) use ($service, $validated) {
+                if (! $service || empty($validated['date']) || empty($validated['time'])) {
+                    return true;
+                }
+
+                return $this->slots->isSlotAvailable($dentist->id, $validated['date'], $validated['time'], $service->duration_minutes);
+            })
+            ->values()
             ->map(fn (User $dentist) => [
                 'id' => $dentist->id,
                 'name' => $dentist->name,

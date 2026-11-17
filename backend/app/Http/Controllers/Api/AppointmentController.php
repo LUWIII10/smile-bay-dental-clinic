@@ -18,7 +18,9 @@ use App\Models\Patient;
 use App\Models\Service;
 use App\Models\TreatmentHistory;
 use App\Models\User;
+use App\Models\AppointmentMedicalRecord;
 use App\Services\AppointmentSlotService;
+use App\Services\ClinicalSafetyService;
 use App\Services\FollowUpRecommendationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -31,6 +33,7 @@ class AppointmentController extends Controller
     public function __construct(
         private AppointmentSlotService $slots,
         private FollowUpRecommendationService $followUps,
+        private ClinicalSafetyService $clinicalSafety,
     ) {}
 
     /**
@@ -142,6 +145,13 @@ class AppointmentController extends Controller
             ], 422);
         }
 
+        // Pure computation, no DB writes — safe to run before the
+        // transaction. See ClinicalSafetyService's own doc comment: this
+        // never blocks the booking outright, it only decides whether a
+        // dentist's sign-off is needed before it's treated as scheduled.
+        $conflictReasons = $this->clinicalSafety->conflictReasons($service, $validated['medical_record']);
+        $medicalReviewRequired = $conflictReasons !== [];
+
         // Retries up to 3 times — Laravel's own DB::transaction() only does
         // this for a deadlock or lock-wait-timeout specifically (any other
         // exception still rethrows immediately on the first attempt).
@@ -154,7 +164,7 @@ class AppointmentController extends Controller
         // friendly "slot no longer available" below. The retry re-runs the
         // whole closure, so the losing side's isSlotAvailable() correctly
         // sees the winner's now-committed row the second time.
-        $appointment = DB::transaction(function () use ($validated, $patient, $service, $request, $isPediatric) {
+        $appointment = DB::transaction(function () use ($validated, $patient, $service, $request, $isPediatric, $medicalReviewRequired) {
             // Locked lookup/validation first, still inside this same
             // transaction. Two modes — see FollowUpRecommendationService:
             // fulfills_appointment_id present (BookFollowUp.jsx) means this
@@ -199,7 +209,11 @@ class AppointmentController extends Controller
                 return 'patient_conflict';
             }
 
-            $status = $isPediatric
+            // A clinical-safety flag forces pending_verification exactly
+            // like pediatric does, even for a Cash booking that would
+            // otherwise auto-confirm — see ClinicalSafetyService's own doc
+            // comment on why this is a hold-for-review, not a rejection.
+            $status = ($isPediatric || $medicalReviewRequired)
                 ? 'pending_verification'
                 : ($patient->patient_type === 'cash' ? 'confirmed' : 'pending_verification');
 
@@ -212,6 +226,35 @@ class AppointmentController extends Controller
                 'appointment_time' => $validated['appointment_time'],
                 'status' => $status,
                 'patient_type_snapshot' => $patient->patient_type,
+                'medical_review_required' => $medicalReviewRequired,
+                'medical_review_status' => $medicalReviewRequired ? 'pending' : null,
+            ]);
+
+            $mr = $validated['medical_record'];
+            AppointmentMedicalRecord::create([
+                'appointment_id' => $appointment->id,
+                'patient_id' => $patient->id,
+                'high_blood_pressure' => $mr['high_blood_pressure'],
+                'high_blood_pressure_notes' => $mr['high_blood_pressure_notes'] ?? null,
+                'diabetes' => $mr['diabetes'],
+                'diabetes_notes' => $mr['diabetes_notes'] ?? null,
+                'heart_condition' => $mr['heart_condition'],
+                'heart_condition_notes' => $mr['heart_condition_notes'] ?? null,
+                'asthma' => $mr['asthma'],
+                'asthma_notes' => $mr['asthma_notes'] ?? null,
+                'bleeding_disorder' => $mr['bleeding_disorder'],
+                'bleeding_disorder_notes' => $mr['bleeding_disorder_notes'] ?? null,
+                'allergies' => $mr['allergies'],
+                'allergies_notes' => $mr['allergies_notes'] ?? null,
+                'taking_medications' => $mr['taking_medications'],
+                'taking_medications_notes' => $mr['taking_medications_notes'] ?? null,
+                'recent_surgery' => $mr['recent_surgery'],
+                'recent_surgery_notes' => $mr['recent_surgery_notes'] ?? null,
+                'pregnant_or_breastfeeding' => $mr['pregnant_or_breastfeeding'] ?? null,
+                'pregnant_or_breastfeeding_notes' => $mr['pregnant_or_breastfeeding_notes'] ?? null,
+                'other_concerns' => $mr['other_concerns'] ?? null,
+                'consent_given' => $mr['consent_given'],
+                'consent_at' => $mr['consent_given'] ? now() : null,
             ]);
 
             if ($recommendation) {
@@ -286,6 +329,22 @@ class AppointmentController extends Controller
                 'Pediatric review needed',
                 "New {$service->name} booking from {$patient->first_name} {$patient->last_name} needs your review.",
                 '/dentist/pediatric-queue'
+            );
+        } elseif ($appointment->medical_review_required) {
+            // Clinical-safety hold — see ClinicalSafetyService. Separate
+            // queue/notification from HMO's, since this is the assigned
+            // dentist's own call, not staff insurance verification.
+            Notification::notifyUser(
+                $request->user()->id,
+                'Booking submitted',
+                "Your {$service->name} request needs a dentist's review of your health information before it's confirmed.",
+                '/patient/appointments'
+            );
+            Notification::notifyUser(
+                $validated['dentist_id'],
+                'Clinical review needed',
+                "New {$service->name} booking from {$patient->first_name} {$patient->last_name} needs your review (health information flagged).",
+                '/dentist/medical-review'
             );
         } elseif ($appointment->patient_type_snapshot === 'hmo') {
             try {

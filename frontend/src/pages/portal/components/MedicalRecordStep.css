@@ -1,0 +1,114 @@
+/* Shared by BookAppointment.jsx / BookFollowUp.jsx's Medical Record step
+   and (consentLabel overridden) the walk-in modal's equivalent. */
+
+.mr-prefill-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  background: var(--portal-blue-tint);
+  border: 1px solid var(--portal-border-light);
+  border-radius: var(--portal-radius-sm);
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  font-size: 0.8rem;
+  color: var(--portal-navy);
+  line-height: 1.5;
+}
+
+.mr-prefill-note svg {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.mr-row {
+  border: 1px solid var(--portal-border-light);
+  border-radius: var(--portal-radius-sm);
+  padding: 12px 16px;
+  margin-bottom: 10px;
+}
+
+.mr-row-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.mr-row-label {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--portal-slate);
+}
+
+.mr-toggle {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.mr-toggle-btn {
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 6px 18px;
+  border-radius: var(--portal-radius-sm);
+  border: 1px solid var(--portal-border);
+  background: #fff;
+  color: var(--portal-muted);
+  cursor: pointer;
+}
+
+.mr-toggle-btn:hover {
+  background: var(--portal-canvas);
+}
+
+.mr-toggle-btn--yes-active {
+  background: var(--portal-red-bg);
+  color: var(--portal-red-text);
+  border-color: var(--portal-red-border);
+}
+
+.mr-toggle-btn--no-active {
+  background: var(--portal-green-bg);
+  color: var(--portal-green-text);
+  border-color: var(--portal-green-border);
+}
+
+.mr-specify-input {
+  margin-top: 10px;
+  width: 100%;
+}
+
+.mr-other-label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--portal-slate);
+  margin: 14px 0 6px;
+}
+
+.mr-consent-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: var(--portal-canvas);
+  border: 1px solid var(--portal-border);
+  border-radius: var(--portal-radius-sm);
+  padding: 12px 14px;
+  margin-top: 16px;
+  cursor: pointer;
+}
+
+.mr-consent-box input {
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.mr-consent-box span {
+  font-size: 0.8rem;
+  line-height: 1.6;
+  color: var(--portal-slate);
+}

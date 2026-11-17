@@ -7,8 +7,16 @@ import {
   getDayAvailability,
   createAppointment,
   getPatientDashboardSummary,
+  getLatestMedicalRecord,
 } from '../../api/appointments';
 import Modal from './components/Modal';
+import MedicalRecordStep, {
+  emptyMedicalRecordForm,
+  prefillMedicalRecordForm,
+  isMedicalRecordComplete,
+  MEDICAL_RECORD_QUESTIONS,
+  PREGNANCY_QUESTION,
+} from './components/MedicalRecordStep';
 import { CheckCircleIcon, AlertIcon, ShieldIcon, CashIcon, CalendarPlusIcon, ClockIcon, CalendarIcon, SunIcon, SunsetIcon } from './icons';
 import { formatDateLong, formatTime12h } from './dateTimeUtils';
 import { KNOWN_DENTIST_PHOTOS } from './dentistPhotos';
@@ -20,8 +28,10 @@ import './BookAppointment.css';
 // are both fixed by the recommendation (Step 1 shows, never picks, either):
 // whoever saw this patient and flagged the follow-up is who it's booked
 // with, same as walking back into the same dentist's room for a planned
-// next step, not a fresh doctor search.
-const STEPS = ['Your Procedure', 'Additional Info', 'Payment', 'Date & Time', 'Summary'];
+// next step, not a fresh doctor search. Additional Info (free-text notes)
+// was replaced by the structured Medical Record step, same as the main
+// booking wizard.
+const STEPS = ['Your Procedure', 'Medical Record', 'Payment', 'Date & Time', 'Summary'];
 const WEEKDAY_LABELS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 const MONTH_LABELS = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -56,6 +66,8 @@ const PENDING_MESSAGES = {
     'Your appointment is pending confirmation from our Pediatric Dentistry specialist, followed by HMO coverage verification. We’ll email you at each step.',
   hmo:
     'Your appointment is pending verification. Our staff will review your HMO details and confirm your appointment — we’ll email you once it’s reviewed.',
+  medical_review:
+    'Your appointment needs a dentist\'s review of the health information you provided before it\'s confirmed. We\'ll email you once it\'s reviewed.',
 };
 
 function isPediatricService(service) {
@@ -90,7 +102,8 @@ function BookFollowUp() {
   const [referenceError, setReferenceError] = useState('');
   const [selectedRecommendationId, setSelectedRecommendationId] = useState(null);
 
-  const [notes, setNotes] = useState('');
+  const [medicalRecordForm, setMedicalRecordForm] = useState(() => emptyMedicalRecordForm());
+  const [medicalRecordPrefilled, setMedicalRecordPrefilled] = useState(false);
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedTime, setSelectedTime] = useState(null);
   const [calendarMonth, setCalendarMonth] = useState(() => startOfDay(new Date()));
@@ -131,6 +144,7 @@ function BookFollowUp() {
   const hmoProviderInactive = patientType === 'hmo'
     && !!user?.patient?.hmo_provider
     && user.patient.hmo_provider.is_active === false;
+  const isFemale = user?.patient?.sex === 'female';
 
   // Same reasoning as BookAppointment.jsx's own copy of this effect —
   // AuthContext only fetches /api/auth/me on the app's initial mount, so
@@ -139,6 +153,17 @@ function BookFollowUp() {
   useEffect(() => {
     refreshUser();
   }, [refreshUser]);
+
+  // Same one-time prefill as BookAppointment.jsx — see its own comment.
+  useEffect(() => {
+    getLatestMedicalRecord()
+      .then((latest) => {
+        setMedicalRecordForm(prefillMedicalRecordForm(latest, isFemale));
+        setMedicalRecordPrefilled(!!latest);
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     getPatientDashboardSummary()
@@ -223,9 +248,26 @@ function BookFollowUp() {
     })();
   }, [selectedDentistId, selectedServiceId, calendarMonth]);
 
+  const medicalRecordFlags = useMemo(() => {
+    const all = isFemale ? [...MEDICAL_RECORD_QUESTIONS, PREGNANCY_QUESTION] : MEDICAL_RECORD_QUESTIONS;
+    return all.filter((q) => medicalRecordForm[q.key] === true).map((q) => q.label);
+  }, [medicalRecordForm, isFemale]);
+
+  // Client-side mirror of ClinicalSafetyService::conflictReasons() — see
+  // BookAppointment.jsx's own copy for why this is a preview only.
+  const willNeedMedicalReview = useMemo(() => {
+    if (!selectedService) return false;
+    const mr = medicalRecordForm;
+    if (mr.pregnant_or_breastfeeding && (selectedService.involves_xray || selectedService.involves_sedation)) return true;
+    if (mr.bleeding_disorder && selectedService.is_surgical) return true;
+    if (mr.heart_condition && selectedService.involves_sedation) return true;
+    if (mr.asthma && selectedService.involves_sedation) return true;
+    return false;
+  }, [selectedService, medicalRecordForm]);
+
   const canGoNext = {
     1: !!selectedRecommendationId,
-    2: true,
+    2: isMedicalRecordComplete(medicalRecordForm, isFemale),
     3: true,
     4: !!selectedDate && !!selectedTime,
     5: false,
@@ -241,17 +283,20 @@ function BookFollowUp() {
       const response = await createAppointment({
         dentistId: selectedDentistId,
         serviceId: selectedServiceId,
-        notes,
         date: selectedDate,
         time: selectedTime,
         fulfillsAppointmentId: selectedRecommendationId,
+        medicalRecord: medicalRecordForm,
       });
       const isConfirmed = response.data.status === 'confirmed';
       const isPediatric = isPediatricService(selectedService);
 
       setResult({
         tone: isConfirmed ? 'success' : 'warning',
-        pendingReason: isConfirmed ? null : isPediatric ? (patientType === 'hmo' ? 'pediatric_hmo' : 'pediatric_cash') : 'hmo',
+        pendingReason: isConfirmed ? null
+          : isPediatric ? (patientType === 'hmo' ? 'pediatric_hmo' : 'pediatric_cash')
+          : response.data.medical_review_required ? 'medical_review'
+          : 'hmo',
         appointment: response.data,
       });
     } catch (err) {
@@ -571,23 +616,15 @@ function BookFollowUp() {
           </>
         )}
 
-        {/* ---- Step 2: Additional Information — optional, same as
-             BookAppointment.jsx's own Step 2. ---- */}
+        {/* ---- Step 2: Medical Record — same shared step as
+             BookAppointment.jsx. ---- */}
         {step === 2 && (
-          <>
-            <h3 className="wizard-step-heading">Additional Information</h3>
-            <p className="wizard-step-subtitle">
-              Tell us more so the dentist can prepare for your follow-up visit (optional).
-            </p>
-            <textarea
-              className="form-textarea"
-              rows={5}
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Please provide additional details about your appointment… (optional)"
-              maxLength={1000}
-            />
-          </>
+          <MedicalRecordStep
+            form={medicalRecordForm}
+            onChange={setMedicalRecordForm}
+            isFemale={isFemale}
+            prefilled={medicalRecordPrefilled}
+          />
         )}
 
         {/* ---- Step 3: Payment (read-only) ---- */}
@@ -799,10 +836,6 @@ function BookFollowUp() {
                 <span className="summary-value">{selectedService?.name} ({selectedService?.duration_minutes} min)</span>
               </div>
               <div className="summary-row">
-                <span className="summary-label">Additional Information</span>
-                <span className="summary-value">{notes.trim() || 'None provided'}</span>
-              </div>
-              <div className="summary-row">
                 <span className="summary-label">Payment Method</span>
                 <span className="summary-value">
                   {patientType === 'hmo' ? `HMO${hmoProviderName ? ` — ${hmoProviderName}` : ''}` : 'Cash'}
@@ -818,10 +851,32 @@ function BookFollowUp() {
               </div>
             </div>
 
+            <div className="summary-card" style={{ marginTop: 12 }}>
+              <div className="summary-row" style={{ borderBottom: 'none' }}>
+                <span className="summary-label">Medical Record</span>
+                <span className="summary-value">
+                  {medicalRecordFlags.length > 0 ? medicalRecordFlags.join(', ') : 'No health concerns declared'}
+                </span>
+              </div>
+            </div>
+
             <p className="summary-note">
               Picking this time reserves the full {selectedService?.duration_minutes}-minute window — same guarantee
               as any other appointment.
             </p>
+
+            {willNeedMedicalReview && (
+              <div className="suggestion-banner suggestion-banner--danger" style={{ marginTop: 12 }}>
+                <span className="suggestion-banner-icon"><ShieldIcon /></span>
+                <div className="suggestion-banner-text">
+                  <p className="suggestion-banner-title">This will need a dentist's review first</p>
+                  <p className="suggestion-banner-subtitle">
+                    Something in your Medical Record answers needs your dentist's clinical sign-off for{' '}
+                    {selectedService?.name} specifically. You can still submit — we'll email you once it's reviewed.
+                  </p>
+                </div>
+              </div>
+            )}
 
             {hmoProviderInactive && (
               <div className="suggestion-banner suggestion-banner--danger" style={{ marginTop: 12 }}>

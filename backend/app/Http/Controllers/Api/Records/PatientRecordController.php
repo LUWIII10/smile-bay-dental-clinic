@@ -285,6 +285,10 @@ class PatientRecordController extends Controller
     public function show(Patient $patient)
     {
         $patient->load('user', 'hmoProvider:id,name');
+        // Every visit's Medical Record, newest first — see
+        // AppointmentMedicalRecord's own doc comment on why these are
+        // immutable snapshots rather than one row kept up to date.
+        $patient->load(['medicalRecords' => fn ($q) => $q->with('appointment.service:id,name')]);
 
         $record = $patient->dentalRecord;
 

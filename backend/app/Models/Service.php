@@ -16,6 +16,9 @@ class Service extends Model
         'is_active',
         'is_pediatric',
         'is_patient_bookable',
+        'involves_xray',
+        'involves_sedation',
+        'is_surgical',
     ];
 
     protected function casts(): array
@@ -24,6 +27,9 @@ class Service extends Model
             'is_active' => 'boolean',
             'is_pediatric' => 'boolean',
             'is_patient_bookable' => 'boolean',
+            'involves_xray' => 'boolean',
+            'involves_sedation' => 'boolean',
+            'is_surgical' => 'boolean',
         ];
     }
 

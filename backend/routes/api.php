@@ -13,6 +13,8 @@ use App\Http\Controllers\Api\DentistAvailabilityController;
 use App\Http\Controllers\Api\DentistController;
 use App\Http\Controllers\Api\DentistScheduleController;
 use App\Http\Controllers\Api\HmoProviderController;
+use App\Http\Controllers\Api\MedicalRecordController;
+use App\Http\Controllers\Api\MedicalReviewController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\PatientAppointmentController;
 use App\Http\Controllers\Api\PediatricVerificationController;
@@ -96,6 +98,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::patch('/patient/appointments/{appointment}/request-different-reschedule-date', [PatientAppointmentController::class, 'requestDifferentRescheduleDate']);
         Route::get('/patient/dental-record', [PatientDentalRecordController::class, 'show']);
         Route::get('/patient/dashboard-summary', [PatientAppointmentController::class, 'summary']);
+        Route::get('/patient/medical-record/latest', [MedicalRecordController::class, 'latest']);
+        Route::get('/patient/medical-record/history', [MedicalRecordController::class, 'history']);
     });
 
     Route::middleware('role:dentist')->group(function () {
@@ -123,6 +127,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/pediatric/queue', [PediatricVerificationController::class, 'index']);
         Route::patch('/pediatric/appointments/{appointment}/verify', [PediatricVerificationController::class, 'verify']);
         Route::patch('/pediatric/appointments/{appointment}/propose-new-date', [PediatricVerificationController::class, 'proposeNewDate']);
+
+        Route::get('/medical-review/queue', [MedicalReviewController::class, 'index']);
+        Route::patch('/medical-review/appointments/{appointment}/decide', [MedicalReviewController::class, 'decide']);
 
         // Dental-record writes are dentist-only (matches those tables' own
         // migration doc comments) — reads sit in the shared

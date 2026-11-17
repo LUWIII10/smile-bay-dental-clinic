@@ -18,11 +18,18 @@ export async function getServices(patientBookable) {
 
 // serviceId is optional — when given, only dentists credentialed for that
 // service come back (e.g. only the pediatric dentist for the pediatric
-// service). Omit it for the full unfiltered list.
-export async function getDentists(serviceId) {
-  const response = await api.get('/api/dentists', {
-    params: serviceId ? { service_id: serviceId } : {},
-  });
+// service). date+time are also optional, but only meaningful together — the
+// booking wizard's reordered Doctor step (now after Date & Time) passes
+// both so only dentists actually free at that exact slot come back, instead
+// of every dentist credentialed for the service regardless of availability.
+export async function getDentists(serviceId, date, time) {
+  const params = {};
+  if (serviceId) params.service_id = serviceId;
+  if (date && time) {
+    params.date = date;
+    params.time = time;
+  }
+  const response = await api.get('/api/dentists', { params });
   return response.data.data;
 }
 
@@ -65,18 +72,36 @@ export async function resolveDentist(serviceId, date, time) {
 
 // fulfillsAppointmentId is optional — set only by BookFollowUp.jsx, the
 // completed appointment whose recommendation this booking must fulfill.
-// Omit it for a regular booking.
-export async function createAppointment({ dentistId, serviceId, notes, date, time, fulfillsAppointmentId }) {
+// Omit it for a regular booking. medicalRecord is the Medical Record step's
+// full answer set (see MedicalRecordStep.jsx) — required on every booking
+// now that Additional Info (notes) has been replaced by it.
+export async function createAppointment({ dentistId, serviceId, date, time, fulfillsAppointmentId, medicalRecord }) {
   await api.get('/sanctum/csrf-cookie');
   const response = await api.post('/api/appointments', {
     dentist_id: dentistId,
     service_id: serviceId,
-    notes,
     appointment_date: date,
     appointment_time: time,
     fulfills_appointment_id: fulfillsAppointmentId,
+    medical_record: medicalRecord,
   });
   return response.data;
+}
+
+// Prefill source for the Medical Record step — the patient's own most
+// recent visit's answers, or null if they've never completed one under
+// this flow yet (a brand-new patient, or one who registered before this
+// feature shipped).
+export async function getLatestMedicalRecord() {
+  const response = await api.get('/api/patient/medical-record/latest');
+  return response.data.data;
+}
+
+// Every visit's Medical Record, newest first — "My Dental Records" page's
+// own read-only history section.
+export async function getMedicalRecordHistory() {
+  const response = await api.get('/api/patient/medical-record/history');
+  return response.data.data;
 }
 
 export async function getPatientAppointments() {
@@ -295,6 +320,26 @@ export async function proposePediatricNewDate(appointmentId, date, time, reason)
     appointment_date: date,
     appointment_time: time,
     reason,
+  });
+  return response.data;
+}
+
+// The assigned dentist's own clinical-safety review queue — separate from
+// the pediatric queue above and the HMO queue below (see
+// MedicalReviewController's own doc comment for why).
+export async function getMedicalReviewQueue() {
+  const response = await api.get('/api/medical-review/queue');
+  return response.data.data;
+}
+
+// action: 'approve' | 'suggest_alternative' | 'reschedule_later' | 'decline'.
+// notes is optional free text shown to the patient for the non-approve
+// actions, and kept internally either way.
+export async function decideMedicalReview(appointmentId, action, notes) {
+  await api.get('/sanctum/csrf-cookie');
+  const response = await api.patch(`/api/medical-review/appointments/${appointmentId}/decide`, {
+    action,
+    notes: notes || null,
   });
   return response.data;
 }
