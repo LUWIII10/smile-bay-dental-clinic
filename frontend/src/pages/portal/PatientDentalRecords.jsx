@@ -44,6 +44,11 @@ import './Appointments.css';
 import './DentalRecords.css';
 
 const HISTORY_PAGE_SIZE = 5;
+// Medical Record History shares the same page size, for the same reason
+// (RECENT_RECORDS_VISIBLE_COUNT in the staff-facing PatientRecords.jsx) —
+// only the most recent entries render by default, a "Show older records"
+// toggle reveals the rest, and it can always be collapsed back.
+const RECENT_RECORDS_VISIBLE_COUNT = 5;
 
 // Dot colors mirror HISTORY_CATEGORY_RULES' own tone mapping in
 // dentalRecordShared.js (treatment=indigo, diagnostic=blue, procedure=
@@ -78,7 +83,11 @@ function PatientDentalRecords() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
-  const [visibleHistoryCount, setVisibleHistoryCount] = useState(HISTORY_PAGE_SIZE);
+  // Toggle, not a growing count — "Load More" used to only ever add more
+  // rows with no way back, so once expanded it stayed expanded for the
+  // rest of the visit. This can collapse again, same as the staff-facing
+  // Medical Record History/Clinical Notes/Treatment History lists.
+  const [showOlderHistory, setShowOlderHistory] = useState(false);
   const [detailItem, setDetailItem] = useState(null);
   // "View Treatment" on My Appointments (a completed visit with a real
   // treatment_history row) sends the patient here with this id instead of
@@ -95,6 +104,7 @@ function PatientDentalRecords() {
   const [medicalRecords, setMedicalRecords] = useState([]);
   const [medicalRecordsLoading, setMedicalRecordsLoading] = useState(true);
   const [expandedMedicalRecordIds, setExpandedMedicalRecordIds] = useState([]);
+  const [showOlderMedicalRecords, setShowOlderMedicalRecords] = useState(false);
   const toggleMedicalRecordExpanded = (id) =>
     setExpandedMedicalRecordIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   const isMedicalRecordOpen = (rec, index) => {
@@ -105,6 +115,7 @@ function PatientDentalRecords() {
 
   useEffect(() => {
     setMedicalRecordsLoading(true);
+    setShowOlderMedicalRecords(false);
     getMedicalRecordHistory(dependentId)
       .then(setMedicalRecords)
       .catch(() => setMedicalRecords([]))
@@ -114,6 +125,7 @@ function PatientDentalRecords() {
   const load = useCallback(async () => {
     setLoading(true);
     setError('');
+    setShowOlderHistory(false);
     try {
       setRecord(dependentId ? await getDependentDentalRecord(dependentId) : await getMyDentalRecord());
     } catch {
@@ -132,19 +144,22 @@ function PatientDentalRecords() {
     ? history
     : history.filter((h) => classifyHistoryCategory(h.procedure_name).key === categoryFilter);
 
-  const visibleHistory = filteredHistory.slice(0, visibleHistoryCount);
-  const hasMoreHistory = visibleHistoryCount < filteredHistory.length;
+  const visibleHistory = showOlderHistory ? filteredHistory : filteredHistory.slice(0, HISTORY_PAGE_SIZE);
+  const olderHistoryCount = Math.max(filteredHistory.length - HISTORY_PAGE_SIZE, 0);
+
+  const visibleMedicalRecords = showOlderMedicalRecords ? medicalRecords : medicalRecords.slice(0, RECENT_RECORDS_VISIBLE_COUNT);
+  const olderMedicalRecordsCount = Math.max(medicalRecords.length - RECENT_RECORDS_VISIBLE_COUNT, 0);
 
   const handleCategoryChange = (key) => {
     setCategoryFilter(key);
-    setVisibleHistoryCount(HISTORY_PAGE_SIZE);
+    setShowOlderHistory(false);
   };
 
-  // Deep-link from My Appointments' "View Treatment" — expand pagination far
-  // enough to include the target row, open its detail modal, and flag it to
-  // highlight. Guarded on location.state so this only ever fires once per
-  // navigation, not on every unrelated re-render (history is a fresh array
-  // reference each render).
+  // Deep-link from My Appointments' "View Treatment" — reveal the older
+  // rows if the target isn't in the default page, open its detail modal,
+  // and flag it to highlight. Guarded on location.state so this only ever
+  // fires once per navigation, not on every unrelated re-render (history
+  // is a fresh array reference each render).
   useEffect(() => {
     const targetId = location.state?.openHistoryId;
     if (!targetId || history.length === 0) return;
@@ -152,8 +167,8 @@ function PatientDentalRecords() {
     const index = history.findIndex((h) => h.id === targetId);
     if (index === -1) return;
 
-    if (index >= visibleHistoryCount) {
-      setVisibleHistoryCount(index + 1);
+    if (index >= HISTORY_PAGE_SIZE) {
+      setShowOlderHistory(true);
     }
     setDetailItem(history[index]);
     setHighlightedId(targetId);
@@ -348,14 +363,12 @@ function PatientDentalRecords() {
                   })}
                 </ul>
 
-                {hasMoreHistory && (
-                  <div className="record-history-load-more">
-                    <button
-                      type="button"
-                      className="dash-btn dash-btn--outline"
-                      onClick={() => setVisibleHistoryCount((c) => c + HISTORY_PAGE_SIZE)}
-                    >
-                      Load More Records
+                {olderHistoryCount > 0 && (
+                  <div className="list-older-wrap">
+                    <button type="button" className="list-older-btn" onClick={() => setShowOlderHistory((v) => !v)}>
+                      {showOlderHistory
+                        ? 'Hide older records ↑'
+                        : `Show ${olderHistoryCount} older record${olderHistoryCount === 1 ? '' : 's'} ↓`}
                     </button>
                   </div>
                 )}
@@ -381,7 +394,7 @@ function PatientDentalRecords() {
               </div>
             ) : (
               <div className="medrec-timeline">
-                {medicalRecords.map((rec, index) => {
+                {visibleMedicalRecords.map((rec, index) => {
                   const open = isMedicalRecordOpen(rec, index);
                   const flags = flaggedLabels(rec);
                   return (
@@ -430,6 +443,15 @@ function PatientDentalRecords() {
                     </div>
                   );
                 })}
+              </div>
+            )}
+            {olderMedicalRecordsCount > 0 && (
+              <div className="list-older-wrap">
+                <button type="button" className="list-older-btn" onClick={() => setShowOlderMedicalRecords((v) => !v)}>
+                  {showOlderMedicalRecords
+                    ? 'Hide older records ↑'
+                    : `Show ${olderMedicalRecordsCount} older record${olderMedicalRecordsCount === 1 ? '' : 's'} ↓`}
+                </button>
               </div>
             )}
           </div>
