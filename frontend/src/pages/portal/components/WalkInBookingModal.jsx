@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Modal from './Modal';
 import ServiceSelector from './ServiceSelector';
-import StatusBadge from './StatusBadge';
 import MedicalRecordStep, {
   MEDICAL_RECORD_QUESTIONS,
   PREGNANCY_QUESTION,
@@ -28,7 +27,12 @@ import '../BookAppointment.css';
 import styles from './WalkInBookingModal.module.css';
 
 const SEARCH_DEBOUNCE_MS = 300;
-const STEP_LABELS = ['Patient', 'Service', 'Dentist', 'Date & Time', 'Medical Record', 'Review'];
+// Date & Time before Dentist — mirrors the panel-requested reorder
+// already done on the patient-facing booking wizard (BookAppointment.jsx):
+// the aggregated "any dentist" slot grid decides what's even worth
+// offering before narrowing to who's free then, instead of picking a
+// dentist first and checking their calendar second.
+const STEP_LABELS = ['Patient', 'Service', 'Date & Time', 'Dentist', 'Medical Record', 'Review'];
 // Walk-in's own consent text replaces the patient's — staff, not the
 // patient, is the one checking this box, confirming what the patient told
 // them in person rather than attesting to it themselves.
@@ -65,7 +69,7 @@ function todayDateKey() {
 }
 
 // Same calendar-coloring helpers as BookAppointment.jsx's patient-facing
-// wizard — this modal's Step 4 reuses that same day-availability-colored
+// wizard — this modal's Step 3 reuses that same day-availability-colored
 // calendar (and its CSS, imported above), so the date math needs to match.
 function toDateKey(date) {
   const y = date.getFullYear();
@@ -84,26 +88,33 @@ function startOfDay(date) {
   return d;
 }
 
-// Same tooltip copy as BookAppointment.jsx's own slotTooltipText() — this
-// modal always has one specific dentist chosen by Step 3 (no "any doctor"
-// sentinel here), so the offDentistNames-union branch that function needs
-// is dropped; dentistName alone covers the single-dentist case.
-function slotTooltipText(status, count, isPast, reason, dentistName) {
+// Same tooltip copy as BookAppointment.jsx's own slotTooltipText() —
+// Date & Time now comes before Dentist here too, so this is always the
+// aggregated "any dentist" union, same as that patient-facing wizard's
+// own Date & Time step; offDentistNames names whichever credentialed
+// dentist(s) are off on a given day.
+function slotTooltipText(status, count, isPast, reason, offDentistNames) {
   if (status === 'full') return 'Fully booked';
   if (status === 'limited') return `${count} slot${count === 1 ? '' : 's'} left`;
   if (status === 'available') return `${count} slots open`;
   if (isPast) return 'Already passed';
   if (reason !== 'day_off') return 'Clinic closed';
-  return dentistName ? `${dentistName} is off` : "Doctor's day off";
+  if (offDentistNames?.length) {
+    return `${offDentistNames.join(', ')} ${offDentistNames.length === 1 ? 'is' : 'are'} off`;
+  }
+  return "Doctor's day off";
 }
 
 /**
  * Two entry points, one modal:
  *  - Entry Point 1 ("+ Book Walk-In Patient" header button): selectedSlotData
- *    is null -> full 4-step wizard (Patient, Service, Dentist, Date & Time),
- *    Steps 2-4 backed by the same getServices/getDentists/getAvailableSlots
- *    endpoints the patient-facing booking wizard uses, so "real open slots"
- *    means the exact same AppointmentSlotService math, not a re-derivation.
+ *    is null -> full 4-step wizard (Patient, Service, Date & Time, Dentist —
+ *    same order as BookAppointment.jsx's patient-facing wizard: the
+ *    aggregated "any dentist" slot grid decides what's worth offering
+ *    before narrowing to who's actually free then), Steps 2-4 backed by the
+ *    same getServices/getDentists/getAvailableSlots endpoints that wizard
+ *    uses, so "real open slots" means the exact same AppointmentSlotService
+ *    math, not a re-derivation.
  *  - Entry Point 2 (row-level "Assign Walk-In" on a cancelled row):
  *    selectedSlotData carries that row's service/dentist/date/time — those
  *    are locked read-only (re-assigning the identical freed slot, not a
@@ -284,31 +295,17 @@ function WalkInBookingModal({ open, onClose, selectedSlotData, services, onSucce
     });
   }, [addingNewPatient, hmoProviders.length]);
 
-  // Step 3 data source — dentists credentialed for the chosen service.
-  // Skipped entirely in prefilled mode (dentist is already fixed).
+  // Step 3 (Date & Time) data source — real available slots aggregated
+  // across every dentist credentialed for the service ('any'), same union
+  // BookAppointment.jsx's patient-facing wizard uses at this same point in
+  // its own flow. No dentist is chosen yet.
   useEffect(() => {
-    if (!open || isPrefilled || !serviceId) return;
-    (async () => {
-      setLoadingDentists(true);
-      setDentistId('');
-      try {
-        setDentistOptions(await getDentists(serviceId));
-      } catch {
-        setDentistOptions([]);
-      } finally {
-        setLoadingDentists(false);
-      }
-    })();
-  }, [open, isPrefilled, serviceId]);
-
-  // Step 4 data source — real available slots for dentist+service+date.
-  useEffect(() => {
-    if (!open || isPrefilled || !dentistId || !serviceId || !date) return;
+    if (!open || isPrefilled || !serviceId || !date) return;
     (async () => {
       setLoadingSlots(true);
       setTime('');
       try {
-        const result = await getAvailableSlots(dentistId, serviceId, date);
+        const result = await getAvailableSlots('any', serviceId, date);
         setTimeSlots(result.slots || []);
       } catch {
         setTimeSlots([]);
@@ -316,21 +313,19 @@ function WalkInBookingModal({ open, onClose, selectedSlotData, services, onSucce
         setLoadingSlots(false);
       }
     })();
-  }, [open, isPrefilled, dentistId, serviceId, date]);
+  }, [open, isPrefilled, serviceId, date]);
 
-  // Calendar coloring — which days this dentist+service combination has
-  // open slots for. Same /api/schedules/day-availability endpoint
-  // BookAppointment.jsx's patient-facing wizard calls — already readable
-  // by any authenticated role (routes/api.php), not patient-only.
+  // Calendar coloring — same 'any' aggregate as above, which days have at
+  // least one credentialed dentist with an open slot.
   useEffect(() => {
-    if (!open || isPrefilled || !dentistId || !serviceId) {
+    if (!open || isPrefilled || !serviceId) {
       setDayAvailability({});
       return;
     }
     (async () => {
       setLoadingDayAvailability(true);
       try {
-        setDayAvailability(await getDayAvailability(dentistId, serviceId, toMonthKey(calendarMonth)));
+        setDayAvailability(await getDayAvailability('any', serviceId, toMonthKey(calendarMonth)));
       } catch {
         // Fails closed — cells just fall back to 'unavailable' below, same
         // as BookAppointment.jsx's own handling of this call.
@@ -339,7 +334,30 @@ function WalkInBookingModal({ open, onClose, selectedSlotData, services, onSucce
         setLoadingDayAvailability(false);
       }
     })();
-  }, [open, isPrefilled, dentistId, serviceId, calendarMonth]);
+  }, [open, isPrefilled, serviceId, calendarMonth]);
+
+  // Step 4 (Dentist) data source — now filtered by the exact date+time
+  // already chosen in Step 3, same DentistController::index() date/time
+  // params BookAppointment.jsx's reordered Doctor step uses, so only
+  // dentists actually free then come back. Auto-selects when there's
+  // only one — nothing else to actually choose between, same shortcut
+  // that patient-facing wizard already takes.
+  useEffect(() => {
+    if (!open || isPrefilled || !serviceId || !date || !time) return;
+    (async () => {
+      setLoadingDentists(true);
+      setDentistId('');
+      try {
+        const result = await getDentists(serviceId, date, time);
+        setDentistOptions(result);
+        if (result.length === 1) setDentistId(String(result[0].id));
+      } catch {
+        setDentistOptions([]);
+      } finally {
+        setLoadingDentists(false);
+      }
+    })();
+  }, [open, isPrefilled, serviceId, date, time]);
 
   const calendarCells = useMemo(() => {
     const year = calendarMonth.getFullYear();
@@ -423,8 +441,8 @@ function WalkInBookingModal({ open, onClose, selectedSlotData, services, onSucce
   const canGoNext =
     (step === 1 && !!selectedPatient) ||
     (step === 2 && !!serviceId) ||
-    (step === 3 && !!dentistId) ||
-    (step === 4 && !!date && !!time) ||
+    (step === 3 && !!date && !!time) ||
+    (step === 4 && !!dentistId) ||
     (step === 5 && isMedicalRecordComplete(medicalRecordForm, isFemale));
 
   const patientPicker = selectedPatient ? (
@@ -662,44 +680,6 @@ function WalkInBookingModal({ open, onClose, selectedSlotData, services, onSucce
 
           {step === 3 && (
             <div className={styles.stepBody}>
-              {loadingDentists ? (
-                <p className="booking-empty-note">Loading dentists…</p>
-              ) : dentistOptions.length === 0 ? (
-                <p className="booking-empty-note">No dentists are credentialed for this service.</p>
-              ) : (
-                <div className="doctor-grid">
-                  {dentistOptions.map((d) => {
-                    const photo = resolvePhotoUrl(d.photo_path) || KNOWN_DENTIST_PHOTOS[d.name];
-                    const credentials = d.bio || KNOWN_DENTIST_CREDENTIALS[d.name];
-                    const isSelected = String(d.id) === dentistId;
-                    return (
-                      <div
-                        key={d.id}
-                        className={`doctor-card${isSelected ? ' doctor-card--selected' : ''}`}
-                        onClick={() => setDentistId(String(d.id))}
-                      >
-                        {isSelected && (
-                          <span className="doctor-card-check" aria-hidden="true">
-                            <CheckCircleIcon />
-                          </span>
-                        )}
-                        <span className="doctor-card-photo">
-                          {photo ? <img src={photo} alt={d.name} /> : <UserIcon />}
-                        </span>
-                        <h4 className="doctor-card-name">{d.name}</h4>
-                        <span className="doctor-card-specialty">{d.specialization || 'General Dentistry'}</span>
-                        {d.on_duty_today === false && <StatusBadge status="Off Today" tone="amber" />}
-                        {credentials && <p className="doctor-card-credentials">{credentials}</p>}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-
-          {step === 4 && (
-            <div className={styles.stepBody}>
               <div className="datetime-layout">
                 <div className="calendar-panel">
                   <div className="panel-label">
@@ -740,11 +720,10 @@ function WalkInBookingModal({ open, onClose, selectedSlotData, services, onSucce
                         {calendarCells.map((cellDate, i) => {
                           if (!cellDate) return <span key={`blank-${i}`} className="calendar-cell calendar-cell--blank" />; // eslint-disable-line react/no-array-index-key
                           const key = toDateKey(cellDate);
-                          const info = dayAvailability[key] || { status: 'unavailable', count: 0, reason: null };
+                          const info = dayAvailability[key] || { status: 'unavailable', count: 0, reason: null, dentists: null };
                           const isSelected = key === date;
                           const isPast = cellDate < todayStart;
                           const tipTone = info.status === 'unavailable' ? '' : ` calendar-cell-tip--${info.status}`;
-                          const selectedDentistName = dentistOptions.find((d) => String(d.id) === dentistId)?.name;
                           return (
                             <button
                               key={key}
@@ -755,7 +734,7 @@ function WalkInBookingModal({ open, onClose, selectedSlotData, services, onSucce
                             >
                               {cellDate.getDate()}
                               <span className={`calendar-cell-tip${tipTone}`}>
-                                {slotTooltipText(info.status, info.count, isPast, info.reason, selectedDentistName)}
+                                {slotTooltipText(info.status, info.count, isPast, info.reason, info.dentists)}
                               </span>
                             </button>
                           );
@@ -801,6 +780,43 @@ function WalkInBookingModal({ open, onClose, selectedSlotData, services, onSucce
                   )}
                 </div>
               </div>
+            </div>
+          )}
+
+          {step === 4 && (
+            <div className={styles.stepBody}>
+              {loadingDentists ? (
+                <p className="booking-empty-note">Loading dentists…</p>
+              ) : dentistOptions.length === 0 ? (
+                <p className="booking-empty-note">No dentists are free for this service at that date and time.</p>
+              ) : (
+                <div className="doctor-grid">
+                  {dentistOptions.map((d) => {
+                    const photo = resolvePhotoUrl(d.photo_path) || KNOWN_DENTIST_PHOTOS[d.name];
+                    const credentials = d.bio || KNOWN_DENTIST_CREDENTIALS[d.name];
+                    const isSelected = String(d.id) === dentistId;
+                    return (
+                      <div
+                        key={d.id}
+                        className={`doctor-card${isSelected ? ' doctor-card--selected' : ''}`}
+                        onClick={() => setDentistId(String(d.id))}
+                      >
+                        {isSelected && (
+                          <span className="doctor-card-check" aria-hidden="true">
+                            <CheckCircleIcon />
+                          </span>
+                        )}
+                        <span className="doctor-card-photo">
+                          {photo ? <img src={photo} alt={d.name} /> : <UserIcon />}
+                        </span>
+                        <h4 className="doctor-card-name">{d.name}</h4>
+                        <span className="doctor-card-specialty">{d.specialization || 'General Dentistry'}</span>
+                        {credentials && <p className="doctor-card-credentials">{credentials}</p>}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 
