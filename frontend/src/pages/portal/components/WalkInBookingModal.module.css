@@ -12,7 +12,13 @@
 
 .stepper {
   display: flex;
-  align-items: center;
+  /* flex-start, not center: "Medical Record" is the one label long
+     enough to wrap onto two lines in this narrow a column, which made
+     that step's whole column taller than the rest — center-aligning the
+     row then pushed its circle down out of line with every other step's
+     circle. Top-aligning keeps every circle level regardless of how many
+     lines a label wraps to. */
+  align-items: flex-start;
   gap: 6px;
   margin-bottom: 18px;
 }
@@ -66,6 +72,12 @@
   color: var(--portal-muted);
   text-transform: uppercase;
   letter-spacing: 0.03em;
+  text-align: center;
+  line-height: 1.3;
+  /* Reserves room for a two-line label ("Medical Record") so every step
+     column ends up the same height, not just the circle row — keeps the
+     border-bottom each column sits on level all the way across too. */
+  min-height: 1.75em;
 }
 
 .stepBody {
