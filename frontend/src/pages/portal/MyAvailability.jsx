@@ -6,17 +6,33 @@ import {
   deleteDentistDayOff,
   addDentistSpecialWorkingDay,
   deleteDentistSpecialWorkingDay,
+  addDentistServiceLimit,
+  deleteDentistServiceLimit,
 } from '../../api/appointments';
 import Modal from './components/Modal';
 import PageHeader from './components/PageHeader';
-import { CalendarXIcon, CalendarPlusIcon, TrashIcon, ClockIcon, AlertIcon } from './icons';
+import RescheduleModal from './components/RescheduleModal';
+import StatusBadge from './components/StatusBadge';
+import { CalendarXIcon, CalendarPlusIcon, TrashIcon, ClockIcon, AlertIcon, ToothIcon } from './icons';
 import { formatDateLong, formatTime12h } from './dateTimeUtils';
+import { classifyHistoryCategory } from './dentalRecordShared';
 import './dashboards.css';
 import './Appointments.css';
 import './MyAvailability.css';
 
 const DAY_NAMES = { 1: 'Monday', 2: 'Tuesday', 3: 'Wednesday', 4: 'Thursday', 5: 'Friday', 6: 'Saturday' };
 const EDITABLE_DAYS = [1, 2, 3, 4, 5, 6];
+
+// Same Treatment/Diagnostic/Procedure/Consultation taxonomy Treatment
+// History already groups by (classifyHistoryCategory in dentalRecordShared)
+// — reused here to group the service-limit picker's chips, so a dentist
+// sees the same categories everywhere instead of a flat alphabetical list.
+const CATEGORY_ORDER = [
+  { key: 'procedure', label: 'Procedure' },
+  { key: 'consultation', label: 'Consultation' },
+  { key: 'diagnostic', label: 'Diagnostic' },
+  { key: 'treatment', label: 'Treatment' },
+];
 
 // dayOffs is already filtered to today-and-later by the backend (see
 // DentistAvailabilityService::forDentist()) — no need to filter past dates
@@ -108,6 +124,28 @@ function MyAvailability() {
   const [specialDayFormError, setSpecialDayFormError] = useState('');
   const [deletingSpecialId, setDeletingSpecialId] = useState(null);
 
+  // Service Limits — optional, per-date restriction to a subset of the
+  // services this dentist is credentialed for. credentialedServices is
+  // every active service they're linked to at all (what the chip picker
+  // offers); serviceLimits is their own saved per-date restrictions.
+  const [credentialedServices, setCredentialedServices] = useState([]);
+  const [serviceLimits, setServiceLimits] = useState([]);
+  const [limitFormOpen, setLimitFormOpen] = useState(false);
+  const [limitDate, setLimitDate] = useState('');
+  const [limitServiceIds, setLimitServiceIds] = useState([]);
+  const [limitFormError, setLimitFormError] = useState('');
+  const [addingLimit, setAddingLimit] = useState(false);
+  const [deletingLimitId, setDeletingLimitId] = useState(null);
+  // No "save anyway" here — unlike every other conflict on this page, this
+  // one only ever clears by the dentist actually proposing a new time for
+  // each conflicting appointment (see the explicit requirement this
+  // feature shipped with: an already-booked patient's visit is never
+  // quietly left stranded against a restriction that contradicts it).
+  // { date, serviceIds, conflicts } while open; conflicts shrinks as each
+  // one gets a reschedule proposed, and an empty list auto-retries the save.
+  const [limitConflict, setLimitConflict] = useState(null);
+  const [rescheduleTarget, setRescheduleTarget] = useState(null);
+
   // type: 'weekly_hours' | 'day_off'. payload carries exactly what was
   // already conflict-checked, so "Save anyway" resubmits the identical
   // request with confirm=true rather than re-reading possibly-changed state.
@@ -124,6 +162,8 @@ function MyAvailability() {
       setIsOnCall(!!data.is_on_call);
       setSpecialWorkingDays(data.special_working_days || []);
       setAvailableSpecialDates(data.available_special_dates || []);
+      setServiceLimits(data.service_limits || []);
+      setCredentialedServices(data.credentialed_services || []);
     } catch {
       setError('Could not load your availability. Please refresh the page.');
     } finally {
@@ -266,6 +306,81 @@ function MyAvailability() {
       setError('Could not remove that special working day. Please try again.');
     } finally {
       setDeletingSpecialId(null);
+    }
+  };
+
+  const openLimitForm = () => {
+    setLimitFormError('');
+    setLimitDate('');
+    setLimitServiceIds([]);
+    setLimitFormOpen(true);
+  };
+
+  const toggleLimitService = (id) => {
+    setLimitServiceIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  };
+
+  const submitServiceLimit = async (date, serviceIds) => {
+    setAddingLimit(true);
+    try {
+      const response = await addDentistServiceLimit(date, serviceIds);
+      if (response.conflicts) {
+        setLimitFormOpen(false);
+        setLimitConflict({ date, serviceIds, conflicts: response.conflicting_appointments });
+        return true;
+      }
+      setServiceLimits(response.data.service_limits);
+      setLimitFormOpen(false);
+      setLimitConflict(null);
+      return true;
+    } catch (err) {
+      setLimitFormError(err.response?.data?.message || 'Could not save this limit.');
+      return false;
+    } finally {
+      setAddingLimit(false);
+    }
+  };
+
+  const handleAddServiceLimit = () => {
+    if (!limitDate) {
+      setLimitFormError('Please pick a date.');
+      return;
+    }
+    if (limitServiceIds.length === 0) {
+      setLimitFormError('Pick at least one service — to block the whole day instead, use "Add day off" above.');
+      return;
+    }
+    setLimitFormError('');
+    submitServiceLimit(limitDate, limitServiceIds);
+  };
+
+  const handleDeleteServiceLimit = async (id) => {
+    setDeletingLimitId(id);
+    try {
+      const response = await deleteDentistServiceLimit(id);
+      setServiceLimits(response.data.service_limits);
+    } catch {
+      setError('Could not remove that limit. Please try again.');
+    } finally {
+      setDeletingLimitId(null);
+    }
+  };
+
+  // RescheduleModal's onSuccess — this one conflicting appointment has been
+  // proposed a new time and is no longer on $limitConflict.date for its old
+  // service, so it's dropped from the list here (it no longer needs to be
+  // shown). An empty list means every conflict is resolved: automatically
+  // retry the original save, which now finds nothing in the way.
+  const handleConflictRescheduled = () => {
+    if (!limitConflict || !rescheduleTarget) return;
+    const remaining = limitConflict.conflicts.filter((c) => c.id !== rescheduleTarget.id);
+    setRescheduleTarget(null);
+
+    if (remaining.length === 0) {
+      setLimitConflict(null);
+      submitServiceLimit(limitConflict.date, limitConflict.serviceIds);
+    } else {
+      setLimitConflict({ ...limitConflict, conflicts: remaining });
     }
   };
 
@@ -429,6 +544,47 @@ function MyAvailability() {
         )}
       </div>
 
+      <div className="section-card">
+        <div className="section-card-header">
+          <h3 className="section-card-title">Service Limits</h3>
+          <button type="button" className="dash-btn dash-btn--outline" onClick={openLimitForm}>
+            + Limit a Day
+          </button>
+        </div>
+        <p className="section-card-subtitle" style={{ marginTop: -10, marginBottom: 14 }}>
+          Restrict yourself to specific procedures on a specific date — e.g. only cleanings today. Leave this
+          empty and nothing changes: every service you're credentialed for stays bookable, every day, as usual.
+        </p>
+
+        {serviceLimits.length === 0 ? (
+          <p className="booking-empty-note">No limits set for any upcoming day.</p>
+        ) : (
+          serviceLimits.map((l) => (
+            <div key={l.id} className="dayoff-row">
+              <span className="dayoff-icon"><ToothIcon /></span>
+              <div className="dayoff-info">
+                <span className="dayoff-date">{formatDateLong(l.date)}</span>
+                <span className="dayoff-reason" style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 2 }}>
+                  {l.services.map((s) => {
+                    const category = classifyHistoryCategory(s.name);
+                    return <StatusBadge key={s.id} status={s.name} tone={category.tone} />;
+                  })}
+                </span>
+              </div>
+              <button
+                type="button"
+                className="dayoff-delete"
+                disabled={deletingLimitId === l.id}
+                onClick={() => handleDeleteServiceLimit(l.id)}
+                aria-label={`Remove service limit on ${l.date}`}
+              >
+                <TrashIcon />
+              </button>
+            </div>
+          ))
+        )}
+      </div>
+
       <div className="avail-save-bar">
         {saveError && <span className="avail-save-error">{saveError}</span>}
         {saveMessage && <span className="avail-save-success">{saveMessage}</span>}
@@ -526,6 +682,96 @@ function MyAvailability() {
         onConfirm={handleConfirmConflict}
         confirming={confirming}
         conflicts={conflictModal?.conflicts || []}
+      />
+
+      <Modal open={limitFormOpen} onClose={() => setLimitFormOpen(false)} title="Limit a Day's Services">
+        <div className="form-field">
+          <label className="form-label" htmlFor="limit-date">Date</label>
+          <input
+            id="limit-date"
+            type="date"
+            className="form-input"
+            min={new Date().toISOString().slice(0, 10)}
+            value={limitDate}
+            onChange={(e) => setLimitDate(e.target.value)}
+          />
+        </div>
+        <div className="form-field" style={{ marginTop: 12 }}>
+          <label className="form-label">Which procedures do you want to offer this day?</label>
+          {CATEGORY_ORDER.map(({ key, label }) => {
+            const inCategory = credentialedServices.filter((s) => classifyHistoryCategory(s.name).key === key);
+            if (inCategory.length === 0) return null;
+            return (
+              <div key={key} className="avail-chip-group">
+                <span className="avail-chip-group-label">{label}</span>
+                <div className="avail-chip-grid">
+                  {inCategory.map((s) => (
+                    <label key={s.id} className={`avail-chip${limitServiceIds.includes(s.id) ? ' avail-chip--checked' : ''}`}>
+                      <input
+                        type="checkbox"
+                        checked={limitServiceIds.includes(s.id)}
+                        onChange={() => toggleLimitService(s.id)}
+                      />
+                      {s.name}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+          <p className="avail-chip-helper">
+            Unchecked procedures are still bookable with another credentialed dentist, or with you on a
+            different day — this only narrows your own slate for this one date.
+          </p>
+        </div>
+        {limitFormError && (
+          <p style={{ margin: '10px 0 0', fontSize: '0.82rem', color: 'var(--portal-red-text)' }}>{limitFormError}</p>
+        )}
+        <div className="modal-actions">
+          <button type="button" className="dash-btn dash-btn--outline" onClick={() => setLimitFormOpen(false)}>
+            Cancel
+          </button>
+          <button type="button" className="dash-btn" disabled={addingLimit} onClick={handleAddServiceLimit}>
+            {addingLimit ? 'Saving…' : 'Save Limit'}
+          </button>
+        </div>
+      </Modal>
+
+      <Modal
+        open={!!limitConflict}
+        onClose={() => setLimitConflict(null)}
+        title="This Limit Conflicts With Existing Bookings"
+      >
+        <p style={{ margin: '0 0 14px', fontSize: '0.85rem', color: 'var(--portal-muted)' }}>
+          {formatDateLong(limitConflict?.date)} already has these appointments for services you're about to
+          exclude. Propose a new time for each one — the limit saves automatically once every conflict below is
+          resolved.
+        </p>
+        <ul className="conflict-list">
+          {(limitConflict?.conflicts || []).map((c) => (
+            <li key={c.id} className="conflict-list-item avail-conflict-item">
+              <div>
+                <span className="conflict-list-date">{formatTime12h(c.time)} — {c.patient_name}</span>
+                <span className="conflict-list-meta">{c.service_name}</span>
+              </div>
+              <button type="button" className="dash-btn dash-btn--outline" onClick={() => setRescheduleTarget(c)}>
+                Propose New Time
+              </button>
+            </li>
+          ))}
+        </ul>
+        <div className="modal-actions">
+          <button type="button" className="dash-btn dash-btn--outline" onClick={() => setLimitConflict(null)}>
+            Cancel
+          </button>
+        </div>
+      </Modal>
+
+      <RescheduleModal
+        open={!!rescheduleTarget}
+        onClose={() => setRescheduleTarget(null)}
+        appointment={rescheduleTarget}
+        onSuccess={handleConflictRescheduled}
       />
     </div>
   );

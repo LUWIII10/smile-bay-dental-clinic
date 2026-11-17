@@ -5,9 +5,11 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\ClinicSpecialHour;
 use App\Models\DentistDayOff;
+use App\Models\DentistServiceLimit;
 use App\Models\DentistSpecialHour;
 use App\Services\DentistAvailabilityService;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 /**
  * "My Availability" — a dentist's own weekly hours + day-offs. Every method
@@ -180,6 +182,63 @@ class DentistAvailabilityController extends Controller
         }
 
         $specialDay->delete();
+
+        return response()->json(['data' => $this->availability->forDentist($request->user()->id)]);
+    }
+
+    /**
+     * Restricts the dentist to a subset of their own credentialed services
+     * for one date — "cleanings only today". Deliberately has NO
+     * confirm=true bypass the way storeDayOff()/updateWeeklyHours() above
+     * do: a conflicting appointment (already booked for a service this
+     * limit would exclude) always blocks the save, every time, until the
+     * dentist actually proposes a new time for it (the frontend opens
+     * RescheduleModal directly on each conflict row returned here) — so a
+     * patient's existing booking is never quietly left stranded against a
+     * restriction that contradicts it. Saving again after every conflict is
+     * resolved (the appointment has moved off this date) simply finds none
+     * and succeeds, with no separate "force" code path needed.
+     */
+    public function storeServiceLimit(Request $request)
+    {
+        $dentistId = $request->user()->id;
+        $credentialedServiceIds = $request->user()->services()->pluck('services.id')->all();
+
+        $validated = $request->validate([
+            'date' => ['required', 'date_format:Y-m-d', 'after_or_equal:today'],
+            'service_ids' => ['required', 'array', 'min:1'],
+            'service_ids.*' => ['integer', Rule::in($credentialedServiceIds)],
+        ], [
+            'service_ids.*.in' => 'You can only limit yourself to services you\'re credentialed for.',
+        ]);
+
+        $conflicts = $this->availability->conflictsForServiceLimit($dentistId, $validated['date'], $validated['service_ids']);
+
+        if ($conflicts->isNotEmpty()) {
+            return response()->json([
+                'conflicts' => true,
+                'conflicting_appointments' => $this->availability->formatConflictsForReschedule($conflicts),
+            ]);
+        }
+
+        $this->availability->addServiceLimit($dentistId, $validated['date'], $validated['service_ids']);
+
+        return response()->json(['conflicts' => false, 'data' => $this->availability->forDentist($dentistId)], 201);
+    }
+
+    /**
+     * No conflict check needed — removing a limit only ever expands
+     * availability back to normal, same reasoning as destroyDayOff() above.
+     */
+    public function destroyServiceLimit(Request $request, int $id)
+    {
+        $limit = DentistServiceLimit::find($id);
+
+        if (! $limit || $limit->dentist_id !== $request->user()->id) {
+            return response()->json(['message' => 'Service limit not found.'], 404);
+        }
+
+        $limit->delete();
 
         return response()->json(['data' => $this->availability->forDentist($request->user()->id)]);
     }

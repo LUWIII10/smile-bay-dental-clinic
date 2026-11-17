@@ -60,7 +60,7 @@ class DentistController extends Controller
                     return true;
                 }
 
-                return $this->slots->isSlotAvailable($dentist->id, $validated['date'], $validated['time'], $service->duration_minutes);
+                return $this->slots->isSlotAvailable($dentist->id, $validated['date'], $validated['time'], $service->duration_minutes, null, $service->id);
             })
             ->values()
             ->map(fn (User $dentist) => [

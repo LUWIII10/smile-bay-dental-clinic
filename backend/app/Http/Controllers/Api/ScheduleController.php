@@ -58,7 +58,7 @@ class ScheduleController extends Controller
             return response()->json(['message' => 'Selected dentist was not found.'], 404);
         }
 
-        $slots = $this->slots->getAvailableSlots($dentist->id, $validated['date'], $service->duration_minutes);
+        $slots = $this->slots->getAvailableSlots($dentist->id, $validated['date'], $service->duration_minutes, null, $service->id);
 
         // Smart doctor-switch suggestion — only computed (extra queries
         // against the other dentist(s) credentialed for this same service)
@@ -125,6 +125,7 @@ class ScheduleController extends Controller
             $start->toDateString(),
             $end->toDateString(),
             $service->duration_minutes,
+            $service->id,
         );
 
         return response()->json(['data' => $summary]);

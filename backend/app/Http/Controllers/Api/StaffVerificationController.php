@@ -759,6 +759,7 @@ class StaffVerificationController extends Controller
             $validated['date'],
             $service->duration_minutes,
             $appointment->id,
+            $service->id,
         );
 
         return response()->json([

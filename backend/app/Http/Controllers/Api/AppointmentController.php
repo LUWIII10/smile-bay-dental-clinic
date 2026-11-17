@@ -201,6 +201,8 @@ class AppointmentController extends Controller
                 $validated['appointment_date'],
                 $validated['appointment_time'],
                 $service->duration_minutes,
+                null,
+                $service->id,
             );
 
             if (! $available) {
@@ -715,6 +717,7 @@ class AppointmentController extends Controller
                 $validated['appointment_time'],
                 $appointment->service->duration_minutes,
                 $appointment->id,
+                $appointment->service_id,
             );
 
             if (! $available) {

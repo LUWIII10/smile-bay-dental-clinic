@@ -324,3 +324,70 @@
     margin-left: 0;
   }
 }
+
+/* ============ Service Limits (Limit a Day modal) ============ */
+
+.avail-chip-group {
+  margin-bottom: 14px;
+}
+
+.avail-chip-group-label {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--portal-muted);
+  margin-bottom: 8px;
+}
+
+.avail-chip-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.avail-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 13px;
+  border-radius: 999px;
+  border: 1.5px solid var(--portal-border);
+  background: #ffffff;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--portal-slate);
+  cursor: pointer;
+}
+
+.avail-chip input {
+  accent-color: var(--portal-blue);
+  width: 15px;
+  height: 15px;
+  margin: 0;
+}
+
+.avail-chip--checked {
+  border-color: var(--portal-blue);
+  background: var(--portal-blue-tint);
+  color: var(--portal-blue-hover);
+}
+
+.avail-chip-helper {
+  font-size: 0.76rem;
+  color: var(--portal-muted);
+  line-height: 1.5;
+  margin: 4px 0 0;
+}
+
+/* Conflict-resolution list (Service Limits only) — the shared
+   .conflict-list-item above is a plain column of text for the
+   weekly-hours/day-off warning lists; this one also needs a "Propose New
+   Time" button on the same row, so it overrides that to a row layout. */
+.avail-conflict-item {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}

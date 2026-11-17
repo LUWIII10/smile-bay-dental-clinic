@@ -5,8 +5,10 @@ namespace App\Services;
 use App\Models\Appointment;
 use App\Models\ClinicSpecialHour;
 use App\Models\DentistDayOff;
+use App\Models\DentistServiceLimit;
 use App\Models\DentistSpecialHour;
 use App\Models\DentistWeeklyHour;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
@@ -91,11 +93,37 @@ class DentistAvailabilityService
             ->values()
             ->all();
 
+        $serviceLimits = DentistServiceLimit::where('dentist_id', $dentistId)
+            ->where('date', '>=', now()->toDateString())
+            ->with(['services' => fn ($q) => $q->orderBy('name')])
+            ->orderBy('date')
+            ->get()
+            ->map(fn (DentistServiceLimit $l) => [
+                'id' => $l->id,
+                'date' => $l->date->toDateString(),
+                'services' => $l->services->map(fn ($s) => ['id' => $s->id, 'name' => $s->name])->values()->all(),
+            ])
+            ->values()
+            ->all();
+
+        // What the "+ Limit a Day" picker offers to check/uncheck — every
+        // active service this dentist is credentialed for at all (see
+        // User::services()/dentist_services), independent of any date.
+        $credentialedServices = User::find($dentistId)?->services()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['services.id', 'services.name'])
+            ->map(fn ($s) => ['id' => $s->id, 'name' => $s->name])
+            ->values()
+            ->all() ?? [];
+
         return [
             'weekly_hours' => $weeklyHours,
             'day_offs' => $dayOffs,
             'special_working_days' => $specialWorkingDays,
             'available_special_dates' => $availableSpecialDates,
+            'service_limits' => $serviceLimits,
+            'credentialed_services' => $credentialedServices,
         ];
     }
 
@@ -152,6 +180,61 @@ class DentistAvailabilityService
             ->with(['patient:id,patient_number,first_name,last_name', 'service:id,name'])
             ->get()
             ->values();
+    }
+
+    /**
+     * Appointments (confirmed/pending) already booked on the given date for
+     * a service NOT in the kept/allowed list — exactly what a new service
+     * limit for that date would be incompatible with. Unlike
+     * conflictsForDayOff()/conflictsForWeeklyHours() above, this never has a
+     * "confirm=true, save anyway" escape hatch (see
+     * DentistAvailabilityController::storeServiceLimit()) — a service
+     * limit only ever saves once every conflict here has actually been
+     * rescheduled away, so an already-booked patient's visit is never
+     * quietly left stranded against a restriction that contradicts it.
+     */
+    public function conflictsForServiceLimit(int $dentistId, string $date, array $allowedServiceIds): Collection
+    {
+        return Appointment::where('dentist_id', $dentistId)
+            ->where('appointment_date', $date)
+            ->whereIn('status', self::CONFLICT_STATUSES)
+            ->whereNotIn('service_id', $allowedServiceIds)
+            ->with(['patient:id,patient_number,first_name,last_name', 'service:id,name'])
+            ->get()
+            ->values();
+    }
+
+    /**
+     * Same {id, date, time, patient_name, service_name} shape as
+     * formatConflicts() above, plus dentist_id/service_id/appointment_date —
+     * what RescheduleModal.jsx needs to open directly on one of these rows
+     * and propose a new time for it, instead of just displaying them as a
+     * warning like the weekly-hours/day-off conflict list does.
+     */
+    public function formatConflictsForReschedule(Collection $appointments): array
+    {
+        return $appointments->map(fn (Appointment $a) => [
+            'id' => $a->id,
+            'dentist_id' => $a->dentist_id,
+            'service_id' => $a->service_id,
+            'appointment_date' => $a->appointment_date->toDateString(),
+            'date' => $a->appointment_date->toDateString(),
+            'time' => Carbon::parse($a->appointment_time)->format('H:i'),
+            'patient_name' => trim(($a->patient->first_name ?? '').' '.($a->patient->last_name ?? '')) ?: 'Unknown patient',
+            'service_name' => $a->service->name ?? null,
+        ])->all();
+    }
+
+    public function addServiceLimit(int $dentistId, string $date, array $serviceIds): DentistServiceLimit
+    {
+        return DB::transaction(function () use ($dentistId, $date, $serviceIds) {
+            $limit = DentistServiceLimit::updateOrCreate(
+                ['dentist_id' => $dentistId, 'date' => $date],
+            );
+            $limit->services()->sync($serviceIds);
+
+            return $limit;
+        });
     }
 
     /**

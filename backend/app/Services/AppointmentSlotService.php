@@ -60,11 +60,16 @@ class AppointmentSlotService
      * needed by the staff HMO-queue "Edit Info" slot picker, which shows
      * available times for an appointment that itself already occupies one.
      */
-    public function getAvailableSlots(int $dentistId, string $date, int $durationMinutes, ?int $excludeAppointmentId = null): array
-    {
+    public function getAvailableSlots(
+        int $dentistId,
+        string $date,
+        int $durationMinutes,
+        ?int $excludeAppointmentId = null,
+        ?int $serviceId = null
+    ): array {
         $schedule = $this->operatingHoursFor($dentistId, $date);
 
-        if (! $schedule) {
+        if (! $schedule || ! $this->isServiceAllowedForDentist($dentistId, $date, $serviceId)) {
             return [];
         }
 
@@ -107,7 +112,7 @@ class AppointmentSlotService
         $union = [];
 
         foreach ($this->credentialedDentistIds($serviceId) as $dentistId) {
-            foreach ($this->getAvailableSlots($dentistId, $date, $durationMinutes) as $slot) {
+            foreach ($this->getAvailableSlots($dentistId, $date, $durationMinutes, null, $serviceId) as $slot) {
                 $union[$slot->format('H:i')] = $slot;
             }
         }
@@ -222,7 +227,7 @@ class AppointmentSlotService
     {
         $freeIds = array_values(array_filter(
             $this->credentialedDentistIds($serviceId),
-            fn (int $id) => $this->isSlotAvailable($id, $date, $time, $durationMinutes)
+            fn (int $id) => $this->isSlotAvailable($id, $date, $time, $durationMinutes, null, $serviceId)
         ));
 
         if (empty($freeIds)) {
@@ -273,7 +278,8 @@ class AppointmentSlotService
         int $dentistId,
         string $startDate,
         string $endDate,
-        int $durationMinutes
+        int $durationMinutes,
+        ?int $serviceId = null
     ): array {
         $summary = [];
         $cursor = Carbon::parse($startDate)->startOfDay();
@@ -302,7 +308,7 @@ class AppointmentSlotService
                 $reason = ($cursor->lt($today) || $todayFullyElapsed) ? null : $this->unavailabilityReason($dentistId, $dateKey);
                 $summary[$dateKey] = ['status' => 'unavailable', 'count' => 0, 'reason' => $reason];
             } else {
-                $count = count($this->getAvailableSlots($dentistId, $dateKey, $durationMinutes));
+                $count = count($this->getAvailableSlots($dentistId, $dateKey, $durationMinutes, null, $serviceId));
                 $status = match (true) {
                     $count === 0 => 'full',
                     $count <= self::LIMITED_THRESHOLD => 'limited',
@@ -329,11 +335,12 @@ class AppointmentSlotService
         string $date,
         string $time,
         int $durationMinutes,
-        ?int $excludeAppointmentId = null
+        ?int $excludeAppointmentId = null,
+        ?int $serviceId = null
     ): bool {
         $schedule = $this->operatingHoursFor($dentistId, $date);
 
-        if (! $schedule) {
+        if (! $schedule || ! $this->isServiceAllowedForDentist($dentistId, $date, $serviceId)) {
             return false;
         }
 
@@ -410,7 +417,7 @@ class AppointmentSlotService
                 continue; // Also closed that day — not an improvement.
             }
 
-            $altSlots = $this->getAvailableSlots($alternate->id, $date, $durationMinutes);
+            $altSlots = $this->getAvailableSlots($alternate->id, $date, $durationMinutes, null, $serviceId);
             if (empty($altSlots)) {
                 continue; // Technically open, but nothing actually bookable — not a real improvement.
             }
@@ -559,6 +566,36 @@ class AppointmentSlotService
             'open' => Carbon::parse("{$date} {$dentistSpecial->start_time}"),
             'close' => Carbon::parse("{$date} {$dentistSpecial->end_time}"),
         ];
+    }
+
+    /**
+     * Is this dentist willing to perform $serviceId at all on $date? Checked
+     * alongside operatingHoursFor() everywhere a slot is tested — a
+     * dentist_service_limits row for this date (see DentistAvailability
+     * Controller::storeServiceLimit()) means they've opted into offering
+     * only a subset of what they're normally credentialed for that one day;
+     * no row at all (the default, and the only state most dentists will
+     * ever be in) means unrestricted, same as before this feature existed.
+     * $serviceId is nullable so every existing internal caller that only
+     * ever cared about duration — not which exact service — keeps working
+     * unchanged: null always passes.
+     */
+    private function isServiceAllowedForDentist(int $dentistId, string $date, ?int $serviceId): bool
+    {
+        if ($serviceId === null) {
+            return true;
+        }
+
+        $limit = DB::table('dentist_service_limits')->where('dentist_id', $dentistId)->where('date', $date)->first();
+
+        if (! $limit) {
+            return true;
+        }
+
+        return DB::table('dentist_service_limit_service')
+            ->where('dentist_service_limit_id', $limit->id)
+            ->where('service_id', $serviceId)
+            ->exists();
     }
 
     /**

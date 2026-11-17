@@ -303,6 +303,24 @@ export async function deleteDentistSpecialWorkingDay(id) {
   return response.data;
 }
 
+// Returns { conflicts: true, conflicting_appointments: [...] } instead of
+// saving when an already-booked appointment that day is for a service NOT
+// in serviceIds — unlike addDentistDayOff()/updateDentistWeeklyHours()
+// above, there is no confirm=true bypass: the caller must propose a new
+// time for every conflicting appointment (RescheduleModal) and call this
+// again, which then finds no conflicts and succeeds normally.
+export async function addDentistServiceLimit(date, serviceIds) {
+  await api.get('/sanctum/csrf-cookie');
+  const response = await api.post('/api/dentist/availability/service-limit', { date, service_ids: serviceIds });
+  return response.data;
+}
+
+export async function deleteDentistServiceLimit(id) {
+  await api.get('/sanctum/csrf-cookie');
+  const response = await api.delete(`/api/dentist/availability/service-limit/${id}`);
+  return response.data;
+}
+
 export async function getPediatricQueue() {
   const response = await api.get('/api/pediatric/queue');
   return response.data.data;

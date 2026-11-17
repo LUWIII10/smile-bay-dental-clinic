@@ -128,6 +128,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/dentist/availability/day-off/{id}', [DentistAvailabilityController::class, 'destroyDayOff']);
         Route::post('/dentist/availability/special-working-day', [DentistAvailabilityController::class, 'storeSpecialWorkingDay']);
         Route::delete('/dentist/availability/special-working-day/{id}', [DentistAvailabilityController::class, 'destroySpecialWorkingDay']);
+        Route::post('/dentist/availability/service-limit', [DentistAvailabilityController::class, 'storeServiceLimit']);
+        Route::delete('/dentist/availability/service-limit/{id}', [DentistAvailabilityController::class, 'destroyServiceLimit']);
 
         // Shared by every dentist account — scoping to dentist_id = auth
         // user inside the controller means a non-pediatric dentist just
