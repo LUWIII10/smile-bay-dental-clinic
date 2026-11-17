@@ -71,10 +71,12 @@ class AppointmentSlotService
         $candidates = $this->candidateStartTimes($date, $schedule, $durationMinutes);
         $existing = $this->occupiedIntervals($dentistId, $date, $excludeAppointmentId);
 
-        return array_values(array_filter(
+        $free = array_values(array_filter(
             $candidates,
             fn (Carbon $slot) => ! $this->overlapsAny($slot, $durationMinutes, $existing)
         ));
+
+        return $this->forDisplay($free);
     }
 
     /**
@@ -646,6 +648,37 @@ class AppointmentSlotService
         }
 
         return $slots;
+    }
+
+    /**
+     * Collapses the full 15-minute candidate grid down to the clean
+     * half-hour marks (:00/:30) a patient actually wants to see, while
+     * still surfacing a :15/:45 slot on the rare occasion it's genuinely
+     * needed — when the half-hour mark immediately before it is NOT
+     * itself free, meaning an odd-duration booking (45/90 min) left a gap
+     * only that in-between start can fill (see candidateStartTimes()'s own
+     * comment for why 15-minute testing exists at all). This never changes
+     * which times ARE free — overlapsAny() above already decided that —
+     * only which of the free ones are worth showing. Applied once here so
+     * every caller (the booking wizard, "Any Available Doctor", the
+     * calendar's day-color counts, the doctor-switch suggestion) agrees on
+     * the same list, the same way getAvailableSlots() already being the
+     * one shared source of truth means a date's color and its slot list
+     * can never disagree.
+     */
+    private function forDisplay(array $freeSlots): array
+    {
+        $freeTimes = array_flip(array_map(fn (Carbon $slot) => $slot->format('H:i'), $freeSlots));
+
+        return array_values(array_filter($freeSlots, function (Carbon $slot) use ($freeTimes) {
+            if (in_array((int) $slot->format('i'), [0, 30], true)) {
+                return true;
+            }
+
+            $alignedMark = $slot->copy()->subMinutes(15)->format('H:i');
+
+            return ! isset($freeTimes[$alignedMark]);
+        }));
     }
 
     /**
