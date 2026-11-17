@@ -1,20 +1,105 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getDependents, createDependent, updateDependent, deleteDependent } from '../../api/dependents';
+import { getPublicHmoProviders } from '../../api/public';
 import PageHeader from './components/PageHeader';
 import Modal from './components/Modal';
-import { UsersIcon, ToothIcon, PlusIcon, EditIcon, TrashIcon, AlertIcon } from './icons';
+import { UsersIcon, ToothIcon, PlusIcon, EditIcon, TrashIcon, AlertIcon, ShieldIcon, CashIcon, CheckCircleIcon } from './icons';
 import './dashboards.css';
 import './MyDependents.css';
 
 const RELATIONSHIP_LABELS = { son: 'Son', daughter: 'Daughter', ward: 'Ward' };
 
+// Same checklists/options as the registration wizard's own Step4MedicalInfo
+// / Step5DentalHistory / StepPatientCategory (registerSteps/) — a dependent
+// gets the same clinical intake a self-registering adult patient gives for
+// themselves, just filled in by the parent. Kept inline here the same way
+// those step files keep their own option lists locally, rather than a
+// shared constants module neither side otherwise needs.
+const MEDICAL_CONDITION_OPTIONS = [
+  'Cardiovascular (Hypertension, Stroke)',
+  'Endocrine (Diabetes, Thyroid, Kidney)',
+  'Musculoskeletal (Arthritis, Osteoporosis)',
+  'Respiratory (Rhinitis, Asthma, Tuberculosis)',
+  'Gastrointestinal (GERD, IBS, Ulcer)',
+  'Eyes (Glaucoma, Cataract, Impaired Vision)',
+  'Ears (Impaired Hearing)',
+  'Mental Health (Anxiety, Depression, BPD, ED)',
+  'Sexual Health (HIV/AIDS Positive, STD)',
+  'Blood Disorders (Anemia, Abnormal Bleeding)',
+  'Cancer (History, Undergoing Treatment)',
+  'Pregnant',
+  'Breastfeeding',
+  'Birth Control',
+  'Smoking/Vape',
+  'Alcohol Use',
+  'Drug Use',
+];
+// These three only ever apply to a female patient — same rule the
+// Medical Record step's own pregnancy question already follows.
+const FEMALE_ONLY_CONDITIONS = ['Pregnant', 'Breastfeeding', 'Birth Control'];
+
+const BLOOD_TYPE_OPTIONS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+
+const PROCEDURE_OPTIONS = [
+  'Braces',
+  'Extraction/Oral Surgery',
+  'Gum Treatment',
+  'Denture/Fixed Bridges/Crown',
+  'TMJ Therapy, Bite Adjustment, Dental Appliances',
+];
+
+const SYMPTOM_OPTIONS = [
+  'Pain',
+  'Swelling',
+  'Bleeding Gums',
+  'Loose or moving tooth',
+  'Clicking/Locking of the Jaw',
+  'Grinding/Clenching',
+  'Difficulty in Mouth Opening',
+  'Bad Breath',
+];
+
+const BRUSHING_OPTIONS = [
+  { value: 'once_daily', label: 'Once a day' },
+  { value: 'twice_daily', label: 'Twice a day' },
+  { value: 'three_or_more', label: 'Three or more times a day' },
+  { value: 'rarely', label: 'Rarely' },
+];
+
+const STEP_LABELS = ['Basic Info', 'Payment & Coverage', 'Medical Info', 'Dental History', 'Review'];
+
 function emptyForm() {
-  return { first_name: '', middle_name: '', last_name: '', date_of_birth: '', sex: 'male', relationship_to_parent: 'son' };
+  return {
+    first_name: '', middle_name: '', last_name: '', date_of_birth: '', sex: 'male', relationship_to_parent: 'son',
+    patient_type: 'cash', hmo_provider_id: '', hmo_number: '', hmo_company_name: '',
+    allergies: '', current_medications: '', medical_conditions_notes: '', blood_type: '', medical_conditions: [],
+    previous_surgeries: '', last_physical_exam: '', physician_name_specialty: '',
+    last_dental_visit: '', last_dental_treatment: '', brushing_frequency: '', dental_procedures_history: [], current_dental_symptoms: [], visit_reason: '',
+  };
+}
+
+function formFromDependent(dep) {
+  return {
+    first_name: dep.first_name, middle_name: dep.middle_name || '', last_name: dep.last_name,
+    date_of_birth: dep.date_of_birth, sex: dep.sex, relationship_to_parent: dep.relationship_to_parent,
+    patient_type: dep.patient_type || 'cash',
+    hmo_provider_id: dep.hmo_provider_id ? String(dep.hmo_provider_id) : '',
+    hmo_number: dep.hmo_number || '', hmo_company_name: dep.hmo_company_name || '',
+    allergies: dep.allergies || '', current_medications: dep.current_medications || '',
+    medical_conditions_notes: dep.medical_conditions_notes || '', blood_type: dep.blood_type || '',
+    medical_conditions: dep.medical_conditions || [],
+    previous_surgeries: dep.previous_surgeries || '', last_physical_exam: dep.last_physical_exam || '',
+    physician_name_specialty: dep.physician_name_specialty || '',
+    last_dental_visit: dep.last_dental_visit || '', last_dental_treatment: dep.last_dental_treatment || '',
+    brushing_frequency: dep.brushing_frequency || '',
+    dental_procedures_history: dep.dental_procedures_history || [], current_dental_symptoms: dep.current_dental_symptoms || [],
+    visit_reason: dep.visit_reason || '',
+  };
 }
 
 // Mirrors the backend's own date_of_birth rule (DependentController::
-// fieldRules()) so the modal can warn before submitting instead of only
+// fieldRules()) so the wizard can warn before submitting instead of only
 // after a 422 comes back.
 function ageFromDob(dob) {
   if (!dob) return null;
@@ -27,18 +112,44 @@ function ageFromDob(dob) {
   return age;
 }
 
+function toggleInArray(arr, value) {
+  return arr.includes(value) ? arr.filter((v) => v !== value) : [...arr, value];
+}
+
+function ChipGroup({ label, options, selected, onToggle }) {
+  return (
+    <div className="chip-group">
+      <p className="chip-group-label">{label}</p>
+      <div className="chip-grid">
+        {options.map((opt) => (
+          <button
+            type="button"
+            key={opt}
+            className={`chip${selected.includes(opt) ? ' chip--checked' : ''}`}
+            onClick={() => onToggle(opt)}
+          >
+            {opt}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function MyDependents() {
   const [dependents, setDependents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [hmoProviders, setHmoProviders] = useState([]);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [wizardStep, setWizardStep] = useState(1);
   const [form, setForm] = useState(emptyForm());
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
 
-  const [removing, setRemoving] = useState(null); // dependent being confirmed for removal
+  const [removing, setRemoving] = useState(null);
   const [removeError, setRemoveError] = useState('');
   const [deleting, setDeleting] = useState(false);
 
@@ -52,48 +163,65 @@ function MyDependents() {
   };
 
   useEffect(load, []);
+  useEffect(() => {
+    getPublicHmoProviders().then(setHmoProviders).catch(() => setHmoProviders([]));
+  }, []);
+
+  const set = (key, value) => setForm((f) => ({ ...f, [key]: value }));
+  const toggleArrayField = (key, value) => setForm((f) => ({ ...f, [key]: toggleInArray(f[key], value) }));
 
   const openAdd = () => {
     setEditingId(null);
     setForm(emptyForm());
+    setWizardStep(1);
     setSaveError('');
     setModalOpen(true);
   };
 
   const openEdit = (dep) => {
     setEditingId(dep.id);
-    setForm({
-      first_name: dep.first_name,
-      middle_name: dep.middle_name || '',
-      last_name: dep.last_name,
-      date_of_birth: dep.date_of_birth,
-      sex: dep.sex,
-      relationship_to_parent: dep.relationship_to_parent,
-    });
+    setForm(formFromDependent(dep));
+    setWizardStep(1);
     setSaveError('');
     setModalOpen(true);
   };
 
+  // Switching to Male clears conditions that only ever apply to a female
+  // patient — same rule the Medical Record step's own pregnancy question
+  // already follows, kept consistent here instead of just hiding stale
+  // selections the parent can no longer see or uncheck.
+  const onSexChange = (value) => {
+    setForm((f) => ({
+      ...f,
+      sex: value,
+      medical_conditions: value === 'male' ? f.medical_conditions.filter((c) => !FEMALE_ONLY_CONDITIONS.includes(c)) : f.medical_conditions,
+    }));
+  };
+
   const age = ageFromDob(form.date_of_birth);
   const isIneligible = age !== null && age >= 18;
-  const canSave = form.first_name.trim() && form.last_name.trim() && form.date_of_birth && age !== null && !isIneligible;
+
+  const step1Valid = form.first_name.trim() && form.last_name.trim() && form.date_of_birth && age !== null && !isIneligible;
+  const step2Valid = form.patient_type === 'cash'
+    || (form.hmo_provider_id && form.hmo_number.trim() && form.hmo_company_name.trim());
+  const canAdvance = { 1: step1Valid, 2: step2Valid, 3: true, 4: true, 5: true }[wizardStep];
+
+  const visibleConditionOptions = useMemo(
+    () => MEDICAL_CONDITION_OPTIONS.filter((opt) => form.sex === 'female' || !FEMALE_ONLY_CONDITIONS.includes(opt)),
+    [form.sex]
+  );
+
+  const goNext = () => setWizardStep((s) => Math.min(5, s + 1));
+  const goBack = () => setWizardStep((s) => Math.max(1, s - 1));
 
   const handleSave = async () => {
     setSaving(true);
     setSaveError('');
     try {
-      const payload = {
-        firstName: form.first_name.trim(),
-        middleName: form.middle_name.trim(),
-        lastName: form.last_name.trim(),
-        dateOfBirth: form.date_of_birth,
-        sex: form.sex,
-        relationshipToParent: form.relationship_to_parent,
-      };
       if (editingId) {
-        await updateDependent(editingId, payload);
+        await updateDependent(editingId, form);
       } else {
-        await createDependent(payload);
+        await createDependent(form);
       }
       setModalOpen(false);
       load();
@@ -117,6 +245,8 @@ function MyDependents() {
       setDeleting(false);
     }
   };
+
+  const selectedHmoProviderName = hmoProviders.find((p) => String(p.id) === String(form.hmo_provider_id))?.name;
 
   return (
     <div>
@@ -156,9 +286,14 @@ function MyDependents() {
                       <p className="dep-meta">{RELATIONSHIP_LABELS[dep.relationship_to_parent] || dep.relationship_to_parent} · {dep.age} {dep.age === 1 ? 'yr' : 'yrs'} old</p>
                     </div>
                   </div>
-                  <span className={`dep-badge${dep.sex === 'female' ? ' dep-badge--girl' : ''}`}>
-                    {RELATIONSHIP_LABELS[dep.relationship_to_parent] || dep.relationship_to_parent}
-                  </span>
+                  <div className="dep-card-badges">
+                    <span className={`dep-badge${dep.sex === 'female' ? ' dep-badge--girl' : ''}`}>
+                      {RELATIONSHIP_LABELS[dep.relationship_to_parent] || dep.relationship_to_parent}
+                    </span>
+                    <span className={`dep-badge${dep.patient_type === 'hmo' ? ' dep-badge--hmo' : ' dep-badge--cash'}`}>
+                      {dep.patient_type === 'hmo' ? (dep.hmo_provider_name || 'HMO') : 'Cash'}
+                    </span>
+                  </div>
                   <div className="dep-card-foot">
                     <Link className="dash-btn dash-btn--outline dash-btn--sm" style={{ flex: 1 }} to={`/patient/dental-records?dependent=${dep.id}`}>
                       <ToothIcon /> View Dental Record
@@ -182,57 +317,188 @@ function MyDependents() {
         )}
       </div>
 
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editingId ? 'Edit Dependent' : 'Add a Dependent'} icon={UsersIcon} tone="indigo">
-        <p className="dep-modal-sub">For your minor children only. They'll appear wherever you book or view records for them.</p>
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editingId ? 'Edit Dependent' : 'Add a Dependent'} icon={UsersIcon} tone="indigo" size="lg">
+        <div className="wizard-stepper">
+          {STEP_LABELS.map((label, i) => {
+            const n = i + 1;
+            const cls = n < wizardStep ? 'done' : n === wizardStep ? 'active' : '';
+            return (
+              <div key={label} style={{ display: 'contents' }}>
+                <div className={`wizard-stepper-step${cls ? ` wizard-stepper-step--${cls}` : ''}`} onClick={() => setWizardStep(n)}>
+                  <span className="wizard-stepper-circle">{n < wizardStep ? <CheckCircleIcon /> : n}</span>
+                  <span className="wizard-stepper-label">{label}</span>
+                </div>
+                {n < STEP_LABELS.length && <div className={`wizard-stepper-line${n < wizardStep ? ' wizard-stepper-line--done' : ''}`} />}
+              </div>
+            );
+          })}
+        </div>
 
-        <div className="dep-form-two">
-          <div className="dep-field">
-            <label>First Name</label>
-            <input className="form-input" value={form.first_name} onChange={(e) => setForm((f) => ({ ...f, first_name: e.target.value }))} />
-          </div>
-          <div className="dep-field">
-            <label>Last Name</label>
-            <input className="form-input" value={form.last_name} onChange={(e) => setForm((f) => ({ ...f, last_name: e.target.value }))} />
-          </div>
-        </div>
-        <div className="dep-field">
-          <label>Middle Name (optional)</label>
-          <input className="form-input" value={form.middle_name} onChange={(e) => setForm((f) => ({ ...f, middle_name: e.target.value }))} />
-        </div>
-        <div className="dep-form-two">
-          <div className="dep-field">
-            <label>Date of Birth</label>
-            <input type="date" className="form-input" value={form.date_of_birth} max={new Date().toISOString().slice(0, 10)} onChange={(e) => setForm((f) => ({ ...f, date_of_birth: e.target.value }))} />
-            {age !== null && (
-              <span className={`age-pill${isIneligible ? ' age-pill--warn' : ''}`}>
-                {age} {age === 1 ? 'year' : 'years'} old — {isIneligible ? 'not eligible (18 or older)' : 'eligible'}
-              </span>
+        {wizardStep === 1 && (
+          <>
+            <div className="dep-form-two">
+              <div className="dep-field"><label>First Name</label><input className="form-input" value={form.first_name} onChange={(e) => set('first_name', e.target.value)} /></div>
+              <div className="dep-field"><label>Last Name</label><input className="form-input" value={form.last_name} onChange={(e) => set('last_name', e.target.value)} /></div>
+            </div>
+            <div className="dep-field"><label>Middle Name (optional)</label><input className="form-input" value={form.middle_name} onChange={(e) => set('middle_name', e.target.value)} /></div>
+            <div className="dep-form-two">
+              <div className="dep-field">
+                <label>Date of Birth</label>
+                <input type="date" className="form-input" value={form.date_of_birth} max={new Date().toISOString().slice(0, 10)} onChange={(e) => set('date_of_birth', e.target.value)} />
+                {age !== null && (
+                  <span className={`age-pill${isIneligible ? ' age-pill--warn' : ''}`}>
+                    {age} {age === 1 ? 'year' : 'years'} old — {isIneligible ? 'not eligible (18 or older)' : 'eligible'}
+                  </span>
+                )}
+              </div>
+              <div className="dep-field">
+                <label>Sex</label>
+                <select className="form-select" value={form.sex} onChange={(e) => onSexChange(e.target.value)}>
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                </select>
+              </div>
+            </div>
+            <div className="dep-field">
+              <label>Relationship to You</label>
+              <select className="form-select" value={form.relationship_to_parent} onChange={(e) => set('relationship_to_parent', e.target.value)}>
+                <option value="son">Son</option>
+                <option value="daughter">Daughter</option>
+                <option value="ward">Ward</option>
+              </select>
+            </div>
+          </>
+        )}
+
+        {wizardStep === 2 && (
+          <>
+            <p className="dep-step-note">Choose how this dependent's visits will be paid for — their own HMO card number goes here if it's different from yours.</p>
+            <div className="dep-pay-grid">
+              <button type="button" className={`dep-pay-option${form.patient_type === 'cash' ? ' dep-pay-option--selected' : ''}`} onClick={() => set('patient_type', 'cash')}>
+                <span className="dep-pay-icon"><CashIcon /></span>
+                <span className="dep-pay-label">Cash Patient</span>
+                <span className="dep-pay-desc">Pay directly for each visit. Appointments are confirmed instantly.</span>
+              </button>
+              <button type="button" className={`dep-pay-option${form.patient_type === 'hmo' ? ' dep-pay-option--selected' : ''}`} onClick={() => set('patient_type', 'hmo')}>
+                <span className="dep-pay-icon"><ShieldIcon /></span>
+                <span className="dep-pay-label">HMO Covered</span>
+                <span className="dep-pay-desc">Covered by an HMO plan. Appointments need staff verification first.</span>
+              </button>
+            </div>
+
+            {form.patient_type === 'hmo' && (
+              <div className="dep-hmo-fields">
+                <div className="dep-hmo-note">
+                  <AlertIcon /> A dependent's HMO card is usually its own member number, even under the same company plan as yours.
+                </div>
+                <div className="dep-field"><label>HMO Provider</label>
+                  <select className="form-select" value={form.hmo_provider_id} onChange={(e) => set('hmo_provider_id', e.target.value)}>
+                    <option value="">Select HMO Provider</option>
+                    {hmoProviders.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                </div>
+                <div className="dep-form-two">
+                  <div className="dep-field"><label>HMO Card / Member ID Number</label><input className="form-input" value={form.hmo_number} onChange={(e) => set('hmo_number', e.target.value)} placeholder="Dependent's own card number" /></div>
+                  <div className="dep-field"><label>Company Name / Employer</label><input className="form-input" value={form.hmo_company_name} onChange={(e) => set('hmo_company_name', e.target.value)} /></div>
+                </div>
+              </div>
             )}
-          </div>
-          <div className="dep-field">
-            <label>Sex</label>
-            <select className="form-select" value={form.sex} onChange={(e) => setForm((f) => ({ ...f, sex: e.target.value }))}>
-              <option value="male">Male</option>
-              <option value="female">Female</option>
-            </select>
-          </div>
-        </div>
-        <div className="dep-field">
-          <label>Relationship to You</label>
-          <select className="form-select" value={form.relationship_to_parent} onChange={(e) => setForm((f) => ({ ...f, relationship_to_parent: e.target.value }))}>
-            <option value="son">Son</option>
-            <option value="daughter">Daughter</option>
-            <option value="ward">Ward</option>
-          </select>
-        </div>
+          </>
+        )}
+
+        {wizardStep === 3 && (
+          <>
+            <p className="dep-step-note">Optional — helps our dental team prepare for this dependent's visit.</p>
+            <ChipGroup
+              label="Medical Conditions (check all that apply)"
+              options={visibleConditionOptions}
+              selected={form.medical_conditions}
+              onToggle={(opt) => toggleArrayField('medical_conditions', opt)}
+            />
+            <div className="dep-form-two">
+              <div className="dep-field"><label>Blood Type</label>
+                <select className="form-select" value={form.blood_type} onChange={(e) => set('blood_type', e.target.value)}>
+                  <option value="">Select blood type</option>
+                  {BLOOD_TYPE_OPTIONS.map((bt) => <option key={bt} value={bt}>{bt}</option>)}
+                </select>
+              </div>
+              <div className="dep-field"><label>Last Physical Examination</label><input className="form-input" value={form.last_physical_exam} onChange={(e) => set('last_physical_exam', e.target.value)} placeholder="e.g. 6 months ago" /></div>
+            </div>
+            <div className="dep-field"><label>Doctor's Name &amp; Specialty</label><input className="form-input" value={form.physician_name_specialty} onChange={(e) => set('physician_name_specialty', e.target.value)} placeholder="Optional" /></div>
+            <div className="dep-field"><label>Allergies</label><textarea className="dep-textarea" rows={2} value={form.allergies} onChange={(e) => set('allergies', e.target.value)} placeholder="e.g. Penicillin, Latex — leave blank if none" /></div>
+            <div className="dep-field"><label>Current / Maintenance Medications</label><textarea className="dep-textarea" rows={2} value={form.current_medications} onChange={(e) => set('current_medications', e.target.value)} placeholder="Leave blank if none" /></div>
+            <div className="dep-field"><label>Relevant Medical Conditions (other notes)</label><textarea className="dep-textarea" rows={2} value={form.medical_conditions_notes} onChange={(e) => set('medical_conditions_notes', e.target.value)} placeholder="Anything not covered above" /></div>
+            <div className="dep-field"><label>Previous Surgeries</label><textarea className="dep-textarea" rows={2} value={form.previous_surgeries} onChange={(e) => set('previous_surgeries', e.target.value)} placeholder="Leave blank if none" /></div>
+          </>
+        )}
+
+        {wizardStep === 4 && (
+          <>
+            <p className="dep-step-note">Optional — helps our dental team prepare for this dependent's visit.</p>
+            <div className="dep-form-two">
+              <div className="dep-field"><label>Last Dental Visit</label><input className="form-input" value={form.last_dental_visit} onChange={(e) => set('last_dental_visit', e.target.value)} placeholder="e.g. 1 year ago" /></div>
+              <div className="dep-field"><label>Last Dental Treatment</label><input className="form-input" value={form.last_dental_treatment} onChange={(e) => set('last_dental_treatment', e.target.value)} placeholder="e.g. Tooth filling" /></div>
+            </div>
+            <div className="dep-field"><label>How Often Do They Brush?</label>
+              <select className="form-select" value={form.brushing_frequency} onChange={(e) => set('brushing_frequency', e.target.value)}>
+                <option value="">Select an option</option>
+                {BRUSHING_OPTIONS.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+              </select>
+            </div>
+            <ChipGroup label="Did they have any of the following?" options={PROCEDURE_OPTIONS} selected={form.dental_procedures_history} onToggle={(opt) => toggleArrayField('dental_procedures_history', opt)} />
+            <ChipGroup label="Are they currently experiencing any of the following?" options={SYMPTOM_OPTIONS} selected={form.current_dental_symptoms} onToggle={(opt) => toggleArrayField('current_dental_symptoms', opt)} />
+            <div className="dep-field"><label>Reason for Today's Dental Visit</label><textarea className="dep-textarea" rows={2} value={form.visit_reason} onChange={(e) => set('visit_reason', e.target.value)} placeholder="Optional" /></div>
+          </>
+        )}
+
+        {wizardStep === 5 && (
+          <>
+            <p className="dep-step-note">Review before saving — you can go back to any step above to edit.</p>
+            <div className="dep-review-section">
+              <h4>Basic Info</h4>
+              <div className="dep-review-row"><span>Name</span><span>{[form.first_name, form.middle_name, form.last_name].filter(Boolean).join(' ')}</span></div>
+              <div className="dep-review-row"><span>Date of Birth</span><span>{form.date_of_birth || '—'} {age !== null ? `(${age} yrs)` : ''}</span></div>
+              <div className="dep-review-row"><span>Sex</span><span>{form.sex === 'female' ? 'Female' : 'Male'}</span></div>
+              <div className="dep-review-row"><span>Relationship</span><span>{RELATIONSHIP_LABELS[form.relationship_to_parent]}</span></div>
+            </div>
+            <div className="dep-review-section">
+              <h4>Payment &amp; Coverage</h4>
+              <div className="dep-review-row"><span>Payment Type</span><span>{form.patient_type === 'hmo' ? 'HMO' : 'Cash'}</span></div>
+              {form.patient_type === 'hmo' && (
+                <>
+                  <div className="dep-review-row"><span>HMO Provider</span><span>{selectedHmoProviderName || '—'}</span></div>
+                  <div className="dep-review-row"><span>Card / Member ID</span><span>{form.hmo_number || '—'}</span></div>
+                </>
+              )}
+            </div>
+            <div className="dep-review-section">
+              <h4>Medical Information</h4>
+              <div className="dep-review-row"><span>Conditions Declared</span><span>{form.medical_conditions.length ? form.medical_conditions.join(', ') : <em className="dep-review-empty">None declared</em>}</span></div>
+              <div className="dep-review-row"><span>Allergies</span><span>{form.allergies || <em className="dep-review-empty">None declared</em>}</span></div>
+            </div>
+            <div className="dep-review-section">
+              <h4>Dental History</h4>
+              <div className="dep-review-row"><span>Current Symptoms</span><span>{form.current_dental_symptoms.length ? form.current_dental_symptoms.join(', ') : <em className="dep-review-empty">None declared</em>}</span></div>
+              <div className="dep-review-row"><span>Past Procedures</span><span>{form.dental_procedures_history.length ? form.dental_procedures_history.join(', ') : <em className="dep-review-empty">None declared</em>}</span></div>
+            </div>
+          </>
+        )}
 
         {saveError && <p className="dep-form-error">{saveError}</p>}
 
         <div className="dep-modal-actions">
-          <button type="button" className="dash-btn dash-btn--outline" onClick={() => setModalOpen(false)} disabled={saving}>Cancel</button>
-          <button type="button" className="dash-btn" onClick={handleSave} disabled={!canSave || saving}>
-            {saving ? 'Saving…' : 'Save Dependent'}
-          </button>
+          {wizardStep > 1 ? (
+            <button type="button" className="dash-btn dash-btn--outline" onClick={goBack} disabled={saving}>Back</button>
+          ) : (
+            <button type="button" className="dash-btn dash-btn--outline" onClick={() => setModalOpen(false)} disabled={saving}>Cancel</button>
+          )}
+          {wizardStep < 5 ? (
+            <button type="button" className="dash-btn" onClick={goNext} disabled={!canAdvance}>Next</button>
+          ) : (
+            <button type="button" className="dash-btn" onClick={handleSave} disabled={saving}>
+              {saving ? 'Saving…' : 'Save Dependent'}
+            </button>
+          )}
         </div>
       </Modal>
 

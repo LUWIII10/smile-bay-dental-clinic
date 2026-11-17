@@ -83,6 +83,24 @@
   border-color: #fbcfe8;
 }
 
+.dep-card-badges {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.dep-badge--cash {
+  background: var(--portal-green-bg);
+  color: var(--portal-green-text);
+  border-color: var(--portal-green-border);
+}
+
+.dep-badge--hmo {
+  background: var(--portal-amber-bg);
+  color: var(--portal-amber-text);
+  border-color: var(--portal-amber-border);
+}
+
 .dep-card-foot {
   display: flex;
   gap: 7px;
@@ -187,6 +205,279 @@
   margin: 4px 0 0;
 }
 
+/* .form-input's shared rule (Appointments.css) fixes height:40px, which
+   clips a multi-row textarea — this mirrors its border/radius/font but
+   lets height follow the `rows` attribute instead. */
+.dep-textarea {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--portal-border);
+  border-radius: var(--portal-radius-sm);
+  font-family: inherit;
+  font-size: 0.84rem;
+  color: var(--portal-slate);
+  background: #fff;
+  resize: vertical;
+}
+
+.dep-textarea:focus {
+  outline: 2px solid var(--portal-blue-border);
+  border-color: var(--portal-blue);
+}
+
+/* ---- Wizard stepper (Add/Edit Dependent) ---- */
+.wizard-stepper {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.wizard-stepper-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  width: 92px;
+  cursor: pointer;
+}
+
+.wizard-stepper-circle {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--portal-border-light);
+  color: var(--portal-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.wizard-stepper-circle svg {
+  width: 13px;
+  height: 13px;
+}
+
+.wizard-stepper-step--active .wizard-stepper-circle {
+  background: var(--portal-blue);
+  color: #fff;
+}
+
+.wizard-stepper-step--done .wizard-stepper-circle {
+  background: var(--portal-green-text);
+  color: #fff;
+}
+
+.wizard-stepper-label {
+  font-size: 0.64rem;
+  color: var(--portal-muted);
+  text-align: center;
+  line-height: 1.25;
+}
+
+.wizard-stepper-step--active .wizard-stepper-label {
+  color: var(--portal-navy);
+  font-weight: 700;
+}
+
+.wizard-stepper-line {
+  flex: 1;
+  height: 2px;
+  background: var(--portal-border-light);
+  min-width: 10px;
+}
+
+.wizard-stepper-line--done {
+  background: var(--portal-green-text);
+}
+
+.dep-step-note {
+  font-size: 0.78rem;
+  color: var(--portal-muted);
+  background: var(--portal-blue-tint);
+  border: 1px solid var(--portal-blue-border);
+  border-radius: var(--portal-radius-sm);
+  padding: 9px 12px;
+  margin: 0 0 16px;
+}
+
+/* ---- Payment & Coverage step ---- */
+.dep-pay-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 4px;
+}
+
+.dep-pay-option {
+  border: 2px solid var(--portal-border-light);
+  border-radius: var(--portal-radius-lg);
+  padding: 16px;
+  text-align: left;
+  cursor: pointer;
+  background: #fff;
+  font-family: inherit;
+}
+
+.dep-pay-option:hover {
+  border-color: var(--portal-blue-border);
+}
+
+.dep-pay-option--selected {
+  border-color: var(--portal-blue);
+  background: var(--portal-blue-tint);
+}
+
+.dep-pay-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--portal-blue-bg);
+  color: var(--portal-blue-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 8px;
+}
+
+.dep-pay-option--selected .dep-pay-icon {
+  background: var(--portal-blue);
+  color: #fff;
+}
+
+.dep-pay-label {
+  display: block;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--portal-navy);
+}
+
+.dep-pay-desc {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--portal-muted);
+  margin-top: 3px;
+  line-height: 1.4;
+}
+
+.dep-hmo-fields {
+  margin-top: 16px;
+  padding: 14px;
+  background: var(--portal-canvas);
+  border: 1px dashed var(--portal-border);
+  border-radius: var(--portal-radius-sm);
+}
+
+.dep-hmo-note {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  font-size: 0.74rem;
+  color: var(--portal-navy);
+  background: var(--portal-indigo-bg);
+  border: 1px solid var(--portal-indigo-border);
+  border-radius: var(--portal-radius-sm);
+  padding: 9px 11px;
+  margin-bottom: 12px;
+}
+
+.dep-hmo-note svg {
+  width: 14px;
+  height: 14px;
+  color: var(--portal-indigo-text);
+  flex: none;
+  margin-top: 1px;
+}
+
+/* ---- Checkbox-chip groups (Medical/Dental History steps) ---- */
+.chip-group {
+  margin-bottom: 18px;
+}
+
+.chip-group-label {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--portal-slate);
+  margin: 0 0 9px;
+}
+
+.chip-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--portal-border);
+  border-radius: 999px;
+  padding: 6px 13px;
+  font-size: 0.76rem;
+  color: var(--portal-slate);
+  cursor: pointer;
+  background: #fff;
+  font-family: inherit;
+}
+
+.chip:hover {
+  border-color: var(--portal-blue-border);
+}
+
+.chip--checked {
+  background: var(--portal-blue);
+  border-color: var(--portal-blue);
+  color: #fff;
+}
+
+/* ---- Review step ---- */
+.dep-review-section {
+  border: 1px solid var(--portal-border-light);
+  border-radius: var(--portal-radius-sm);
+  padding: 13px 15px;
+  margin-bottom: 12px;
+}
+
+.dep-review-section h4 {
+  margin: 0 0 8px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--portal-navy);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.dep-review-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 4px 0;
+  font-size: 0.8rem;
+}
+
+.dep-review-row span:first-child {
+  color: var(--portal-muted);
+  flex: none;
+}
+
+.dep-review-row span:last-child {
+  color: var(--portal-slate);
+  font-weight: 600;
+  text-align: right;
+}
+
+.dep-review-empty {
+  color: var(--portal-muted);
+  font-style: italic;
+  font-weight: 400 !important;
+}
+
 .dep-modal-actions {
   display: flex;
   gap: 8px;
@@ -201,7 +492,8 @@
 }
 
 @media (max-width: 560px) {
-  .dep-form-two {
+  .dep-form-two,
+  .dep-pay-grid {
     grid-template-columns: 1fr;
   }
 

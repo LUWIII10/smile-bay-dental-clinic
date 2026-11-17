@@ -7,6 +7,7 @@ use App\Models\DentalRecord;
 use App\Models\Patient;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 /**
  * "My Dependents" — a parent patient managing their minor children's
@@ -21,25 +22,90 @@ use Illuminate\Support\Facades\DB;
  */
 class DependentController extends Controller
 {
-    private function fieldRules(bool $partial = false): array
+    // Same shape as RegisterRequest's own rules for these exact fields —
+    // a dependent gets the same clinical intake a self-registering adult
+    // patient would give for themselves (medical/dental history, payment
+    // & HMO coverage), just filled in by the parent instead. The
+    // frontend's wizard always resends the full form on both store() and
+    // update(), so every field here is unconditionally required/nullable,
+    // never "sometimes".
+    private function fieldRules(): array
     {
-        $req = $partial ? 'sometimes' : 'required';
-
         return [
-            'first_name' => [$req, 'string', 'max:100'],
+            'first_name' => ['required', 'string', 'max:100'],
             'middle_name' => ['nullable', 'string', 'max:100'],
-            'last_name' => [$req, 'string', 'max:100'],
+            'last_name' => ['required', 'string', 'max:100'],
             'date_of_birth' => [
-                $req, 'date', 'before:today',
+                'required', 'date', 'before:today',
                 function ($attribute, $value, $fail) {
                     if ($value && now()->parse($value)->age >= 18) {
                         $fail('A dependent must be under 18 years old. For an adult, they should register their own account.');
                     }
                 },
             ],
-            'sex' => [$req, 'in:male,female'],
-            'relationship_to_parent' => [$req, 'in:son,daughter,ward'],
+            'sex' => ['required', 'in:male,female'],
+            'relationship_to_parent' => ['required', 'in:son,daughter,ward'],
+
+            // ---- Payment & Coverage ----
+            'patient_type' => ['required', 'in:cash,hmo'],
+            'hmo_provider_id' => [
+                'required_if:patient_type,hmo', 'nullable', 'integer',
+                Rule::exists('hmo_providers', 'id')->where('is_active', true),
+            ],
+            'hmo_number' => ['required_if:patient_type,hmo', 'nullable', 'string', 'max:100'],
+            'hmo_company_name' => ['required_if:patient_type,hmo', 'nullable', 'string', 'max:255'],
+
+            // ---- Medical Information ----
+            'allergies' => ['nullable', 'string', 'max:1000'],
+            'current_medications' => ['nullable', 'string', 'max:1000'],
+            'medical_conditions_notes' => ['nullable', 'string', 'max:1000'],
+            'blood_type' => ['nullable', 'string', 'max:10'],
+            'medical_conditions' => ['nullable', 'array'],
+            'medical_conditions.*' => ['string', 'max:100'],
+            'previous_surgeries' => ['nullable', 'string', 'max:1000'],
+            'last_physical_exam' => ['nullable', 'string', 'max:100'],
+            'physician_name_specialty' => ['nullable', 'string', 'max:255'],
+
+            // ---- Dental History ----
+            'last_dental_visit' => ['nullable', 'string', 'max:100'],
+            'last_dental_treatment' => ['nullable', 'string', 'max:255'],
+            'brushing_frequency' => ['nullable', 'string', 'max:100'],
+            'dental_procedures_history' => ['nullable', 'array'],
+            'dental_procedures_history.*' => ['string', 'max:100'],
+            'current_dental_symptoms' => ['nullable', 'array'],
+            'current_dental_symptoms.*' => ['string', 'max:100'],
+            'visit_reason' => ['nullable', 'string', 'max:1000'],
         ];
+    }
+
+    // Maps a validated payload onto Patient's own columns — shared by
+    // store() and update() so they can never drift on this mapping.
+    // Mirrors AuthController::register()'s own mapping for the same
+    // fields (medical_conditions_notes -> medical_conditions_other, HMO
+    // fields nulled out when patient_type is cash).
+    private function attributesFromValidated(array $validated): array
+    {
+        $attributes = array_intersect_key($validated, array_flip([
+            'first_name', 'middle_name', 'last_name', 'date_of_birth', 'sex', 'relationship_to_parent',
+            'allergies', 'current_medications', 'blood_type', 'medical_conditions',
+            'previous_surgeries', 'last_physical_exam', 'physician_name_specialty',
+            'last_dental_visit', 'last_dental_treatment', 'brushing_frequency',
+            'dental_procedures_history', 'current_dental_symptoms', 'visit_reason',
+        ]));
+
+        if (array_key_exists('medical_conditions_notes', $validated)) {
+            $attributes['medical_conditions_other'] = $validated['medical_conditions_notes'];
+        }
+
+        if (array_key_exists('patient_type', $validated)) {
+            $attributes['patient_type'] = $validated['patient_type'];
+            $isHmo = $validated['patient_type'] === 'hmo';
+            $attributes['hmo_provider_id'] = $isHmo ? $validated['hmo_provider_id'] : null;
+            $attributes['hmo_number'] = $isHmo ? $validated['hmo_number'] : null;
+            $attributes['hmo_company_name'] = $isHmo ? $validated['hmo_company_name'] : null;
+        }
+
+        return $attributes;
     }
 
     public function index(Request $request)
@@ -65,25 +131,12 @@ class DependentController extends Controller
 
         $dependent = DB::transaction(function () use ($validated, $patient) {
             $dependent = Patient::create([
+                ...$this->attributesFromValidated($validated),
                 'user_id' => null,
                 'parent_patient_id' => $patient->id,
                 'is_dependent' => true,
-                'relationship_to_parent' => $validated['relationship_to_parent'],
-                'first_name' => $validated['first_name'],
-                'middle_name' => $validated['middle_name'] ?? null,
-                'last_name' => $validated['last_name'],
-                'date_of_birth' => $validated['date_of_birth'],
-                'sex' => $validated['sex'],
-                // Inherited from the parent — a household's children are
-                // overwhelmingly on the same coverage; staff/parent can
-                // still change it per dependent later the same way they
-                // can for any patient.
-                'patient_type' => $patient->patient_type,
-                'hmo_provider_id' => $patient->hmo_provider_id,
-                'hmo_number' => $patient->hmo_number,
-                'hmo_company_name' => $patient->hmo_company_name,
-                // The parent adding this profile IS the consent capture —
-                // same reasoning as StaffAppointmentController::
+                // The parent filling in this full intake IS the consent
+                // capture — same reasoning as StaffAppointmentController::
                 // registerWalkInPatient()'s in-person equivalent.
                 'consent_certified' => true,
             ]);
@@ -99,8 +152,8 @@ class DependentController extends Controller
     {
         $this->authorizeOwnership($request, $dependent);
 
-        $validated = $request->validate($this->fieldRules(partial: true));
-        $dependent->update($validated);
+        $validated = $request->validate($this->fieldRules());
+        $dependent->update($this->attributesFromValidated($validated));
 
         return response()->json(['data' => $this->present($dependent->fresh())]);
     }
@@ -183,6 +236,24 @@ class DependentController extends Controller
             'sex' => $dependent->sex,
             'relationship_to_parent' => $dependent->relationship_to_parent,
             'patient_type' => $dependent->patient_type,
+            'hmo_provider_id' => $dependent->hmo_provider_id,
+            'hmo_provider_name' => $dependent->hmoProvider?->name,
+            'hmo_number' => $dependent->hmo_number,
+            'hmo_company_name' => $dependent->hmo_company_name,
+            'allergies' => $dependent->allergies,
+            'current_medications' => $dependent->current_medications,
+            'medical_conditions' => $dependent->medical_conditions ?? [],
+            'medical_conditions_notes' => $dependent->medical_conditions_other,
+            'blood_type' => $dependent->blood_type,
+            'previous_surgeries' => $dependent->previous_surgeries,
+            'last_physical_exam' => $dependent->last_physical_exam,
+            'physician_name_specialty' => $dependent->physician_name_specialty,
+            'last_dental_visit' => $dependent->last_dental_visit,
+            'last_dental_treatment' => $dependent->last_dental_treatment,
+            'brushing_frequency' => $dependent->brushing_frequency,
+            'dental_procedures_history' => $dependent->dental_procedures_history ?? [],
+            'current_dental_symptoms' => $dependent->current_dental_symptoms ?? [],
+            'visit_reason' => $dependent->visit_reason,
         ];
     }
 }
