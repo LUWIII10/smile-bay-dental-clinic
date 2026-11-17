@@ -318,12 +318,12 @@ class PatientRecordController extends Controller
             'primaryDentist:id,name',
             'toothConditions' => fn ($q) => $q->orderBy('tooth_number'),
             'toothConditions.updatedBy:id,name',
-            'clinicalNotes' => fn ($q) => $q->with('dentist:id,name')->orderByDesc('created_at'),
+            'clinicalNotes' => fn ($q) => $q->with(['dentist:id,name', 'dentist.dentistProfile:id,user_id,photo_path'])->orderByDesc('created_at'),
             'treatmentPlans' => fn ($q) => $q->with([
                 'dentist:id,name',
                 'items' => fn ($iq) => $iq->orderBy('sequence'),
             ])->orderByDesc('created_at'),
-            'treatmentHistory' => fn ($q) => $q->with('performedBy:id,name')->orderByDesc('performed_at'),
+            'treatmentHistory' => fn ($q) => $q->with(['performedBy:id,name', 'performedBy.dentistProfile:id,user_id,photo_path'])->orderByDesc('performed_at'),
         ]);
 
         return response()->json(['data' => ['patient' => $patient, 'dental_record' => $record]]);
@@ -431,7 +431,7 @@ class PatientRecordController extends Controller
             'note' => $validated['note'],
         ]);
 
-        return response()->json(['data' => $note->load('dentist:id,name')], 201);
+        return response()->json(['data' => $note->load(['dentist:id,name', 'dentist.dentistProfile:id,user_id,photo_path'])], 201);
     }
 
     /**
@@ -450,7 +450,7 @@ class PatientRecordController extends Controller
 
         $clinicalNote->update(['note' => $validated['note']]);
 
-        return response()->json(['data' => $clinicalNote->load('dentist:id,name')]);
+        return response()->json(['data' => $clinicalNote->load(['dentist:id,name', 'dentist.dentistProfile:id,user_id,photo_path'])]);
     }
 
     public function destroyClinicalNote(Request $request, ClinicalNote $clinicalNote)
@@ -657,7 +657,7 @@ class PatientRecordController extends Controller
             'notes' => $validated['notes'] ?? null,
         ]);
 
-        return response()->json(['data' => $entry->load('performedBy:id,name')], 201);
+        return response()->json(['data' => $entry->load(['performedBy:id,name', 'performedBy.dentistProfile:id,user_id,photo_path'])], 201);
     }
 
     /**

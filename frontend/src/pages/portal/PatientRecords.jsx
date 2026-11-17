@@ -47,7 +47,8 @@ import { formatDateLong, formatDateShort, formatTime12h } from './dateTimeUtils'
 import { formatRangeLabel } from './components/dateRangeUtils';
 import { showSuccessToast, showErrorToast } from '../../utils/toast';
 import { printWithTitle } from '../../utils/printWithTitle';
-import { getAvatarUrl } from './avatarUtils';
+import { getAvatarUrl, resolvePhotoUrl } from './avatarUtils';
+import { KNOWN_DENTIST_PHOTOS } from './dentistPhotos';
 import PrintFooter from './components/PrintFooter';
 import './dashboards.css';
 import './Appointments.css';
@@ -2072,141 +2073,189 @@ function PatientRecords() {
                 </div>
                 <div className="history-header-actions">
                   {isDentist && (
-                    <button type="button" className="dash-btn dash-btn--outline" onClick={() => setHistoryModalOpen(true)}>
+                    <button type="button" className="dash-btn" onClick={() => setHistoryModalOpen(true)}>
                       + Log Procedure
                     </button>
                   )}
                 </div>
               </div>
-              {record.treatment_history.length === 0 ? (
-                <div className="dash-empty">
-                  <ClockIcon />
-                  <span className="dash-empty-title">No completed procedures yet</span>
-                </div>
-              ) : (
-                <div className="history-timeline">
-                  {record.treatment_history.map((h, i) => {
-                    const dateParts = formatRecordDateParts(h.performed_at);
-                    return (
-                      <div key={h.id} className="timeline-entry">
-                        <span className={`timeline-dot${i === 0 ? ' timeline-dot--active' : ''}`}>
-                          <ToothIcon />
+              <DataTable
+                emptyMessage="No completed procedures yet"
+                rows={record.treatment_history}
+                columns={[
+                  {
+                    key: 'date',
+                    label: 'Date',
+                    align: 'center',
+                    minWidthPx: 92,
+                    render: (h) => formatDate(h.performed_at),
+                  },
+                  {
+                    key: 'procedure',
+                    label: 'Procedure',
+                    align: 'center',
+                    render: (h) => (
+                      <>
+                        {h.procedure_name}
+                        {h.tooth_number ? ` — Tooth #${h.tooth_number}` : ''}
+                      </>
+                    ),
+                  },
+                  {
+                    key: 'dentist',
+                    label: 'Dentist',
+                    align: 'center',
+                    minWidthPx: 180,
+                    render: (h) => {
+                      const name = h.performed_by?.name || 'Dentist';
+                      const photo = resolvePhotoUrl(h.performed_by?.dentist_profile?.photo_path) || KNOWN_DENTIST_PHOTOS[name];
+                      return (
+                        <span className="cell-person" style={{ display: 'inline-flex', justifyContent: 'center' }}>
+                          <span className="cell-avatar">{photo ? <img src={photo} alt="" /> : getInitials(name)}</span>
+                          <span className="cell-person-text">
+                            <span className="cell-person-name">{name}</span>
+                          </span>
                         </span>
-                        <div className="timeline-card">
-                          <div className="timeline-date">
-                            <span className="timeline-date-month">{dateParts.month}</span>
-                            <span className="timeline-date-day">{dateParts.day}</span>
-                            <span className="timeline-date-year">{dateParts.year}</span>
-                          </div>
-                          <div className="timeline-body">
-                            <div className="timeline-card-header">
-                              <span className="timeline-card-title">
-                                {h.procedure_name}
-                                {h.tooth_number ? ` — Tooth #${h.tooth_number}` : ''}
-                              </span>
-                              {isDentist && h.performed_by?.id === user?.id && (
-                                <button
-                                  type="button"
-                                  className="row-action-icon row-action-icon--danger"
-                                  aria-label="Delete treatment record"
-                                  disabled={deletingHistoryId === h.id}
-                                  onClick={() => openDeleteHistory(h)}
-                                >
-                                  <TrashIcon />
-                                </button>
-                              )}
-                            </div>
-                            <span className="timeline-card-meta">
-                              <UserIcon />
-                              {h.performed_by?.name || 'Dentist'}
-                            </span>
-                            {h.notes && <p className="timeline-card-notes">{h.notes}</p>}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+                      );
+                    },
+                  },
+                  {
+                    key: 'notes',
+                    label: 'Notes',
+                    align: 'center',
+                    render: (h) => h.notes || '—',
+                  },
+                  {
+                    key: 'actions',
+                    label: '',
+                    align: 'right',
+                    render: (h) => {
+                      if (!isDentist || h.performed_by?.id !== user?.id) return null;
+                      return (
+                        <button
+                          type="button"
+                          className="row-action-icon row-action-icon--danger"
+                          aria-label="Delete treatment record"
+                          disabled={deletingHistoryId === h.id}
+                          onClick={() => openDeleteHistory(h)}
+                        >
+                          <TrashIcon />
+                        </button>
+                      );
+                    },
+                  },
+                ]}
+              />
             </div>
 
             <div className="section-card">
                 <div className="section-card-header">
                   <h3 className="section-card-title">Clinical Notes</h3>
                   {isDentist && (
-                    <button type="button" className="dash-btn dash-btn--outline" onClick={() => setNoteModalOpen(true)}>
+                    <button type="button" className="dash-btn" onClick={() => setNoteModalOpen(true)}>
                       + Add Note
                     </button>
                   )}
                 </div>
-                {record.clinical_notes.length === 0 ? (
-                  <div className="dash-empty">
-                    <FileIcon />
-                    <span className="dash-empty-title">No clinical notes yet</span>
-                  </div>
-                ) : (
-                  <ul className="notes-list">
-                    {record.clinical_notes.map((note) => {
-                      const canEdit = isDentist && note.dentist_id === user?.id;
-                      return (
-                        <li key={note.id} className="note-item">
-                          {editingNoteId === note.id ? (
-                            <>
-                              <textarea
-                                className="form-textarea"
-                                value={editNoteText}
-                                onChange={(e) => setEditNoteText(e.target.value)}
-                                maxLength={5000}
-                                autoFocus
-                              />
-                              <div className="note-item-edit-actions">
-                                <button type="button" className="dash-btn dash-btn--outline" onClick={cancelEditNote}>
-                                  Cancel
-                                </button>
-                                <button
-                                  type="button"
-                                  className="dash-btn"
-                                  disabled={savingNoteEdit || !editNoteText.trim()}
-                                  onClick={saveEditNote}
-                                >
-                                  {savingNoteEdit ? 'Saving…' : 'Save'}
-                                </button>
-                              </div>
-                            </>
-                          ) : (
-                            <div className="note-item-header">
-                              <div>
-                                <p className="note-item-text">{note.note}</p>
-                                <span className="note-item-meta">{note.dentist?.name || 'Dentist'} · {formatDate(note.created_at)}</span>
-                              </div>
-                              {canEdit && (
-                                <div className="note-item-actions">
-                                  <button
-                                    type="button"
-                                    className="row-action-icon"
-                                    aria-label="Edit note"
-                                    onClick={() => startEditNote(note)}
-                                  >
-                                    <EditIcon />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="row-action-icon row-action-icon--danger"
-                                    aria-label="Delete note"
-                                    disabled={deletingNoteId === note.id}
-                                    onClick={() => deleteNote(note)}
-                                  >
-                                    <TrashIcon />
-                                  </button>
-                                </div>
-                              )}
+                <DataTable
+                  emptyMessage="No clinical notes yet"
+                  rows={record.clinical_notes}
+                  columns={[
+                    {
+                      key: 'date',
+                      label: 'Date',
+                      align: 'center',
+                      minWidthPx: 92,
+                      render: (note) => formatDate(note.created_at),
+                    },
+                    {
+                      key: 'dentist',
+                      label: 'Dentist',
+                      align: 'center',
+                      minWidthPx: 180,
+                      render: (note) => {
+                        const name = note.dentist?.name || 'Dentist';
+                        const photo = resolvePhotoUrl(note.dentist?.dentist_profile?.photo_path) || KNOWN_DENTIST_PHOTOS[name];
+                        const mine = isDentist && note.dentist_id === user?.id;
+                        return (
+                          <span className="cell-person" style={{ display: 'inline-flex', justifyContent: 'center' }}>
+                            <span className="cell-avatar">{photo ? <img src={photo} alt="" /> : getInitials(name)}</span>
+                            <span className="cell-person-text">
+                              <span className="cell-person-name">{name}</span>
+                              {mine && <StatusBadge status="You" tone="blue" />}
+                            </span>
+                          </span>
+                        );
+                      },
+                    },
+                    {
+                      key: 'note',
+                      label: 'Note',
+                      align: 'center',
+                      render: (note) => {
+                        if (editingNoteId !== note.id) return note.note;
+                        return (
+                          <span style={{ display: 'block', textAlign: 'left' }}>
+                            <textarea
+                              className="form-textarea"
+                              value={editNoteText}
+                              onChange={(e) => setEditNoteText(e.target.value)}
+                              maxLength={5000}
+                              autoFocus
+                            />
+                          </span>
+                        );
+                      },
+                    },
+                    {
+                      key: 'actions',
+                      label: '',
+                      align: 'right',
+                      render: (note) => {
+                        const canEdit = isDentist && note.dentist_id === user?.id;
+                        if (!canEdit) return null;
+                        if (editingNoteId === note.id) {
+                          return (
+                            <div className="note-item-edit-actions">
+                              <button type="button" className="dash-btn dash-btn--outline" onClick={cancelEditNote}>
+                                Cancel
+                              </button>
+                              <button
+                                type="button"
+                                className="dash-btn"
+                                disabled={savingNoteEdit || !editNoteText.trim()}
+                                onClick={saveEditNote}
+                              >
+                                {savingNoteEdit ? 'Saving…' : 'Save'}
+                              </button>
                             </div>
-                          )}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
+                          );
+                        }
+                        return (
+                          <div className="note-item-actions">
+                            <button
+                              type="button"
+                              className="row-action-icon"
+                              aria-label="Edit note"
+                              onClick={() => startEditNote(note)}
+                            >
+                              <EditIcon />
+                            </button>
+                            <button
+                              type="button"
+                              className="row-action-icon row-action-icon--danger"
+                              aria-label="Delete note"
+                              disabled={deletingNoteId === note.id}
+                              onClick={() => deleteNote(note)}
+                            >
+                              <TrashIcon />
+                            </button>
+                          </div>
+                        );
+                      },
+                    },
+                  ]}
+                />
               </div>
           </div>
 
