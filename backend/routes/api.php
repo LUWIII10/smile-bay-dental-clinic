@@ -106,6 +106,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/patient/dependents/{dependent}', [DependentController::class, 'update']);
         Route::delete('/patient/dependents/{dependent}', [DependentController::class, 'destroy']);
         Route::get('/patient/dependents/{dependent}/dental-record', [DependentController::class, 'dentalRecord']);
+        Route::post('/patient/dependents/{dependent}/photo', [DependentController::class, 'uploadPhoto']);
+        Route::delete('/patient/dependents/{dependent}/photo', [DependentController::class, 'removePhoto']);
     });
 
     Route::middleware('role:dentist')->group(function () {

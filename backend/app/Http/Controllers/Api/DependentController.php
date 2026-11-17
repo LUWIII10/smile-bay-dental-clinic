@@ -7,6 +7,7 @@ use App\Models\DentalRecord;
 use App\Models\Patient;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
 /**
@@ -177,6 +178,46 @@ class DependentController extends Controller
     }
 
     /**
+     * A dependent's own photo — same upload mechanics as ProfileController
+     * ::uploadAvatar() (same validation, same relative-path storage so it
+     * resolves correctly on both Railway and Hostinger's split-domain
+     * setup), just written to patients.photo_path since a dependent has
+     * no users row to hang an avatar off of.
+     */
+    public function uploadPhoto(Request $request, Patient $dependent)
+    {
+        $this->authorizeOwnership($request, $dependent);
+
+        $request->validate([
+            'photo' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
+        ]);
+
+        $oldPath = $dependent->photo_path;
+        $path = $request->file('photo')->store('dependent-photos', 'public');
+        $dependent->update(['photo_path' => '/storage/'.$path]);
+        $this->deleteIfLocal($oldPath);
+
+        return response()->json(['data' => $this->present($dependent->fresh())]);
+    }
+
+    public function removePhoto(Request $request, Patient $dependent)
+    {
+        $this->authorizeOwnership($request, $dependent);
+
+        $this->deleteIfLocal($dependent->photo_path);
+        $dependent->update(['photo_path' => null]);
+
+        return response()->json(['data' => $this->present($dependent->fresh())]);
+    }
+
+    private function deleteIfLocal(?string $path): void
+    {
+        if ($path && str_contains($path, '/storage/dependent-photos/')) {
+            Storage::disk('public')->delete('dependent-photos/'.basename($path));
+        }
+    }
+
+    /**
      * The dependent's own "My Dental Records" equivalent — same shape
      * PatientDentalRecordController::show() returns for the parent's own
      * record, just scoped to this dependent's row instead.
@@ -235,6 +276,7 @@ class DependentController extends Controller
             'age' => $dependent->age(),
             'sex' => $dependent->sex,
             'relationship_to_parent' => $dependent->relationship_to_parent,
+            'photo_path' => $dependent->photo_path,
             'patient_type' => $dependent->patient_type,
             'hmo_provider_id' => $dependent->hmo_provider_id,
             'hmo_provider_name' => $dependent->hmoProvider?->name,

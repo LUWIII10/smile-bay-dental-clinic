@@ -68,3 +68,20 @@ export async function getDependentDentalRecord(dependentId) {
   const response = await api.get(`/api/patient/dependents/${dependentId}/dental-record`);
   return response.data.data;
 }
+
+// A dependent's own photo — only possible once the dependent already
+// exists (the same reason MyProfile's own avatar upload is a separate
+// action from saving the rest of the profile form).
+export async function uploadDependentPhoto(dependentId, file) {
+  await api.get('/sanctum/csrf-cookie');
+  const formData = new FormData();
+  formData.append('photo', file);
+  const response = await api.post(`/api/patient/dependents/${dependentId}/photo`, formData);
+  return response.data.data;
+}
+
+export async function removeDependentPhoto(dependentId) {
+  await api.get('/sanctum/csrf-cookie');
+  const response = await api.delete(`/api/patient/dependents/${dependentId}/photo`);
+  return response.data.data;
+}

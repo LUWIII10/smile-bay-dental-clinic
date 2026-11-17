@@ -14,6 +14,7 @@ class Patient extends Model
         'parent_patient_id',
         'is_dependent',
         'relationship_to_parent',
+        'photo_path',
         'patient_number',
         'first_name',
         'middle_name',

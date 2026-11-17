@@ -41,6 +41,13 @@
   font-size: 0.86rem;
   flex: none;
   color: #fff;
+  overflow: hidden;
+}
+
+.dep-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .dep-avatar--boy {
@@ -304,6 +311,48 @@
   border-radius: var(--portal-radius-sm);
   padding: 9px 12px;
   margin: 0 0 16px;
+}
+
+/* ---- Dependent photo (Basic Info step, edit mode only) ---- */
+.dep-photo-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 18px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--portal-border-light);
+}
+
+.dep-photo-preview {
+  width: 68px;
+  height: 68px;
+  border-radius: 16px;
+  flex: none;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #60a5fa, var(--portal-blue));
+  color: #fff;
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.dep-photo-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.dep-photo-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.dep-photo-hint {
+  font-size: 0.7rem;
+  color: var(--portal-muted);
+  margin: 6px 0 0;
 }
 
 /* ---- Payment & Coverage step ---- */

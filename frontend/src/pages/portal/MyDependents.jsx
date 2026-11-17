@@ -1,10 +1,14 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { getDependents, createDependent, updateDependent, deleteDependent } from '../../api/dependents';
+import {
+  getDependents, createDependent, updateDependent, deleteDependent,
+  uploadDependentPhoto, removeDependentPhoto,
+} from '../../api/dependents';
 import { getPublicHmoProviders } from '../../api/public';
+import { resolvePhotoUrl } from './avatarUtils';
 import PageHeader from './components/PageHeader';
 import Modal from './components/Modal';
-import { UsersIcon, ToothIcon, PlusIcon, EditIcon, TrashIcon, AlertIcon, ShieldIcon, CashIcon, CheckCircleIcon } from './icons';
+import { UsersIcon, ToothIcon, PlusIcon, EditIcon, TrashIcon, AlertIcon, ShieldIcon, CashIcon, CheckCircleIcon, CameraIcon } from './icons';
 import './dashboards.css';
 import './MyDependents.css';
 
@@ -71,6 +75,7 @@ const STEP_LABELS = ['Basic Info', 'Payment & Coverage', 'Medical Info', 'Dental
 
 function emptyForm() {
   return {
+    photo_path: null,
     first_name: '', middle_name: '', last_name: '', date_of_birth: '', sex: 'male', relationship_to_parent: 'son',
     patient_type: 'cash', hmo_provider_id: '', hmo_number: '', hmo_company_name: '',
     allergies: '', current_medications: '', medical_conditions_notes: '', blood_type: '', medical_conditions: [],
@@ -81,6 +86,7 @@ function emptyForm() {
 
 function formFromDependent(dep) {
   return {
+    photo_path: dep.photo_path || null,
     first_name: dep.first_name, middle_name: dep.middle_name || '', last_name: dep.last_name,
     date_of_birth: dep.date_of_birth, sex: dep.sex, relationship_to_parent: dep.relationship_to_parent,
     patient_type: dep.patient_type || 'cash',
@@ -153,6 +159,10 @@ function MyDependents() {
   const [removeError, setRemoveError] = useState('');
   const [deleting, setDeleting] = useState(false);
 
+  const photoInputRef = useRef(null);
+  const [photoSaving, setPhotoSaving] = useState(false);
+  const [photoError, setPhotoError] = useState('');
+
   const load = () => {
     setLoading(true);
     setError('');
@@ -184,6 +194,43 @@ function MyDependents() {
     setWizardStep(1);
     setSaveError('');
     setModalOpen(true);
+  };
+
+  // Only possible once the dependent already has an id (editing, not the
+  // initial Add) — same reason MyProfile's own avatar upload is a separate
+  // action from saving the rest of the profile form, not part of one
+  // combined submit.
+  const handlePhotoChange = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file || !editingId) return;
+
+    setPhotoError('');
+    setPhotoSaving(true);
+    try {
+      const updated = await uploadDependentPhoto(editingId, file);
+      set('photo_path', updated.photo_path);
+      setDependents((prev) => prev.map((d) => (d.id === editingId ? updated : d)));
+    } catch (err) {
+      setPhotoError(err.response?.data?.message || 'Could not upload this photo. Please try again.');
+    } finally {
+      setPhotoSaving(false);
+    }
+  };
+
+  const handleRemovePhoto = async () => {
+    if (!editingId) return;
+    setPhotoError('');
+    setPhotoSaving(true);
+    try {
+      const updated = await removeDependentPhoto(editingId);
+      set('photo_path', null);
+      setDependents((prev) => prev.map((d) => (d.id === editingId ? updated : d)));
+    } catch (err) {
+      setPhotoError(err.response?.data?.message || 'Could not remove this photo. Please try again.');
+    } finally {
+      setPhotoSaving(false);
+    }
   };
 
   // Switching to Male clears conditions that only ever apply to a female
@@ -279,7 +326,7 @@ function MyDependents() {
                 <div className="dep-card" key={dep.id}>
                   <div className="dep-card-top">
                     <span className={`dep-avatar${dep.sex === 'female' ? ' dep-avatar--girl' : ' dep-avatar--boy'}`}>
-                      {dep.first_name[0]}{dep.last_name[0]}
+                      {resolvePhotoUrl(dep.photo_path) ? <img src={resolvePhotoUrl(dep.photo_path)} alt="" /> : `${dep.first_name[0]}${dep.last_name[0]}`}
                     </span>
                     <div>
                       <p className="dep-name">{dep.full_name}</p>
@@ -336,6 +383,35 @@ function MyDependents() {
 
         {wizardStep === 1 && (
           <>
+            {editingId ? (
+              <div className="dep-photo-row">
+                <span className="dep-photo-preview">
+                  {resolvePhotoUrl(form.photo_path) ? (
+                    <img src={resolvePhotoUrl(form.photo_path)} alt="" />
+                  ) : (
+                    <span>{(form.first_name[0] || '') + (form.last_name[0] || '')}</span>
+                  )}
+                </span>
+                <div>
+                  <div className="dep-photo-actions">
+                    <button type="button" className="dash-btn dash-btn--outline dash-btn--sm" disabled={photoSaving} onClick={() => photoInputRef.current?.click()}>
+                      <CameraIcon /> {photoSaving ? 'Saving…' : 'Change Photo'}
+                    </button>
+                    {form.photo_path && (
+                      <button type="button" className="dash-btn dash-btn--outline dash-btn--sm" disabled={photoSaving} onClick={handleRemovePhoto}>
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                  <p className="dep-photo-hint">JPG, PNG, or WEBP. Max 4MB.</p>
+                  {photoError && <p className="dep-form-error">{photoError}</p>}
+                  <input ref={photoInputRef} type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={handlePhotoChange} />
+                </div>
+              </div>
+            ) : (
+              <p className="dep-step-note">You can add this dependent's photo after saving.</p>
+            )}
+
             <div className="dep-form-two">
               <div className="dep-field"><label>First Name</label><input className="form-input" value={form.first_name} onChange={(e) => set('first_name', e.target.value)} /></div>
               <div className="dep-field"><label>Last Name</label><input className="form-input" value={form.last_name} onChange={(e) => set('last_name', e.target.value)} /></div>
