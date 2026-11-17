@@ -508,6 +508,16 @@ class AppointmentController extends Controller
 
             $primaryDentistJustAssigned = $this->assignPrimaryDentistIfUnset($record, $appointment->dentist_id);
 
+            // notes is deliberately NOT copied onto this row — it's the
+            // same text already saved as this visit's required Clinical
+            // Note (see noteForVisit in PatientRecords.jsx, which is what
+            // the frontend actually sends here), so writing it again here
+            // just duplicated one sentence across two sections of the
+            // record. The narrative lives in Clinical Notes; this stays a
+            // structured procedure log, with notes genuinely populated
+            // only when a procedure is logged independently of that flow
+            // (storeTreatmentHistory() below, or a treatment plan item's
+            // own notes).
             TreatmentHistory::create([
                 'dental_record_id' => $record->id,
                 'appointment_id' => $appointment->id,
@@ -515,7 +525,6 @@ class AppointmentController extends Controller
                 'procedure_name' => $validated['procedure_name'],
                 'performed_by' => $request->user()->id,
                 'performed_at' => $validated['performed_at'],
-                'notes' => $validated['notes'],
             ]);
         });
 
@@ -624,6 +633,9 @@ class AppointmentController extends Controller
 
             $primaryDentistJustAssigned = $this->assignPrimaryDentistIfUnset($record, $appointment->dentist_id);
 
+            // Same reasoning as complete() above — notes mirrors an
+            // already-existing Clinical Note for this visit, so it's not
+            // duplicated onto the treatment history row too.
             TreatmentHistory::create([
                 'dental_record_id' => $record->id,
                 'appointment_id' => $appointment->id,
@@ -631,7 +643,6 @@ class AppointmentController extends Controller
                 'procedure_name' => $validated['procedure_name'],
                 'performed_by' => $request->user()->id,
                 'performed_at' => $validated['performed_at'],
-                'notes' => $validated['notes'],
             ]);
         });
 

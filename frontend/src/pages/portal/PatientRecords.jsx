@@ -2214,7 +2214,7 @@ function PatientRecords() {
                       const name = h.performed_by?.name || 'Dentist';
                       const photo = resolvePhotoUrl(h.performed_by?.dentist_profile?.photo_path) || KNOWN_DENTIST_PHOTOS[name];
                       return (
-                        <span className="cell-person" style={{ display: 'inline-flex', justifyContent: 'center' }}>
+                        <span className="cell-person" style={{ display: 'inline-flex', justifyContent: 'center', alignItems: 'flex-start' }}>
                           <span className="cell-avatar">{photo ? <img src={photo} alt="" /> : getInitials(name)}</span>
                           <span className="cell-person-text">
                             <span className="cell-person-name">{name}</span>
@@ -2291,7 +2291,7 @@ function PatientRecords() {
                         const photo = resolvePhotoUrl(note.dentist?.dentist_profile?.photo_path) || KNOWN_DENTIST_PHOTOS[name];
                         const mine = isDentist && note.dentist_id === user?.id;
                         return (
-                          <span className="cell-person" style={{ display: 'inline-flex', justifyContent: 'center' }}>
+                          <span className="cell-person" style={{ display: 'inline-flex', justifyContent: 'center', alignItems: 'flex-start' }}>
                             <span className="cell-avatar">{photo ? <img src={photo} alt="" /> : getInitials(name)}</span>
                             <span className="cell-person-text">
                               <span className="cell-person-name">{name}</span>
