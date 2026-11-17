@@ -1,12 +1,36 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { getMyDentalRecord } from '../../api/dentalRecords';
+import { getMedicalRecordHistory } from '../../api/appointments';
+import { MEDICAL_RECORD_QUESTIONS, PREGNANCY_QUESTION } from './components/MedicalRecordStep';
 import StatusBadge from './components/StatusBadge';
 import Modal from './components/Modal';
 import Skeleton from './components/Skeleton';
 import PageHeader from './components/PageHeader';
 import FilterDropdown from './components/FilterDropdown';
 import { FileIcon, ClockIcon, UserIcon, CheckCircleIcon, CalendarIcon, ToothIcon, ShieldIcon } from './icons';
+
+// Same question list every other Medical Record display reads from (the
+// booking wizard, staff Patient Records, the appointment quick-check panel).
+function flaggedLabels(record) {
+  return [...MEDICAL_RECORD_QUESTIONS, PREGNANCY_QUESTION]
+    .filter((q) => record[q.key] === true)
+    .map((q) => q.label);
+}
+
+// Same rotate-on-open chevron as PatientRecords.jsx's own (duplicated, not
+// imported — a four-line pure component, same convention as this file's
+// other small per-file helpers).
+function ChevronDownIcon({ open }) {
+  return (
+    <svg
+      width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6"
+      style={{ transform: `rotate(${open ? 180 : 0}deg)`, transition: 'transform 0.15s ease', flexShrink: 0 }}
+    >
+      <polyline points="6 9 12 15 18 9" />
+    </svg>
+  );
+}
 import {
   PLAN_STATUS_TONE,
   HISTORY_CATEGORY_OPTIONS,
@@ -48,6 +72,28 @@ function PatientDentalRecords() {
   // findable on arrival instead of buried in the paginated list.
   const [highlightedId, setHighlightedId] = useState(null);
   const rowRefs = useRef({});
+
+  // Medical Record History — separate fetch, separate loading state: this
+  // patient may have dental records with no medical record history yet
+  // (registered before this feature shipped), and either section should
+  // render independently of the other finishing first.
+  const [medicalRecords, setMedicalRecords] = useState([]);
+  const [medicalRecordsLoading, setMedicalRecordsLoading] = useState(true);
+  const [expandedMedicalRecordIds, setExpandedMedicalRecordIds] = useState([]);
+  const toggleMedicalRecordExpanded = (id) =>
+    setExpandedMedicalRecordIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  const isMedicalRecordOpen = (rec, index) => {
+    const toggled = expandedMedicalRecordIds.includes(rec.id);
+    const defaultOpen = index === 0;
+    return toggled ? !defaultOpen : defaultOpen;
+  };
+
+  useEffect(() => {
+    getMedicalRecordHistory()
+      .then(setMedicalRecords)
+      .catch(() => setMedicalRecords([]))
+      .finally(() => setMedicalRecordsLoading(false));
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -266,6 +312,77 @@ function PatientDentalRecords() {
                   </div>
                 )}
               </>
+            )}
+          </div>
+
+          <div className="section-card">
+            <div className="section-card-header">
+              <div>
+                <h3 className="section-card-title">Medical Record History</h3>
+                <p className="section-card-subtitle">What you told us before each visit, and when — kept so your care team has your full history, not just your latest answers.</p>
+              </div>
+            </div>
+
+            {medicalRecordsLoading ? (
+              <Skeleton variant="block" height="120px" />
+            ) : medicalRecords.length === 0 ? (
+              <div className="dash-empty">
+                <ShieldIcon />
+                <span className="dash-empty-title">No medical record on file yet</span>
+                <p className="dash-empty-desc">This fills in the next time you book an appointment.</p>
+              </div>
+            ) : (
+              <div className="medrec-timeline">
+                {medicalRecords.map((rec, index) => {
+                  const open = isMedicalRecordOpen(rec, index);
+                  const flags = flaggedLabels(rec);
+                  return (
+                    <div key={rec.id} className={`medrec-timeline-item${open ? ' medrec-timeline-item--open' : ''}`}>
+                      <button type="button" className="medrec-timeline-top" onClick={() => toggleMedicalRecordExpanded(rec.id)}>
+                        <span>
+                          <span className="medrec-timeline-date">
+                            {formatDate(rec.created_at)}{index === 0 && <span className="medrec-latest-chip">MOST RECENT</span>}
+                          </span>
+                          <span className="medrec-timeline-service">{rec.appointment?.service?.name || 'Visit'}</span>
+                        </span>
+                        <span className="medrec-timeline-right">
+                          <span className="medrec-timeline-flags">
+                            {flags.length > 0 ? flags.map((label) => (
+                              <span key={label} className="medrec-flag-badge">{label}</span>
+                            )) : <span className="medrec-flag-badge medrec-flag-badge--none">None declared</span>}
+                          </span>
+                          <ChevronDownIcon open={open} />
+                        </span>
+                      </button>
+                      {open && (
+                        <div className="medrec-timeline-body">
+                          <div className="medrec-qa-grid">
+                            {[...MEDICAL_RECORD_QUESTIONS, ...(rec.pregnant_or_breastfeeding !== null ? [PREGNANCY_QUESTION] : [])].map(({ key, label }) => (
+                              <div key={key} className="medrec-qa-row">
+                                <span className="medrec-qa-label">{label}</span>
+                                <span className={`medrec-qa-answer${rec[key] ? ' medrec-qa-answer--yes' : ' medrec-qa-answer--no'}`}>
+                                  {rec[key] ? 'Yes' : 'No'}
+                                </span>
+                                {rec[key] && rec[`${key}_notes`] && (
+                                  <span className="medrec-qa-note">&#8618; {rec[`${key}_notes`]}</span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                          <div className="medrec-timeline-footer">
+                            <span>Other concerns: {rec.other_concerns || 'None declared'}</span>
+                            <span>
+                              {rec.consent_given && rec.consent_at
+                                ? `Consent given ${new Date(rec.consent_at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}`
+                                : 'Consent not on file'}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             )}
           </div>
 

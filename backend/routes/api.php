@@ -177,6 +177,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/staff/appointments/stats', [StaffAppointmentController::class, 'stats']);
         Route::get('/staff/patients/search', [StaffAppointmentController::class, 'searchPatients']);
         Route::get('/staff/patients/{patient}/next-appointment', [StaffAppointmentController::class, 'nextAppointmentForPatient']);
+        Route::get('/staff/patients/{patient}/medical-record/latest', [StaffAppointmentController::class, 'patientLatestMedicalRecord']);
         Route::post('/staff/patients', [StaffAppointmentController::class, 'registerWalkInPatient']);
         Route::post('/staff/appointments/walk-in', [StaffAppointmentController::class, 'assignWalkIn']);
         Route::get('/staff/appointments/{appointment}', [StaffAppointmentController::class, 'show']);

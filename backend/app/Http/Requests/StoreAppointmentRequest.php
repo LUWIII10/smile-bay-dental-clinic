@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\AppointmentMedicalRecord;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -35,30 +36,10 @@ class StoreAppointmentRequest extends FormRequest
             // below — kept nullable (not removed) so old clients/rows never
             // break, but the wizard no longer sends it.
             'notes' => ['nullable', 'string', 'max:1000'],
-            'medical_record' => ['required', 'array'],
-            'medical_record.high_blood_pressure' => ['required', 'boolean'],
-            'medical_record.high_blood_pressure_notes' => ['nullable', 'string', 'max:500'],
-            'medical_record.diabetes' => ['required', 'boolean'],
-            'medical_record.diabetes_notes' => ['nullable', 'string', 'max:500'],
-            'medical_record.heart_condition' => ['required', 'boolean'],
-            'medical_record.heart_condition_notes' => ['nullable', 'string', 'max:500'],
-            'medical_record.asthma' => ['required', 'boolean'],
-            'medical_record.asthma_notes' => ['nullable', 'string', 'max:500'],
-            'medical_record.bleeding_disorder' => ['required', 'boolean'],
-            'medical_record.bleeding_disorder_notes' => ['nullable', 'string', 'max:500'],
-            'medical_record.allergies' => ['required', 'boolean'],
-            'medical_record.allergies_notes' => ['nullable', 'string', 'max:500'],
-            'medical_record.taking_medications' => ['required', 'boolean'],
-            'medical_record.taking_medications_notes' => ['nullable', 'string', 'max:500'],
-            'medical_record.recent_surgery' => ['required', 'boolean'],
-            'medical_record.recent_surgery_notes' => ['nullable', 'string', 'max:500'],
-            // Omitted entirely (not just false) for a male patient — never
-            // required, since the wizard never even shows this question
-            // then.
-            'medical_record.pregnant_or_breastfeeding' => ['nullable', 'boolean'],
-            'medical_record.pregnant_or_breastfeeding_notes' => ['nullable', 'string', 'max:500'],
-            'medical_record.other_concerns' => ['nullable', 'string', 'max:1000'],
-            'medical_record.consent_given' => ['required', 'accepted'],
+            // Shared with StaffAppointmentController::assignWalkIn() via
+            // AppointmentMedicalRecord::validationRules() — see that method
+            // for the pregnant_or_breastfeeding-is-nullable reasoning.
+            ...AppointmentMedicalRecord::validationRules('medical_record'),
             // Sent only by BookFollowUp.jsx — the completed appointment whose
             // recommendation this booking must fulfill. See
             // FollowUpRecommendationService::lockAndValidate(): existence

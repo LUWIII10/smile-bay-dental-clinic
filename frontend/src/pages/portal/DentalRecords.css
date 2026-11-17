@@ -205,6 +205,144 @@
   color: #60a5fa;
 }
 
+/* Medical Record History — per-visit timeline (PatientRecords.jsx on-screen
+   detail view). Distinct from the "(from registration)" cards below it,
+   which still read the old one-time intake fields — this one reads
+   AppointmentMedicalRecord, a fresh snapshot saved at every booking. */
+.medrec-history-intro {
+  margin: 0 0 14px;
+  font-size: 0.8rem;
+  color: var(--portal-muted);
+  line-height: 1.5;
+}
+
+.medrec-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.medrec-timeline-item {
+  border: 1px solid var(--portal-border-light);
+  border-radius: var(--portal-radius-sm);
+  overflow: hidden;
+}
+
+.medrec-timeline-top {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--portal-canvas);
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+}
+
+.medrec-timeline-top > span:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.medrec-timeline-date {
+  font-weight: 700;
+  color: var(--portal-navy);
+  font-size: 0.86rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.medrec-latest-chip {
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: #fff;
+  background: var(--portal-navy);
+  padding: 2px 7px;
+  border-radius: 999px;
+  letter-spacing: 0.03em;
+}
+
+.medrec-timeline-service {
+  font-size: 0.76rem;
+  color: var(--portal-muted);
+}
+
+.medrec-timeline-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.medrec-timeline-flags {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 5px;
+  max-width: 320px;
+}
+
+.medrec-timeline-body {
+  padding: 14px;
+  border-top: 1px solid var(--portal-border-light);
+}
+
+.medrec-qa-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px 20px;
+}
+
+@media (max-width: 720px) {
+  .medrec-qa-grid { grid-template-columns: 1fr; }
+}
+
+.medrec-qa-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.8rem;
+  padding: 6px 0;
+  border-bottom: 1px dashed var(--portal-border-light);
+}
+
+.medrec-qa-label {
+  color: var(--portal-slate);
+}
+
+.medrec-qa-answer {
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.medrec-qa-answer--yes { color: var(--portal-red-text); }
+.medrec-qa-answer--no { color: var(--portal-green-text); }
+
+.medrec-qa-note {
+  flex-basis: 100%;
+  font-size: 0.74rem;
+  color: var(--portal-muted);
+  margin-top: -2px;
+}
+
+.medrec-timeline-footer {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--portal-border-light);
+  font-size: 0.74rem;
+  color: var(--portal-muted);
+}
+
 .record-field--with-action {
   justify-content: space-between;
   width: 100%;

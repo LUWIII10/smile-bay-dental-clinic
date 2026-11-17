@@ -2,6 +2,13 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Modal from './Modal';
 import ServiceSelector from './ServiceSelector';
 import StatusBadge from './StatusBadge';
+import MedicalRecordStep, {
+  MEDICAL_RECORD_QUESTIONS,
+  PREGNANCY_QUESTION,
+  emptyMedicalRecordForm,
+  prefillMedicalRecordForm,
+  isMedicalRecordComplete,
+} from './MedicalRecordStep';
 import {
   searchPatients,
   registerWalkInPatient,
@@ -10,6 +17,7 @@ import {
   getAvailableSlots,
   getDayAvailability,
   getPatientNextAppointment,
+  getPatientLatestMedicalRecord,
 } from '../../../api/appointments';
 import api from '../../../api';
 import { formatDateLong, formatTime12h } from '../dateTimeUtils';
@@ -20,7 +28,11 @@ import '../BookAppointment.css';
 import styles from './WalkInBookingModal.module.css';
 
 const SEARCH_DEBOUNCE_MS = 300;
-const STEP_LABELS = ['Patient', 'Service', 'Dentist', 'Date & Time', 'Review'];
+const STEP_LABELS = ['Patient', 'Service', 'Dentist', 'Date & Time', 'Medical Record', 'Review'];
+// Walk-in's own consent text replaces the patient's — staff, not the
+// patient, is the one checking this box, confirming what the patient told
+// them in person rather than attesting to it themselves.
+const WALK_IN_CONSENT_LABEL = "The patient confirmed the information above and gave consent for its use in their dental care.";
 const WEEKDAY_LABELS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 const MONTH_LABELS = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -141,6 +153,13 @@ function WalkInBookingModal({ open, onClose, selectedSlotData, services, onSucce
   // staff selected here. null means nothing upcoming, the normal case.
   const [patientNextAppointment, setPatientNextAppointment] = useState(null);
 
+  // Same shape/prefill convention as the patient-facing booking wizard's
+  // own Medical Record step — see BookAppointment.jsx. isFemale decides
+  // whether the pregnancy question renders at all.
+  const [medicalRecordForm, setMedicalRecordForm] = useState(emptyMedicalRecordForm());
+  const [medicalRecordPrefilled, setMedicalRecordPrefilled] = useState(false);
+  const isFemale = selectedPatient?.sex === 'female';
+
   const [serviceId, setServiceId] = useState('');
   const [dentistOptions, setDentistOptions] = useState([]);
   const [loadingDentists, setLoadingDentists] = useState(false);
@@ -175,6 +194,8 @@ function WalkInBookingModal({ open, onClose, selectedSlotData, services, onSucce
     setNewPatientForm(EMPTY_NEW_PATIENT_FORM);
     setNewPatientError('');
     setNewPatientNotice('');
+    setMedicalRecordForm(emptyMedicalRecordForm());
+    setMedicalRecordPrefilled(false);
 
     if (selectedSlotData) {
       setServiceId(String(selectedSlotData.service_id));
@@ -221,6 +242,32 @@ function WalkInBookingModal({ open, onClose, selectedSlotData, services, onSucce
     getPatientNextAppointment(selectedPatient.id)
       .then((appt) => { if (! cancelled) setPatientNextAppointment(appt); })
       .catch(() => { if (! cancelled) setPatientNextAppointment(null); });
+    return () => { cancelled = true; };
+  }, [selectedPatient]);
+
+  // Medical Record prefill — carries over this patient's last visit's
+  // answers the moment staff picks them, same convenience the patient's own
+  // booking wizard gives itself. isFemale is re-derived from selectedPatient
+  // here (not read from closure) since this effect only re-runs on
+  // selectedPatient changing, same dependency either way.
+  useEffect(() => {
+    if (!selectedPatient) {
+      setMedicalRecordForm(emptyMedicalRecordForm());
+      setMedicalRecordPrefilled(false);
+      return undefined;
+    }
+    let cancelled = false;
+    getPatientLatestMedicalRecord(selectedPatient.id)
+      .then((lastRecord) => {
+        if (cancelled) return;
+        setMedicalRecordForm(prefillMedicalRecordForm(lastRecord, selectedPatient.sex === 'female'));
+        setMedicalRecordPrefilled(!!lastRecord);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setMedicalRecordForm(emptyMedicalRecordForm());
+        setMedicalRecordPrefilled(false);
+      });
     return () => { cancelled = true; };
   }, [selectedPatient]);
 
@@ -309,14 +356,17 @@ function WalkInBookingModal({ open, onClose, selectedSlotData, services, onSucce
   const isPrevMonthDisabled =
     calendarMonth.getFullYear() === todayStart.getFullYear() && calendarMonth.getMonth() === todayStart.getMonth();
 
-  const canSubmit = !!(selectedPatient && serviceId && dentistId && date && time);
+  const canSubmit = !!(
+    selectedPatient && serviceId && dentistId && date && time &&
+    isMedicalRecordComplete(medicalRecordForm, isFemale)
+  );
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
     setSubmitting(true);
     setError('');
     try {
-      await assignWalkIn({ patientId: selectedPatient.id, dentistId, serviceId, date, time });
+      await assignWalkIn({ patientId: selectedPatient.id, dentistId, serviceId, date, time, medicalRecord: medicalRecordForm });
       onSuccess();
     } catch (err) {
       setError(err.response?.data?.message || 'Could not book this walk-in appointment.');
@@ -374,7 +424,8 @@ function WalkInBookingModal({ open, onClose, selectedSlotData, services, onSucce
     (step === 1 && !!selectedPatient) ||
     (step === 2 && !!serviceId) ||
     (step === 3 && !!dentistId) ||
-    (step === 4 && !!date && !!time);
+    (step === 4 && !!date && !!time) ||
+    (step === 5 && isMedicalRecordComplete(medicalRecordForm, isFemale));
 
   const patientPicker = selectedPatient ? (
     <>
@@ -571,6 +622,16 @@ function WalkInBookingModal({ open, onClose, selectedSlotData, services, onSucce
           </div>
           <div className={styles.fieldLabel}>Patient</div>
           {patientPicker}
+          {selectedPatient && (
+            <MedicalRecordStep
+              form={medicalRecordForm}
+              onChange={setMedicalRecordForm}
+              isFemale={isFemale}
+              prefilled={medicalRecordPrefilled}
+              consentLabel={WALK_IN_CONSENT_LABEL}
+              subtitle="Ask the patient for their current health information for this visit."
+            />
+          )}
         </div>
       ) : (
         <>
@@ -745,6 +806,19 @@ function WalkInBookingModal({ open, onClose, selectedSlotData, services, onSucce
 
           {step === 5 && (
             <div className={styles.stepBody}>
+              <MedicalRecordStep
+                form={medicalRecordForm}
+                onChange={setMedicalRecordForm}
+                isFemale={isFemale}
+                prefilled={medicalRecordPrefilled}
+                consentLabel={WALK_IN_CONSENT_LABEL}
+                subtitle="Ask the patient for their current health information for this visit."
+              />
+            </div>
+          )}
+
+          {step === 6 && (
+            <div className={styles.stepBody}>
               <p className={styles.fieldLabel} style={{ marginBottom: 4 }}>Review before booking</p>
               <div className="summary-card">
                 <div className="summary-row">
@@ -766,6 +840,15 @@ function WalkInBookingModal({ open, onClose, selectedSlotData, services, onSucce
                 <div className="summary-row">
                   <span className="summary-label">Time</span>
                   <span className="summary-value">{formatTime12h(time)}</span>
+                </div>
+                <div className="summary-row">
+                  <span className="summary-label">Health info flagged</span>
+                  <span className="summary-value">
+                    {[...MEDICAL_RECORD_QUESTIONS, ...(isFemale ? [PREGNANCY_QUESTION] : [])]
+                      .filter((q) => medicalRecordForm[q.key] === true)
+                      .map((q) => q.label)
+                      .join(', ') || 'None declared'}
+                  </span>
                 </div>
               </div>
             </div>
@@ -791,7 +874,7 @@ function WalkInBookingModal({ open, onClose, selectedSlotData, services, onSucce
               Cancel
             </button>
           )}
-          {!isPrefilled && step < 5 ? (
+          {!isPrefilled && step < 6 ? (
             <button type="button" className={styles.primaryBtn} disabled={!canGoNext} onClick={() => setStep(step + 1)}>
               Next
             </button>

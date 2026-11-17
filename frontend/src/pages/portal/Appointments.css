@@ -886,6 +886,102 @@
   color: var(--portal-slate);
 }
 
+/* ============ Medical Record quick-check (AppointmentDetailModal) ============ */
+
+.detail-medrec-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 18px;
+  margin-bottom: 24px;
+  background: var(--portal-canvas);
+  border: 1px solid var(--portal-border-light);
+  border-radius: var(--portal-radius-sm);
+}
+
+.detail-medrec-header {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--portal-navy);
+}
+
+.detail-medrec-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: var(--portal-radius-sm);
+  background: var(--portal-red-bg);
+  color: var(--portal-red-text);
+  border: 1px solid var(--portal-red-border);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.detail-medrec-alert svg {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.detail-medrec-flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.medrec-flag-badge {
+  font-size: 0.74rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--portal-amber-bg);
+  color: var(--portal-amber-text);
+  border: 1px solid var(--portal-amber-border);
+}
+
+.medrec-flag-badge--none {
+  background: var(--portal-gray-bg);
+  color: var(--portal-gray-text);
+  border-color: var(--portal-gray-border);
+}
+
+.detail-medrec-history {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 10px;
+  border-top: 1px solid var(--portal-border-light);
+}
+
+.detail-medrec-history-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--portal-muted);
+}
+
+.medrec-history-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 0.78rem;
+}
+
+.medrec-history-date {
+  color: var(--portal-slate);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.medrec-history-flags {
+  color: var(--portal-muted);
+  text-align: right;
+}
+
 /* ============ Follow-up section (Enable Follow-up) ============ */
 
 .detail-followup-section {

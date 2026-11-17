@@ -10,6 +10,7 @@ use App\Mail\HmoBookingSubmittedMail;
 use App\Mail\PediatricBookingSubmittedMail;
 use App\Models\ActivityLog;
 use App\Models\Appointment;
+use App\Models\AppointmentMedicalRecord;
 use App\Models\AppointmentStatusLog;
 use App\Models\Notification;
 use App\Models\Patient;
@@ -17,6 +18,7 @@ use App\Models\Service;
 use App\Models\User;
 use App\Services\AppointmentSlotService;
 use App\Services\CancellationPolicyService;
+use App\Services\ClinicalSafetyService;
 use App\Services\FollowUpRecommendationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -40,6 +42,7 @@ class StaffAppointmentController extends Controller
         private AppointmentSlotService $slots,
         private FollowUpRecommendationService $followUps,
         private CancellationPolicyService $cancellationPolicy,
+        private ClinicalSafetyService $clinicalSafety,
     ) {}
 
     /**
@@ -217,6 +220,13 @@ class StaffAppointmentController extends Controller
             'followUpRecommendedBy:id,name',
             'dentistSuggestedFollowUpService:id,name,duration_minutes',
             'statusLogs' => fn ($q) => $q->with('changedBy:id,name')->orderBy('created_at'),
+            // This visit's own Medical Record answers, plus up to the
+            // patient's 5 most recent (every visit, not just this one) for
+            // the "Quick-Check at Visit" panel's fast-lookback list — a
+            // single patient per request, so the per-parent limit() below
+            // is safe (no cross-patient leakage to worry about).
+            'medicalRecord',
+            'patient.medicalRecords' => fn ($q) => $q->with('appointment.service:id,name')->limit(5),
         ]);
 
         return response()->json(['data' => $appointment]);
@@ -649,7 +659,9 @@ class StaffAppointmentController extends Controller
             })
             ->with('user:id,email')
             ->limit(10)
-            ->get(['id', 'user_id', 'patient_number', 'first_name', 'last_name', 'patient_type']);
+            // sex is needed on the frontend to decide whether the walk-in
+            // modal's Medical Record step shows the pregnancy question.
+            ->get(['id', 'user_id', 'patient_number', 'first_name', 'last_name', 'patient_type', 'sex']);
 
         return response()->json(['data' => $patients]);
     }
@@ -676,6 +688,17 @@ class StaffAppointmentController extends Controller
             ->first(['id', 'dentist_id', 'service_id', 'appointment_date', 'appointment_time']);
 
         return response()->json(['data' => $appointment]);
+    }
+
+    /**
+     * Prefill source for the walk-in modal's Medical Record step — the same
+     * "carry over what hasn't changed" convenience the patient's own
+     * booking wizard gets from MedicalRecordController::latest(), just
+     * keyed by a staff-chosen patient instead of the logged-in user.
+     */
+    public function patientLatestMedicalRecord(Patient $patient)
+    {
+        return response()->json(['data' => $patient->latestMedicalRecord]);
     }
 
     /**
@@ -786,6 +809,11 @@ class StaffAppointmentController extends Controller
             'service_id' => ['required', 'integer', 'exists:services,id'],
             'appointment_date' => ['required', 'date_format:Y-m-d'],
             'appointment_time' => ['required', 'date_format:H:i'],
+            // Same questions, same rules as the patient's own booking wizard
+            // — see AppointmentMedicalRecord::validationRules(). The walk-in
+            // modal's consent checkbox reads as a staff attestation instead
+            // of the patient's own, but it's still "required, accepted".
+            ...AppointmentMedicalRecord::validationRules('medical_record'),
         ]);
 
         $patient = Patient::findOrFail($validated['patient_id']);
@@ -810,7 +838,14 @@ class StaffAppointmentController extends Controller
             ], 422);
         }
 
-        $appointment = DB::transaction(function () use ($validated, $patient, $service, $request, $isPediatric) {
+        // Same clinical-safety gate as AppointmentController::store() — a
+        // walk-in booked in by staff is held for the assigned dentist's
+        // review exactly like a patient-submitted one would be, instead of
+        // silently skipping the check just because staff typed the answers.
+        $conflictReasons = $this->clinicalSafety->conflictReasons($service, $validated['medical_record']);
+        $medicalReviewRequired = $conflictReasons !== [];
+
+        $appointment = DB::transaction(function () use ($validated, $patient, $service, $request, $isPediatric, $medicalReviewRequired) {
             // Same automatic recommendation consumption as the patient's own
             // AppointmentController::store() — a patient may have an open
             // "Book a Follow-up" recommendation for this exact service that
@@ -831,7 +866,7 @@ class StaffAppointmentController extends Controller
                 return null;
             }
 
-            $status = $isPediatric
+            $status = ($isPediatric || $medicalReviewRequired)
                 ? 'pending_verification'
                 : ($patient->patient_type === 'cash' ? 'confirmed' : 'pending_verification');
 
@@ -844,7 +879,13 @@ class StaffAppointmentController extends Controller
                 'appointment_time' => $validated['appointment_time'],
                 'status' => $status,
                 'patient_type_snapshot' => $patient->patient_type,
+                'medical_review_required' => $medicalReviewRequired,
+                'medical_review_status' => $medicalReviewRequired ? 'pending' : null,
             ]);
+
+            AppointmentMedicalRecord::create(
+                AppointmentMedicalRecord::attributesFromAnswers($validated['medical_record'], $appointment->id, $patient->id)
+            );
 
             if ($recommendation) {
                 $this->followUps->markFulfilled($recommendation, $appointment);
@@ -855,7 +896,9 @@ class StaffAppointmentController extends Controller
                 'old_status' => null,
                 'new_status' => $status,
                 'changed_by' => $request->user()->id,
-                'note' => 'Walk-in booked by staff into a freed slot.'.($isPediatric ? ' Pediatric — awaiting pediatric review.' : ''),
+                'note' => 'Walk-in booked by staff into a freed slot.'
+                    .($isPediatric ? ' Pediatric — awaiting pediatric review.' : '')
+                    .($medicalReviewRequired ? ' Health information flagged — awaiting dentist review.' : ''),
             ]);
 
             return $appointment;
@@ -890,6 +933,21 @@ class StaffAppointmentController extends Controller
                 $appointment->patient->user_id,
                 'Booking submitted',
                 "Your {$appointment->service->name} request is awaiting pediatric review.",
+                '/patient/appointments'
+            );
+        } elseif ($appointment->medical_review_required) {
+            // Same clinical-safety hold as AppointmentController::store() —
+            // see ClinicalSafetyService.
+            Notification::notifyUser(
+                $validated['dentist_id'],
+                'Clinical review needed',
+                "New {$appointment->service->name} walk-in for {$appointment->patient->first_name} {$appointment->patient->last_name} needs your review (health information flagged).",
+                '/dentist/medical-review'
+            );
+            Notification::notifyUser(
+                $appointment->patient->user_id,
+                'Booking submitted',
+                "Your {$appointment->service->name} request needs a dentist's review of your health information before it's confirmed.",
                 '/patient/appointments'
             );
         } elseif ($appointment->patient_type_snapshot === 'hmo') {

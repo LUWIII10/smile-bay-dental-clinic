@@ -8,6 +8,17 @@ import { formatDateLong, formatTime12h } from '../dateTimeUtils';
 import { KNOWN_DENTIST_PHOTOS } from '../dentistPhotos';
 import { resolvePhotoUrl } from '../avatarUtils';
 import { CalendarPlusIcon, CheckCircleIcon, EditIcon, AlertIcon, ChevronLeftIcon } from '../icons';
+import { MEDICAL_RECORD_QUESTIONS, PREGNANCY_QUESTION } from './MedicalRecordStep';
+
+// Which of a medical record's Yes/No questions came back "Yes" — same
+// question list the booking wizard and staff Patient Records page both
+// read from, so a condition reads identically everywhere it appears.
+function flaggedLabels(record) {
+  if (!record) return [];
+  return [...MEDICAL_RECORD_QUESTIONS, PREGNANCY_QUESTION]
+    .filter((q) => record[q.key] === true)
+    .map((q) => q.label);
+}
 
 // Kept in sync with Appointment::FOLLOW_UP_WINDOWS — purely a display label
 // shown to the patient next to a follow-up recommendation, never used in
@@ -204,6 +215,61 @@ function AppointmentDetailModal({ appointmentId, onClose }) {
               </div>
             )}
           </div>
+
+          {detail.medical_record && (() => {
+            const thisVisitFlags = flaggedLabels(detail.medical_record);
+            // Every other visit's record, newest first (patient.medical_records
+            // already arrives that way) — excludes this appointment's own row,
+            // which is shown above instead. Lets a dental assistant checking
+            // this patient in see their recent history without leaving this
+            // modal to hunt for it on the full Patient Records page.
+            const pastVisits = (detail.patient.medical_records || []).filter(
+              (r) => r.id !== detail.medical_record.id
+            );
+            return (
+              <div className="detail-medrec-section">
+                <div className="detail-medrec-header">Medical Record — This Visit</div>
+
+                {detail.medical_review_required && (
+                  <div className="detail-medrec-alert">
+                    <AlertIcon />
+                    <span>
+                      {detail.medical_review_status === 'pending'
+                        ? "Flagged for review — health information conflicts with this service. A dentist must decide before this visit proceeds."
+                        : `Reviewed by the dentist — ${detail.medical_review_status}.`}
+                    </span>
+                  </div>
+                )}
+
+                <div className="detail-medrec-flags">
+                  {thisVisitFlags.length > 0 ? (
+                    thisVisitFlags.map((label) => (
+                      <span key={label} className="medrec-flag-badge">{label}</span>
+                    ))
+                  ) : (
+                    <span className="medrec-flag-badge medrec-flag-badge--none">No conditions declared</span>
+                  )}
+                </div>
+
+                {pastVisits.length > 0 && (
+                  <div className="detail-medrec-history">
+                    <span className="detail-medrec-history-label">Past visits — quick lookback</span>
+                    {pastVisits.map((record) => {
+                      const flags = flaggedLabels(record);
+                      return (
+                        <div key={record.id} className="medrec-history-row">
+                          <span className="medrec-history-date">
+                            {formatDateLong(record.created_at)}{record.appointment?.service?.name ? ` · ${record.appointment.service.name}` : ''}
+                          </span>
+                          <span className="medrec-history-flags">{flags.length > 0 ? flags.join(', ') : 'None flagged'}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {detail.status === 'completed' && (
             <div className="detail-followup-section">

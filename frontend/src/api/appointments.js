@@ -546,6 +546,14 @@ export async function getPatientNextAppointment(patientId) {
   return response.data.data;
 }
 
+// Prefill source for the walk-in modal's Medical Record step — same shape
+// as the patient's own getLatestMedicalRecord(), just for a staff-chosen
+// patient instead of the logged-in user.
+export async function getPatientLatestMedicalRecord(patientId) {
+  const response = await api.get(`/api/staff/patients/${patientId}/medical-record/latest`);
+  return response.data.data;
+}
+
 // Front-desk registration for a walk-in with no existing Smile Bay account —
 // email is optional (the backend synthesizes one from the mobile number
 // when omitted, e.g. for a patient who won't self-serve the portal).
@@ -555,7 +563,7 @@ export async function registerWalkInPatient(payload) {
   return response.data.data;
 }
 
-export async function assignWalkIn({ patientId, dentistId, serviceId, date, time }) {
+export async function assignWalkIn({ patientId, dentistId, serviceId, date, time, medicalRecord }) {
   await api.get('/sanctum/csrf-cookie');
   const response = await api.post('/api/staff/appointments/walk-in', {
     patient_id: patientId,
@@ -563,6 +571,7 @@ export async function assignWalkIn({ patientId, dentistId, serviceId, date, time
     service_id: serviceId,
     appointment_date: date,
     appointment_time: time,
+    medical_record: medicalRecord,
   });
   return response.data;
 }

@@ -50,6 +50,60 @@ class AppointmentMedicalRecord extends Model
         'pregnant_or_breastfeeding' => 'Pregnant or breastfeeding',
     ];
 
+    // Shared by StoreAppointmentRequest (patient-facing booking) and
+    // StaffAppointmentController::assignWalkIn() (staff booking on a
+    // patient's behalf) — one rule set so the two flows can't silently
+    // drift apart. $prefix is the request field the form data is nested
+    // under ("medical_record" in both current callers).
+    public static function validationRules(string $prefix = 'medical_record'): array
+    {
+        $rules = [
+            $prefix => ['required', 'array'],
+            "{$prefix}.pregnant_or_breastfeeding" => ['nullable', 'boolean'],
+            "{$prefix}.pregnant_or_breastfeeding_notes" => ['nullable', 'string', 'max:500'],
+            "{$prefix}.other_concerns" => ['nullable', 'string', 'max:1000'],
+            "{$prefix}.consent_given" => ['required', 'accepted'],
+        ];
+
+        foreach (array_keys(self::QUESTIONS) as $key) {
+            if ($key === 'pregnant_or_breastfeeding') {
+                continue;
+            }
+            $rules["{$prefix}.{$key}"] = ['required', 'boolean'];
+            $rules["{$prefix}.{$key}_notes"] = ['nullable', 'string', 'max:500'];
+        }
+
+        return $rules;
+    }
+
+    // Maps a validated medical_record.* sub-array (same shape on every
+    // caller — see validationRules() above) onto this table's columns.
+    // Shared by AppointmentController::store() and
+    // StaffAppointmentController::assignWalkIn() so both create rows the
+    // same way.
+    public static function attributesFromAnswers(array $answers, int $appointmentId, int $patientId): array
+    {
+        $attributes = [
+            'appointment_id' => $appointmentId,
+            'patient_id' => $patientId,
+            'pregnant_or_breastfeeding' => $answers['pregnant_or_breastfeeding'] ?? null,
+            'pregnant_or_breastfeeding_notes' => $answers['pregnant_or_breastfeeding_notes'] ?? null,
+            'other_concerns' => $answers['other_concerns'] ?? null,
+            'consent_given' => $answers['consent_given'],
+            'consent_at' => $answers['consent_given'] ? now() : null,
+        ];
+
+        foreach (array_keys(self::QUESTIONS) as $key) {
+            if ($key === 'pregnant_or_breastfeeding') {
+                continue;
+            }
+            $attributes[$key] = $answers[$key];
+            $attributes["{$key}_notes"] = $answers["{$key}_notes"] ?? null;
+        }
+
+        return $attributes;
+    }
+
     public function appointment(): BelongsTo
     {
         return $this->belongsTo(Appointment::class);
