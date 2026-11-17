@@ -688,6 +688,34 @@
   gap: 6px;
 }
 
+/* My Appointments' Action column, once a confirmed/pending visit falls
+   inside the 24-hour cancellation cutoff (see isCancellable()) — explains
+   why the Cancel button isn't there instead of leaving the cell blank. */
+.appt-locked-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  font-size: 0.74rem;
+  color: var(--portal-muted);
+  line-height: 1.4;
+  text-align: left;
+  max-width: 180px;
+  margin: 0 auto;
+}
+
+.appt-locked-note svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: var(--portal-amber-text);
+}
+
+.appt-locked-note strong {
+  color: var(--portal-slate);
+  font-weight: 600;
+}
+
 .row-action-icon {
   display: inline-flex;
   align-items: center;

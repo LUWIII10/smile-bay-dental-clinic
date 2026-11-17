@@ -18,7 +18,7 @@ import DataTable from './components/DataTable';
 import AvailableSlotPicker from './components/AvailableSlotPicker';
 import {
   PlusIcon, CalendarPlusIcon, CheckCircleIcon, CalendarIcon, FileIcon, AlertIcon,
-  XCircleIcon, ShieldIcon, ClockIcon,
+  XCircleIcon, ShieldIcon, ClockIcon, LockIcon,
 } from './icons';
 import { formatDateLong, formatDateShort, formatTime12h, toLocalDate } from './dateTimeUtils';
 import PageHeader from './components/PageHeader';
@@ -621,6 +621,20 @@ function PatientAppointments() {
             >
               <FileIcon /> View Treatment
             </button>
+          );
+        }
+        // Mirrors isCancellable()'s own 24-hour cutoff — a confirmed/
+        // pending visit that's still upcoming but too close to cancel
+        // online used to just leave this cell blank, with nothing telling
+        // the patient why the button they expected isn't there.
+        const startOfToday = new Date();
+        startOfToday.setHours(0, 0, 0, 0);
+        if (UPCOMING_STATUSES.includes(row.status) && toLocalDate(row.appointment_date) >= startOfToday) {
+          return (
+            <span className="appt-locked-note">
+              <LockIcon />
+              <span><strong>Too close to cancel online.</strong> Please call the clinic to reschedule.</span>
+            </span>
           );
         }
         return null;
