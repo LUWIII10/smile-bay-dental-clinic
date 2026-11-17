@@ -9,6 +9,7 @@ use App\Models\ActivityLog;
 use App\Models\Appointment;
 use App\Models\AppointmentStatusLog;
 use App\Models\Notification;
+use App\Services\ClinicalSafetyService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -25,6 +26,8 @@ use Illuminate\Support\Facades\Mail;
  */
 class MedicalReviewController extends Controller
 {
+    public function __construct(private ClinicalSafetyService $clinicalSafety) {}
+
     /**
      * This dentist's own bookings still awaiting their clinical-safety
      * call. Same dentist_id-scoping reasoning as
@@ -42,6 +45,16 @@ class MedicalReviewController extends Controller
             ->orderBy('appointment_date')
             ->orderBy('appointment_time')
             ->get();
+
+        // Recomputed here (not stored at booking time) so the queue always
+        // explains a flag in the service's and the rules' CURRENT wording —
+        // same single source of truth ClinicalSafetyService already is for
+        // whether to flag at all.
+        $appointments->each(function ($appointment) {
+            $appointment->conflict_reasons = $appointment->medicalRecord
+                ? $this->clinicalSafety->conflictReasons($appointment->service, $appointment->medicalRecord->toArray())
+                : [];
+        });
 
         return response()->json(['data' => $appointments]);
     }

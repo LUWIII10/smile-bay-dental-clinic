@@ -27,6 +27,7 @@ import DentistSchedule from '../pages/portal/DentistSchedule';
 import CompletedPatients from '../pages/portal/CompletedPatients';
 import MyAvailability from '../pages/portal/MyAvailability';
 import PediatricQueue from '../pages/portal/PediatricQueue';
+import MedicalReviewQueue from '../pages/portal/MedicalReviewQueue';
 import HmoVerificationQueue from '../pages/portal/HmoVerificationQueue';
 import AllAppointments from '../pages/portal/AllAppointments';
 import ComingSoon from '../pages/portal/ComingSoon';
@@ -85,6 +86,7 @@ function AppRoutes() {
                     '/dentist/schedule': DentistSchedule,
                     '/dentist/availability': MyAvailability,
                     '/dentist/pediatric-queue': PediatricQueue,
+                    '/dentist/medical-review': MedicalReviewQueue,
                     '/dentist/patient-records': PatientRecords,
                     '/dentist/completed-patients': CompletedPatients,
                     '/dentist/profile': MyProfile,

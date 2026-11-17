@@ -431,4 +431,5 @@ export const ICONS = {
   settings: SettingsIcon,
   checkCircle: CheckCircleIcon,
   activity: ActivityIcon,
+  alert: AlertIcon,
 };
