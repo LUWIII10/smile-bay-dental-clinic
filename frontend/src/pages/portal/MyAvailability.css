@@ -327,20 +327,27 @@
 
 /* ============ Service Limits (Limit a Day modal) ============ */
 
-/* Calendar (left) + chip picker (right); stacks on narrow modals/phones —
-   the modal card itself isn't usually this wide, so this mostly applies on
-   larger screens, with both halves just flowing one after another below
-   that same breakpoint used elsewhere on this page (560px). */
+/* Calendar on top, chip picker below — tried side-by-side first, but a
+   7-column calendar and procedure names as long as "Surgical Extraction
+   (Impacted Wisdom Tooth)" both genuinely need width; splitting them into
+   two narrow columns cramped both at once instead of giving either one
+   enough room. Stacked, each gets the modal's full width (this modal is
+   also now size="lg", 640px instead of the default 440px) — the calendar
+   stays naturally compact on its own line, and the chips get far more
+   room to wrap 2-3 per row instead of one cramped column. */
 .avail-limit-layout {
-  display: grid;
-  grid-template-columns: 260px 1fr;
-  gap: 22px;
-  align-items: start;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
-@media (max-width: 680px) {
-  .avail-limit-layout {
-    grid-template-columns: 1fr;
+.avail-limit-calendar-col {
+  max-width: 320px;
+}
+
+@media (max-width: 560px) {
+  .avail-limit-calendar-col {
+    max-width: none;
   }
 }
 

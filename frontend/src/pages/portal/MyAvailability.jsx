@@ -723,9 +723,9 @@ function MyAvailability() {
         conflicts={conflictModal?.conflicts || []}
       />
 
-      <Modal open={limitFormOpen} onClose={() => setLimitFormOpen(false)} title="Limit a Day's Services">
+      <Modal open={limitFormOpen} onClose={() => setLimitFormOpen(false)} title="Limit a Day's Services" size="lg">
         <div className="avail-limit-layout">
-          <div>
+          <div className="avail-limit-calendar-col">
             <label className="form-label" style={{ display: 'block', marginBottom: 10 }}>Date</label>
             <div className="avail-limit-calendar">
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
@@ -804,7 +804,7 @@ function MyAvailability() {
             </div>
           </div>
 
-          <div>
+          <div className="avail-limit-services-col">
             <label className="form-label" style={{ display: 'block', marginBottom: 10 }}>
               Which procedures do you want to offer{limitDate ? ` on ${formatDateLong(limitDate)}` : ' this day'}?
             </label>
