@@ -332,79 +332,113 @@
    (Impacted Wisdom Tooth)" both genuinely need width; splitting them into
    two narrow columns cramped both at once instead of giving either one
    enough room. Stacked, each gets the modal's full width (this modal is
-   also now size="lg", 640px instead of the default 440px) — the calendar
-   stays naturally compact on its own line, and the chips get far more
-   room to wrap 2-3 per row instead of one cramped column. */
+   also now size="lg", 640px instead of the default 440px) — the chips get
+   far more room to wrap 2-3 per row instead of one cramped column. */
 .avail-limit-layout {
   display: flex;
   flex-direction: column;
   gap: 20px;
 }
 
-.avail-limit-calendar-col {
-  max-width: 320px;
-}
-
-@media (max-width: 560px) {
-  .avail-limit-calendar-col {
-    max-width: none;
-  }
-}
-
+/* Outer box spans the modal's full width (no dead space beside it, no
+   narrower-than-its-container card floating with empty margin) — but the
+   actual day grid inside is capped and centered (avail-limit-calendar-inner
+   below), so cells stay a sensible size instead of ballooning to fill 600px
+   of width (and, with aspect-ratio: 1, getting proportionally tall enough
+   to push the procedure list far down the modal). */
 .avail-limit-calendar {
-  padding: 14px;
+  padding: 16px;
   background: var(--portal-canvas);
   border: 1px solid var(--portal-border-light);
   border-radius: 14px;
   box-sizing: border-box;
 }
 
-.avail-chip-group {
-  margin-bottom: 14px;
+.avail-limit-calendar-inner {
+  max-width: 380px;
+  margin: 0 auto;
 }
 
-.avail-chip-group-label {
-  display: block;
+/* Procedure picker — a fixed CSS Grid of uniform cards, not free-flow
+   flex-wrap chips (that didn't reliably wrap multiple per row regardless
+   of available width). grid-template-columns: repeat(2, 1fr) guarantees 2
+   per row from the layout itself; a long name truncates with an ellipsis
+   inside its own fixed cell (title attribute carries the full name)
+   instead of forcing the row wider or wrapping unpredictably. */
+.avail-svc-group {
+  margin-bottom: 16px;
+}
+
+.avail-svc-group-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
   font-size: 0.68rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--portal-muted);
-  margin-bottom: 8px;
+  margin-bottom: 9px;
 }
 
-.avail-chip-grid {
-  display: flex;
-  flex-wrap: wrap;
+.avail-svc-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
   gap: 8px;
 }
 
-/* Plain <button>, not a <label>+checkbox — same proven pattern as My
-   Dependents' own condition chips (ChipGroup), carried over class-named
-   for this page instead of cross-importing that page's CSS. */
-.avail-chip {
+@media (max-width: 480px) {
+  .avail-svc-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.avail-svc-card {
   display: flex;
   align-items: center;
-  gap: 7px;
-  border: 1px solid var(--portal-border);
-  border-radius: 999px;
-  padding: 7px 14px 7px 10px;
+  gap: 9px;
+  padding: 9px 12px;
+  border: 1.5px solid var(--portal-border-light);
+  border-radius: 10px;
+  background: #ffffff;
+  cursor: pointer;
   font-size: 0.79rem;
   font-weight: 600;
   color: var(--portal-slate);
-  cursor: pointer;
-  background: #ffffff;
+  text-align: left;
+  min-width: 0;
   font-family: inherit;
 }
 
-.avail-chip:hover {
-  border-color: var(--portal-blue-border);
+.avail-svc-check {
+  flex-shrink: 0;
+  width: 17px;
+  height: 17px;
+  border-radius: 5px;
+  border: 1.5px solid var(--portal-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.68rem;
+  color: #ffffff;
 }
 
-.avail-chip--checked {
+.avail-svc-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.avail-svc-card--checked {
+  border-color: var(--portal-blue);
+  background: var(--portal-blue-tint);
+  color: var(--portal-blue-hover);
+}
+
+.avail-svc-card--checked .avail-svc-check {
   background: var(--portal-blue);
   border-color: var(--portal-blue);
-  color: #ffffff;
 }
 
 .avail-chip-dot {
@@ -412,10 +446,6 @@
   height: 7px;
   border-radius: 50%;
   flex-shrink: 0;
-}
-
-.avail-chip--checked .avail-chip-dot {
-  background: #ffffff !important;
 }
 
 /* Same Treatment History tones (procedure=green, consultation=amber,

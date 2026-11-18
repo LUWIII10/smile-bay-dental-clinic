@@ -725,9 +725,10 @@ function MyAvailability() {
 
       <Modal open={limitFormOpen} onClose={() => setLimitFormOpen(false)} title="Limit a Day's Services" size="lg">
         <div className="avail-limit-layout">
-          <div className="avail-limit-calendar-col">
+          <div>
             <label className="form-label" style={{ display: 'block', marginBottom: 10 }}>Date</label>
             <div className="avail-limit-calendar">
+            <div className="avail-limit-calendar-inner">
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
                 <button
                   type="button"
@@ -802,6 +803,7 @@ function MyAvailability() {
                 </>
               )}
             </div>
+            </div>
           </div>
 
           <div className="avail-limit-services-col">
@@ -812,20 +814,27 @@ function MyAvailability() {
               const inCategory = credentialedServices.filter((s) => classifyHistoryCategory(s.name).key === key);
               if (inCategory.length === 0) return null;
               return (
-                <div key={key} className="avail-chip-group">
-                  <span className="avail-chip-group-label">{label}</span>
-                  <div className="avail-chip-grid">
-                    {inCategory.map((s) => (
-                      <button
-                        key={s.id}
-                        type="button"
-                        className={`avail-chip${limitServiceIds.includes(s.id) ? ' avail-chip--checked' : ''}`}
-                        onClick={() => toggleLimitService(s.id)}
-                      >
-                        <span className={`avail-chip-dot ${dotClass}`} />
-                        {s.name}
-                      </button>
-                    ))}
+                <div key={key} className="avail-svc-group">
+                  <span className="avail-svc-group-label">
+                    <span className={`avail-chip-dot ${dotClass}`} />
+                    {label}
+                  </span>
+                  <div className="avail-svc-grid">
+                    {inCategory.map((s) => {
+                      const checked = limitServiceIds.includes(s.id);
+                      return (
+                        <button
+                          key={s.id}
+                          type="button"
+                          className={`avail-svc-card${checked ? ' avail-svc-card--checked' : ''}`}
+                          onClick={() => toggleLimitService(s.id)}
+                          title={s.name}
+                        >
+                          <span className="avail-svc-check">{checked && '✓'}</span>
+                          <span className="avail-svc-name">{s.name}</span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               );
