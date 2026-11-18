@@ -22,6 +22,7 @@ use App\Models\AppointmentMedicalRecord;
 use App\Services\AppointmentSlotService;
 use App\Services\ClinicalSafetyService;
 use App\Services\FollowUpRecommendationService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -450,6 +451,18 @@ class AppointmentController extends Controller
         if ($appointment->status !== 'confirmed') {
             return response()->json([
                 'message' => 'Only a confirmed appointment can be marked completed.',
+            ], 422);
+        }
+
+        // Marking an appointment "completed" is a record of what actually
+        // happened — it can't have happened yet if its own scheduled start
+        // is still in the future. Mirrors DentistSchedule.jsx's own
+        // isLapsed() check, which hides the Complete button client-side for
+        // the same reason; this is the authoritative, server-side version.
+        $scheduledAt = Carbon::parse($appointment->appointment_date->toDateString().' '.$appointment->appointment_time);
+        if (Carbon::now()->lt($scheduledAt)) {
+            return response()->json([
+                'message' => "This visit hasn't happened yet — it's scheduled for {$scheduledAt->format('M j, Y g:i A')}.",
             ], 422);
         }
 

@@ -12,6 +12,7 @@ import { formatTime12h, toLocalDate } from './dateTimeUtils';
 import { showSuccessToast } from '../../utils/toast';
 import { getAvatarUrl } from './avatarUtils';
 import './dashboards.css';
+import './Appointments.css';
 import './DentistSchedule.css';
 
 const POLL_INTERVAL_MS = 9000;
@@ -59,6 +60,27 @@ function isLapsed(appointment) {
   return slotMoment < new Date();
 }
 
+// Same "Minor" badge + "{Relationship} of {parent}" subnote every other
+// staff-facing view of a patient already uses (Patient Records' search
+// results, AppointmentDetailModal) — split in two since a schedule row
+// needs the badge inline next to the name but the subnote on its own
+// line, unlike AppointmentDetailModal's single combined field.
+function DependentChip({ patient }) {
+  return patient.is_dependent ? <span className="minor-dependent-chip">Minor</span> : null;
+}
+
+function DependentSubnote({ patient }) {
+  if (!patient.is_dependent || !patient.parent) return null;
+  const relationship = patient.relationship_to_parent
+    ? patient.relationship_to_parent.charAt(0).toUpperCase() + patient.relationship_to_parent.slice(1)
+    : 'Dependent';
+  return (
+    <span className="detail-subnote">
+      {relationship} of {patient.parent.first_name} {patient.parent.last_name}
+    </span>
+  );
+}
+
 // variant: 'danger' tints the collapsed row for the Needs Update tab (a
 // confirmed visit whose date already passed) — omitted everywhere else,
 // same default look as before this prop existed.
@@ -84,8 +106,12 @@ function ScheduleRow({ appointment, expanded, onToggle, completingId, onComplete
         </span>
         <span className="schedule-row-avatar">{avatarUrl ? <img src={avatarUrl} alt="" /> : getInitials(patientName)}</span>
         <span className="schedule-row-text">
-          <span className="schedule-row-name" title={patientName}>{patientName}</span>
+          <span className="schedule-row-name-line">
+            <span className="schedule-row-name" title={patientName}>{patientName}</span>
+            <DependentChip patient={appointment.patient} />
+          </span>
           <span className="schedule-row-meta" title={`${appointment.service.name} · ${isCash ? 'Cash' : 'HMO'}`}>{appointment.service.name} &middot; {isCash ? 'Cash' : 'HMO'}</span>
+          <DependentSubnote patient={appointment.patient} />
         </span>
         <StatusBadge status={appointment.status} />
         {canExpand && (
@@ -102,14 +128,24 @@ function ScheduleRow({ appointment, expanded, onToggle, completingId, onComplete
 
       {expanded && canAct && (
         <div className="schedule-row-actions">
-          <button
-            type="button"
-            className="schedule-action-btn schedule-action-btn--green"
-            disabled={completingId === appointment.id}
-            onClick={() => onComplete(appointment)}
-          >
-            <CheckCircleIcon /> {completingId === appointment.id ? 'Saving…' : 'Complete'}
-          </button>
+          {/* Only once the visit's own scheduled moment has actually passed
+              — completing it before then would be marking a procedure done
+              that hasn't happened yet. AppointmentController::complete()
+              enforces this same rule server-side regardless of this check. */}
+          {isLapsed(appointment) ? (
+            <button
+              type="button"
+              className="schedule-action-btn schedule-action-btn--green"
+              disabled={completingId === appointment.id}
+              onClick={() => onComplete(appointment)}
+            >
+              <CheckCircleIcon /> {completingId === appointment.id ? 'Saving…' : 'Complete'}
+            </button>
+          ) : (
+            <span className="schedule-not-yet-note">
+              <ClockIcon /> Completable once this visit's scheduled time arrives
+            </span>
+          )}
           {!isLapsed(appointment) && (
             <>
               <button type="button" className="schedule-action-btn schedule-action-btn--amber" onClick={() => onReschedule(appointment)}>
@@ -438,8 +474,10 @@ function DentistSchedule() {
                       <div className="completed-today-text">
                         <span className="completed-today-name">
                           {patientName}
+                          <DependentChip patient={appointment.patient} />
                           {entry?.procedure_name ? ` — ${entry.procedure_name}` : ''}
                         </span>
+                        <DependentSubnote patient={appointment.patient} />
                         {entry?.notes && <span className="completed-today-notes">{entry.notes}</span>}
                         <button type="button" className="completed-today-link" onClick={() => handleAddRecord(appointment)}>
                           <FileIcon /> Add Visit Record
@@ -529,8 +567,11 @@ function DentistSchedule() {
                         </span>
                         <div className="completed-today-text">
                           <span className="completed-today-name">
-                            {patientName} — {appointment.service.name}
+                            {patientName}
+                            <DependentChip patient={appointment.patient} />
+                            {' '}— {appointment.service.name}
                           </span>
+                          <DependentSubnote patient={appointment.patient} />
                           <span className="completed-today-notes">
                             {toLocalDate(appointment.appointment_date).toLocaleDateString('en-US', {
                               month: 'long', day: 'numeric', year: 'numeric',
@@ -568,8 +609,11 @@ function DentistSchedule() {
                         </span>
                         <div className="completed-today-text">
                           <span className="completed-today-name">
-                            {patientName} — {appointment.service.name}
+                            {patientName}
+                            <DependentChip patient={appointment.patient} />
+                            {' '}— {appointment.service.name}
                           </span>
+                          <DependentSubnote patient={appointment.patient} />
                           <span className="completed-today-notes">
                             {toLocalDate(appointment.appointment_date).toLocaleDateString('en-US', {
                               month: 'long', day: 'numeric', year: 'numeric',
