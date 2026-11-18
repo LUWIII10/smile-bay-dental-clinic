@@ -743,9 +743,9 @@ function MyAvailability() {
         title="This Limit Conflicts With Existing Bookings"
       >
         <p style={{ margin: '0 0 14px', fontSize: '0.85rem', color: 'var(--portal-muted)' }}>
-          {formatDateLong(limitConflict?.date)} already has these appointments for services you're about to
-          exclude. Propose a new time for each one — the limit saves automatically once every conflict below is
-          resolved.
+          {limitConflict && formatDateLong(limitConflict.date)} already has these appointments for services
+          you're about to exclude. Propose a new time for each one — the limit saves automatically once every
+          conflict below is resolved.
         </p>
         <ul className="conflict-list">
           {(limitConflict?.conflicts || []).map((c) => (
