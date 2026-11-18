@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   getDentistAvailability,
+  getDentistMonthSummary,
   updateDentistWeeklyHours,
   addDentistDayOff,
   deleteDentistDayOff,
@@ -18,21 +19,41 @@ import { formatDateLong, formatTime12h } from './dateTimeUtils';
 import { classifyHistoryCategory } from './dentalRecordShared';
 import './dashboards.css';
 import './Appointments.css';
+import './BookAppointment.css';
 import './MyAvailability.css';
 
 const DAY_NAMES = { 1: 'Monday', 2: 'Tuesday', 3: 'Wednesday', 4: 'Thursday', 5: 'Friday', 6: 'Saturday' };
 const EDITABLE_DAYS = [1, 2, 3, 4, 5, 6];
+const WEEKDAY_LABELS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+const MONTH_LABELS = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+const DAY_STATUS_LABELS = { available: 'Available', limited: 'Limited Slots', full: 'Fully Booked', unavailable: 'Unavailable' };
 
 // Same Treatment/Diagnostic/Procedure/Consultation taxonomy Treatment
 // History already groups by (classifyHistoryCategory in dentalRecordShared)
 // — reused here to group the service-limit picker's chips, so a dentist
 // sees the same categories everywhere instead of a flat alphabetical list.
 const CATEGORY_ORDER = [
-  { key: 'procedure', label: 'Procedure' },
-  { key: 'consultation', label: 'Consultation' },
-  { key: 'diagnostic', label: 'Diagnostic' },
-  { key: 'treatment', label: 'Treatment' },
+  { key: 'procedure', label: 'Procedure', dotClass: 'avail-chip-dot--procedure' },
+  { key: 'consultation', label: 'Consultation', dotClass: 'avail-chip-dot--consultation' },
+  { key: 'diagnostic', label: 'Diagnostic', dotClass: 'avail-chip-dot--diagnostic' },
+  { key: 'treatment', label: 'Treatment', dotClass: 'avail-chip-dot--treatment' },
 ];
+
+function startOfDay(date) {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function toDateKey(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
 
 // dayOffs is already filtered to today-and-later by the backend (see
 // DentistAvailabilityService::forDentist()) — no need to filter past dates
@@ -136,6 +157,13 @@ function MyAvailability() {
   const [limitFormError, setLimitFormError] = useState('');
   const [addingLimit, setAddingLimit] = useState(false);
   const [deletingLimitId, setDeletingLimitId] = useState(null);
+  // The "+ Limit a Day" calendar — same Available/Limited/Fully Booked/
+  // Unavailable look and data shape as the patient booking calendar, just
+  // scoped to this dentist's own general day fullness (see
+  // DentistAvailabilityController::monthSummary()).
+  const [limitCalendarMonth, setLimitCalendarMonth] = useState(() => startOfDay(new Date()));
+  const [limitMonthSummary, setLimitMonthSummary] = useState({});
+  const [loadingLimitMonthSummary, setLoadingLimitMonthSummary] = useState(false);
   // No "save anyway" here — unlike every other conflict on this page, this
   // one only ever clears by the dentist actually proposing a new time for
   // each conflicting appointment (see the explicit requirement this
@@ -174,6 +202,16 @@ function MyAvailability() {
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    if (!limitFormOpen) return;
+    const monthKey = `${limitCalendarMonth.getFullYear()}-${String(limitCalendarMonth.getMonth() + 1).padStart(2, '0')}`;
+    setLoadingLimitMonthSummary(true);
+    getDentistMonthSummary(monthKey)
+      .then(setLimitMonthSummary)
+      .catch(() => setLimitMonthSummary({}))
+      .finally(() => setLoadingLimitMonthSummary(false));
+  }, [limitFormOpen, limitCalendarMonth]);
 
   const updateDay = (dayOfWeek, patch) => {
     setSaveMessage('');
@@ -313,6 +351,7 @@ function MyAvailability() {
     setLimitFormError('');
     setLimitDate('');
     setLimitServiceIds([]);
+    setLimitCalendarMonth(startOfDay(new Date()));
     setLimitFormOpen(true);
   };
 
@@ -685,44 +724,117 @@ function MyAvailability() {
       />
 
       <Modal open={limitFormOpen} onClose={() => setLimitFormOpen(false)} title="Limit a Day's Services">
-        <div className="form-field">
-          <label className="form-label" htmlFor="limit-date">Date</label>
-          <input
-            id="limit-date"
-            type="date"
-            className="form-input"
-            min={new Date().toISOString().slice(0, 10)}
-            value={limitDate}
-            onChange={(e) => setLimitDate(e.target.value)}
-          />
-        </div>
-        <div className="form-field" style={{ marginTop: 12 }}>
-          <label className="form-label">Which procedures do you want to offer this day?</label>
-          {CATEGORY_ORDER.map(({ key, label }) => {
-            const inCategory = credentialedServices.filter((s) => classifyHistoryCategory(s.name).key === key);
-            if (inCategory.length === 0) return null;
-            return (
-              <div key={key} className="avail-chip-group">
-                <span className="avail-chip-group-label">{label}</span>
-                <div className="avail-chip-grid">
-                  {inCategory.map((s) => (
-                    <label key={s.id} className={`avail-chip${limitServiceIds.includes(s.id) ? ' avail-chip--checked' : ''}`}>
-                      <input
-                        type="checkbox"
-                        checked={limitServiceIds.includes(s.id)}
-                        onChange={() => toggleLimitService(s.id)}
-                      />
-                      {s.name}
-                    </label>
-                  ))}
-                </div>
+        <div className="avail-limit-layout">
+          <div>
+            <label className="form-label" style={{ display: 'block', marginBottom: 10 }}>Date</label>
+            <div className="avail-limit-calendar">
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                <button
+                  type="button"
+                  className="calendar-nav-btn"
+                  disabled={limitCalendarMonth.getFullYear() === startOfDay(new Date()).getFullYear() && limitCalendarMonth.getMonth() === startOfDay(new Date()).getMonth()}
+                  onClick={() => setLimitCalendarMonth((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1))}
+                  aria-label="Previous month"
+                >
+                  &#8249;
+                </button>
+                <span className="calendar-month-label">{MONTH_LABELS[limitCalendarMonth.getMonth()]} {limitCalendarMonth.getFullYear()}</span>
+                <button
+                  type="button"
+                  className="calendar-nav-btn"
+                  onClick={() => setLimitCalendarMonth((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1))}
+                  aria-label="Next month"
+                >
+                  &#8250;
+                </button>
               </div>
-            );
-          })}
-          <p className="avail-chip-helper">
-            Unchecked procedures are still bookable with another credentialed dentist, or with you on a
-            different day — this only narrows your own slate for this one date.
-          </p>
+
+              {loadingLimitMonthSummary ? (
+                <p className="booking-empty-note">Loading…</p>
+              ) : (
+                <>
+                  <div className="calendar-grid">
+                    {WEEKDAY_LABELS.map((wd) => (
+                      <span key={wd} className="calendar-weekday">{wd}</span>
+                    ))}
+                    {(() => {
+                      const year = limitCalendarMonth.getFullYear();
+                      const month = limitCalendarMonth.getMonth();
+                      const firstOfMonth = new Date(year, month, 1);
+                      const daysInMonth = new Date(year, month + 1, 0).getDate();
+                      const today = startOfDay(new Date());
+                      const cells = Array.from({ length: firstOfMonth.getDay() }, () => null);
+                      for (let day = 1; day <= daysInMonth; day++) cells.push(new Date(year, month, day));
+
+                      return cells.map((cellDate, i) => {
+                        if (!cellDate) return <span key={`blank-${i}`} className="calendar-cell calendar-cell--blank" />; // eslint-disable-line react/no-array-index-key
+
+                        const key = toDateKey(cellDate);
+                        const isPast = cellDate < today;
+                        const info = limitMonthSummary[key] || { status: 'unavailable', count: 0 };
+                        const status = isPast ? 'unavailable' : info.status;
+                        const isSelected = key === limitDate;
+                        const tipTone = status === 'unavailable' ? '' : ` calendar-cell-tip--${status}`;
+                        const tip = isPast ? 'Already passed' : status === 'full' ? 'Fully booked'
+                          : status === 'limited' ? `${info.count} slot${info.count === 1 ? '' : 's'} left`
+                          : status === 'available' ? `${info.count} slots open` : 'Not working this day';
+
+                        return (
+                          <button
+                            key={key}
+                            type="button"
+                            className={`calendar-cell calendar-cell--${status}${isSelected ? ' calendar-cell--selected' : ''}`}
+                            disabled={status === 'unavailable'}
+                            onClick={() => setLimitDate(key)}
+                          >
+                            {cellDate.getDate()}
+                            <span className={`calendar-cell-tip${tipTone}`}>{tip}</span>
+                          </button>
+                        );
+                      });
+                    })()}
+                  </div>
+                  <div className="calendar-legend">
+                    {Object.entries(DAY_STATUS_LABELS).map(([status, label]) => (
+                      <span key={status} className={`calendar-legend-item calendar-legend-item--${status}`}>{label}</span>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
+          <div>
+            <label className="form-label" style={{ display: 'block', marginBottom: 10 }}>
+              Which procedures do you want to offer{limitDate ? ` on ${formatDateLong(limitDate)}` : ' this day'}?
+            </label>
+            {CATEGORY_ORDER.map(({ key, label, dotClass }) => {
+              const inCategory = credentialedServices.filter((s) => classifyHistoryCategory(s.name).key === key);
+              if (inCategory.length === 0) return null;
+              return (
+                <div key={key} className="avail-chip-group">
+                  <span className="avail-chip-group-label">{label}</span>
+                  <div className="avail-chip-grid">
+                    {inCategory.map((s) => (
+                      <button
+                        key={s.id}
+                        type="button"
+                        className={`avail-chip${limitServiceIds.includes(s.id) ? ' avail-chip--checked' : ''}`}
+                        onClick={() => toggleLimitService(s.id)}
+                      >
+                        <span className={`avail-chip-dot ${dotClass}`} />
+                        {s.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+            <p className="avail-chip-helper">
+              Unchecked procedures are still bookable with another credentialed dentist, or with you on a
+              different day — this only narrows your own slate for this one date.
+            </p>
+          </div>
         </div>
         {limitFormError && (
           <p style={{ margin: '10px 0 0', fontSize: '0.82rem', color: 'var(--portal-red-text)' }}>{limitFormError}</p>

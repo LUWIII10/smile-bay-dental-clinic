@@ -327,6 +327,31 @@
 
 /* ============ Service Limits (Limit a Day modal) ============ */
 
+/* Calendar (left) + chip picker (right); stacks on narrow modals/phones —
+   the modal card itself isn't usually this wide, so this mostly applies on
+   larger screens, with both halves just flowing one after another below
+   that same breakpoint used elsewhere on this page (560px). */
+.avail-limit-layout {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 22px;
+  align-items: start;
+}
+
+@media (max-width: 680px) {
+  .avail-limit-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.avail-limit-calendar {
+  padding: 14px;
+  background: var(--portal-canvas);
+  border: 1px solid var(--portal-border-light);
+  border-radius: 14px;
+  box-sizing: border-box;
+}
+
 .avail-chip-group {
   margin-bottom: 14px;
 }
@@ -347,32 +372,52 @@
   gap: 8px;
 }
 
+/* Plain <button>, not a <label>+checkbox — same proven pattern as My
+   Dependents' own condition chips (ChipGroup), carried over class-named
+   for this page instead of cross-importing that page's CSS. */
 .avail-chip {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 13px;
+  gap: 7px;
+  border: 1px solid var(--portal-border);
   border-radius: 999px;
-  border: 1.5px solid var(--portal-border);
-  background: #ffffff;
-  font-size: 0.8rem;
+  padding: 7px 14px 7px 10px;
+  font-size: 0.79rem;
   font-weight: 600;
   color: var(--portal-slate);
   cursor: pointer;
+  background: #ffffff;
+  font-family: inherit;
 }
 
-.avail-chip input {
-  accent-color: var(--portal-blue);
-  width: 15px;
-  height: 15px;
-  margin: 0;
+.avail-chip:hover {
+  border-color: var(--portal-blue-border);
 }
 
 .avail-chip--checked {
+  background: var(--portal-blue);
   border-color: var(--portal-blue);
-  background: var(--portal-blue-tint);
-  color: var(--portal-blue-hover);
+  color: #ffffff;
 }
+
+.avail-chip-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.avail-chip--checked .avail-chip-dot {
+  background: #ffffff !important;
+}
+
+/* Same Treatment History tones (procedure=green, consultation=amber,
+   treatment=indigo, diagnostic=blue) as classifyHistoryCategory() already
+   uses everywhere else. */
+.avail-chip-dot--procedure { background: var(--portal-green-text); }
+.avail-chip-dot--consultation { background: var(--portal-amber-text); }
+.avail-chip-dot--treatment { background: var(--portal-indigo-text); }
+.avail-chip-dot--diagnostic { background: var(--portal-blue-text); }
 
 .avail-chip-helper {
   font-size: 0.76rem;

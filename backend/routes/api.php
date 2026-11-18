@@ -123,6 +123,7 @@ Route::middleware('auth:sanctum')->group(function () {
         // controller (never a route/body-supplied dentist id), so a dentist
         // can only ever see/change their own hours.
         Route::get('/dentist/availability', [DentistAvailabilityController::class, 'index']);
+        Route::get('/dentist/availability/month-summary', [DentistAvailabilityController::class, 'monthSummary']);
         Route::put('/dentist/availability/weekly-hours', [DentistAvailabilityController::class, 'updateWeeklyHours']);
         Route::post('/dentist/availability/day-off', [DentistAvailabilityController::class, 'storeDayOff']);
         Route::delete('/dentist/availability/day-off/{id}', [DentistAvailabilityController::class, 'destroyDayOff']);

@@ -7,7 +7,9 @@ use App\Models\ClinicSpecialHour;
 use App\Models\DentistDayOff;
 use App\Models\DentistServiceLimit;
 use App\Models\DentistSpecialHour;
+use App\Services\AppointmentSlotService;
 use App\Services\DentistAvailabilityService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -20,7 +22,15 @@ class DentistAvailabilityController extends Controller
 {
     private const DAY_NAMES = [1 => 'Monday', 2 => 'Tuesday', 3 => 'Wednesday', 4 => 'Thursday', 5 => 'Friday', 6 => 'Saturday'];
 
-    public function __construct(private DentistAvailabilityService $availability) {}
+    // A generic duration for monthSummary() below — that calendar isn't
+    // scoped to one procedure (it backs "Limit a Day," which exists
+    // specifically to pick services AFTER the date), so it reads as a
+    // rough "how booked am I this day" signal rather than a precise
+    // per-service slot count. 30 is the shortest real service length
+    // seeded in this clinic.
+    private const GENERIC_DURATION_MINUTES = 30;
+
+    public function __construct(private DentistAvailabilityService $availability, private AppointmentSlotService $slots) {}
 
     public function index(Request $request)
     {
@@ -31,6 +41,35 @@ class DentistAvailabilityController extends Controller
         $data['is_on_call'] = (bool) $request->user()->dentistProfile?->is_on_call;
 
         return response()->json(['data' => $data]);
+    }
+
+    /**
+     * Day-level status (Available/Limited/Fully Booked/Unavailable) for
+     * this dentist across a whole month — backs the "Limit a Day" date
+     * picker's calendar with the exact same look and status vocabulary as
+     * the patient booking calendar (AppointmentSlotService::
+     * getDayAvailabilitySummary(), no serviceId — see
+     * GENERIC_DURATION_MINUTES above for why), so a dentist can see at a
+     * glance which days already have real bookings before picking one to
+     * restrict.
+     */
+    public function monthSummary(Request $request)
+    {
+        $validated = $request->validate([
+            'month' => ['required', 'date_format:Y-m'],
+        ]);
+
+        $start = Carbon::createFromFormat('Y-m-d', "{$validated['month']}-01")->startOfMonth();
+        $end = $start->copy()->endOfMonth();
+
+        $summary = $this->slots->getDayAvailabilitySummary(
+            $request->user()->id,
+            $start->toDateString(),
+            $end->toDateString(),
+            self::GENERIC_DURATION_MINUTES,
+        );
+
+        return response()->json(['data' => $summary]);
     }
 
     /**

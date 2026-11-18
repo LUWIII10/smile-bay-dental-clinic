@@ -262,6 +262,15 @@ export async function getDentistAvailability() {
   return response.data.data;
 }
 
+// Backs the "Limit a Day" date picker's calendar — same Available/Limited/
+// Fully Booked/Unavailable status shape getDayAvailability() already
+// returns, just for this dentist's own general day fullness (no service
+// context) rather than one patient's chosen service+duration.
+export async function getDentistMonthSummary(month) {
+  const response = await api.get('/api/dentist/availability/month-summary', { params: { month } });
+  return response.data.data;
+}
+
 // confirm=true forces the save through even if the backend reports
 // conflicting appointments — the first call always omits it so the caller
 // can show the warning; passing hours unchanged with confirm=true resubmits
