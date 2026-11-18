@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { getAvailableSlots, getDayAvailability } from '../../../api/appointments';
 import { formatDateLong, formatTime12h } from '../dateTimeUtils';
-import { SunIcon, SunsetIcon } from '../icons';
+import { SunIcon, SunsetIcon, AlertIcon } from '../icons';
 
 const WEEKDAY_LABELS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 const MONTH_LABELS = [
@@ -34,12 +34,13 @@ function startOfDay(date) {
 // dentist, never an "Any Available Doctor" union, so no offDentistNames
 // list to fall back to). count/reason come straight from the same
 // getDayAvailability() response BookAppointment.jsx reads.
-function slotTooltipText(status, count, isToday, isPast, reason, disableToday) {
+function slotTooltipText(status, count, isToday, isPast, reason, disableToday, offering) {
   if (status === 'full') return 'Fully booked';
   if (status === 'limited') return `${count} slot${count === 1 ? '' : 's'} left`;
   if (status === 'available') return `${count} slot${count === 1 ? '' : 's'} open`;
   if (isPast) return 'Already passed';
   if (isToday && disableToday) return 'Not available same-day';
+  if (reason === 'service_excluded') return `Only offering ${offering?.join(', ') || 'a different service'} today`;
   if (reason === 'day_off') return "Doctor's day off";
   return 'Clinic closed';
 }
@@ -165,25 +166,26 @@ function AvailableSlotPicker({ dentistId, serviceId, date, onDateChange, time, o
             const key = toDateKey(d);
             const isToday = d.getTime() === today.getTime();
             const isPast = d.getTime() < today.getTime();
-            const info = dayAvailability[key] || { status: 'unavailable', count: 0, reason: null };
+            const info = dayAvailability[key] || { status: 'unavailable', count: 0, reason: null, offering: null };
             // Same-day forced unavailable only when disableToday says so —
             // see this component's own doc comment above for which callers
             // need which behavior.
             const status = (isPast || (isToday && disableToday)) ? 'unavailable' : (info.status || 'unavailable');
             const isSelected = key === date;
-            const tipTone = status === 'unavailable' ? '' : ` calendar-cell-tip--${status}`;
+            const isServiceExcluded = status === 'unavailable' && !isPast && !(isToday && disableToday) && info.reason === 'service_excluded';
+            const tipTone = status === 'unavailable' ? (isServiceExcluded ? ' calendar-cell-tip--service-excluded' : '') : ` calendar-cell-tip--${status}`;
 
             return (
               <button
                 key={key}
                 type="button"
-                className={`calendar-cell calendar-cell--${status}${isSelected ? ' calendar-cell--selected' : ''}`}
-                disabled={status === 'unavailable'}
+                className={`calendar-cell calendar-cell--${status}${isServiceExcluded ? ' calendar-cell--service-excluded' : ''}${isSelected ? ' calendar-cell--selected' : ''}`}
+                disabled={status === 'unavailable' && !isServiceExcluded}
                 onClick={() => onDateChange(key)}
               >
                 {d.getDate()}
                 <span className={`calendar-cell-tip${tipTone}`}>
-                  {slotTooltipText(status, info.count, isToday, isPast, info.reason, disableToday)}
+                  {slotTooltipText(status, info.count, isToday, isPast, info.reason, disableToday, info.offering)}
                 </span>
               </button>
             );
@@ -210,7 +212,19 @@ function AvailableSlotPicker({ dentistId, serviceId, date, onDateChange, time, o
             {loadingSlots ? (
               <p className="booking-empty-note" style={{ padding: 0, textAlign: 'left' }}>Loading…</p>
             ) : slots.length === 0 ? (
-              <p className="booking-empty-note" style={{ padding: 0, textAlign: 'left' }}>No open slots for this date.</p>
+              dayAvailability[date]?.reason === 'service_excluded' ? (
+                <div className="suggestion-banner" style={{ margin: 0 }}>
+                  <span className="suggestion-banner-icon"><AlertIcon /></span>
+                  <div className="suggestion-banner-text">
+                    <p className="suggestion-banner-title">Not offering this service on {formatDateLong(date)}</p>
+                    <p className="suggestion-banner-subtitle">
+                      Only offering {dayAvailability[date].offering?.join(', ') || 'a different service'} that day — try another date.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <p className="booking-empty-note" style={{ padding: 0, textAlign: 'left' }}>No open slots for this date.</p>
+              )
             ) : (
               <>
                 {groupedSlots.morning.length > 0 && (

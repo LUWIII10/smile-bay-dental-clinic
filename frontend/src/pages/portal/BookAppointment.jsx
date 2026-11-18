@@ -65,11 +65,16 @@ const DAY_STATUS_LABELS = {
 // selected would instead come through dentistName); dentistName is the
 // already-selected single dentist's name, used when offDentistNames isn't
 // available (a specific dentist, not "any," was already chosen).
-function slotTooltipText(status, count, isPast, reason, offDentistNames, dentistName) {
+function slotTooltipText(status, count, isPast, reason, offDentistNames, dentistName, offering) {
   if (status === 'full') return 'Fully booked';
   if (status === 'limited') return `${count} slot${count === 1 ? '' : 's'} left`;
   if (status === 'available') return `${count} slots open`;
   if (isPast) return 'Already passed';
+  if (reason === 'service_excluded') {
+    const names = offDentistNames?.length ? offDentistNames.join(', ') : (dentistName || 'The dentist');
+    const svc = offering?.length ? offering.join(', ') : 'something else';
+    return `${names}: ${svc} only today`;
+  }
   if (reason !== 'day_off') return 'Clinic closed';
   if (offDentistNames?.length) {
     return `${offDentistNames.join(', ')} ${offDentistNames.length === 1 ? 'is' : 'are'} off`;
@@ -877,23 +882,24 @@ function BookAppointment() {
                         if (!date) return <span key={`blank-${i}`} className="calendar-cell calendar-cell--blank" />;
 
                         const key = toDateKey(date);
-                        const info = dayAvailability[key] || { status: 'unavailable', count: 0, reason: null, dentists: null };
-                        const { status, count, reason, dentists: offDentistNames } = info;
+                        const info = dayAvailability[key] || { status: 'unavailable', count: 0, reason: null, dentists: null, offering: null };
+                        const { status, count, reason, dentists: offDentistNames, offering } = info;
                         const isSelected = key === selectedDate;
                         const isPast = date < today;
-                        const tipTone = status === 'unavailable' ? '' : ` calendar-cell-tip--${status}`;
+                        const isServiceExcluded = status === 'unavailable' && reason === 'service_excluded';
+                        const tipTone = status === 'unavailable' ? (isServiceExcluded ? ' calendar-cell-tip--service-excluded' : '') : ` calendar-cell-tip--${status}`;
 
                         return (
                           <button
                             key={key}
                             type="button"
-                            className={`calendar-cell calendar-cell--${status}${isSelected ? ' calendar-cell--selected' : ''}`}
-                            disabled={status === 'unavailable'}
+                            className={`calendar-cell calendar-cell--${status}${isServiceExcluded ? ' calendar-cell--service-excluded' : ''}${isSelected ? ' calendar-cell--selected' : ''}`}
+                            disabled={status === 'unavailable' && !isServiceExcluded}
                             onClick={() => setSelectedDate(key)}
                           >
                             {date.getDate()}
                             <span className={`calendar-cell-tip${tipTone}`}>
-                              {slotTooltipText(status, count, isPast, reason, offDentistNames, null)}
+                              {slotTooltipText(status, count, isPast, reason, offDentistNames, null, offering)}
                             </span>
                           </button>
                         );
@@ -952,12 +958,41 @@ function BookAppointment() {
                       <p className="wizard-step-subtitle">Please select a time slot to continue</p>
                     )}
 
+                    {/* Zero slots this date can mean "genuinely fully booked"
+                        or "every credentialed dentist deliberately isn't
+                        offering this service today" (AppointmentSlotService::
+                        serviceExclusionDetails()) — the latter gets its own
+                        explanation + a one-click way back to Service,
+                        instead of reading like an unexplained dead end. */}
+                    {!loadingSlots && dayAvailability[selectedDate]?.reason === 'service_excluded' && (
+                      <div className="suggestion-banner">
+                        <span className="suggestion-banner-icon"><AlertIcon /></span>
+                        <div className="suggestion-banner-text">
+                          <p className="suggestion-banner-title">
+                            No dentist is doing {selectedService?.name} on {formatDateLong(selectedDate)}
+                          </p>
+                          <p className="suggestion-banner-subtitle">
+                            {dayAvailability[selectedDate].dentists?.join(', ') || 'The dentist'}{' '}
+                            {(dayAvailability[selectedDate].dentists?.length ?? 1) === 1 ? 'is' : 'are'} only offering{' '}
+                            {dayAvailability[selectedDate].offering?.join(', ') || 'a different service'} that day. Try
+                            another date, or switch to a service they're still doing today.
+                          </p>
+                        </div>
+                        <button type="button" className="suggestion-banner-btn" onClick={() => setStep(2)}>
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
+                          Change Service
+                        </button>
+                      </div>
+                    )}
+
                     {loadingSlots ? (
                       <p className="booking-empty-note">Loading…</p>
                     ) : slotsError ? (
                       <p className="booking-empty-note">{slotsError}</p>
                     ) : slots.length === 0 ? (
-                      <p className="booking-empty-note">No available times on {formatDateLong(selectedDate)}. Please choose another date.</p>
+                      dayAvailability[selectedDate]?.reason !== 'service_excluded' && (
+                        <p className="booking-empty-note">No available times on {formatDateLong(selectedDate)}. Please choose another date.</p>
+                      )
                     ) : (
                       <>
                         {groupedSlots.morning.length > 0 && (

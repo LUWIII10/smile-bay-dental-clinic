@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Appointment;
+use App\Models\Service;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -198,12 +199,32 @@ class AppointmentSlotService
                 ];
             } else {
                 $count = count($this->getAvailableSlotsAnyDentist($serviceId, $dateKey, $durationMinutes));
-                $status = match (true) {
-                    $count === 0 => 'full',
-                    $count <= self::LIMITED_THRESHOLD => 'limited',
-                    default => 'available',
-                };
-                $summary[$dateKey] = ['status' => $status, 'count' => $count];
+
+                // Zero slots reads very differently depending on why: every
+                // open dentist deliberately excluding this exact service
+                // today (service_excluded) isn't the same situation as the
+                // day genuinely being fully booked (full) — see
+                // serviceExclusionDetails()'s own doc comment.
+                $exclusion = $count === 0
+                    ? $this->serviceExclusionDetails($schedules->keys()->map(fn ($i) => $dentistIds[$i])->all(), $serviceId, $dateKey)
+                    : [];
+
+                if (! empty($exclusion)) {
+                    $summary[$dateKey] = [
+                        'status' => 'unavailable',
+                        'count' => 0,
+                        'reason' => 'service_excluded',
+                        'dentists' => $exclusion['dentists'],
+                        'offering' => $exclusion['offering'],
+                    ];
+                } else {
+                    $status = match (true) {
+                        $count === 0 => 'full',
+                        $count <= self::LIMITED_THRESHOLD => 'limited',
+                        default => 'available',
+                    };
+                    $summary[$dateKey] = ['status' => $status, 'count' => $count];
+                }
             }
 
             $cursor->addDay();
@@ -309,12 +330,24 @@ class AppointmentSlotService
                 $summary[$dateKey] = ['status' => 'unavailable', 'count' => 0, 'reason' => $reason];
             } else {
                 $count = count($this->getAvailableSlots($dentistId, $dateKey, $durationMinutes, null, $serviceId));
-                $status = match (true) {
-                    $count === 0 => 'full',
-                    $count <= self::LIMITED_THRESHOLD => 'limited',
-                    default => 'available',
-                };
-                $summary[$dateKey] = ['status' => $status, 'count' => $count];
+                $exclusion = $count === 0 ? $this->singleDentistServiceExclusion($dentistId, $dateKey, $serviceId) : [];
+
+                if (! empty($exclusion)) {
+                    $summary[$dateKey] = [
+                        'status' => 'unavailable',
+                        'count' => 0,
+                        'reason' => 'service_excluded',
+                        'dentists' => $exclusion['dentists'],
+                        'offering' => $exclusion['offering'],
+                    ];
+                } else {
+                    $status = match (true) {
+                        $count === 0 => 'full',
+                        $count <= self::LIMITED_THRESHOLD => 'limited',
+                        default => 'available',
+                    };
+                    $summary[$dateKey] = ['status' => $status, 'count' => $count];
+                }
             }
 
             $cursor->addDay();
@@ -596,6 +629,90 @@ class AppointmentSlotService
             ->where('dentist_service_limit_id', $limit->id)
             ->where('service_id', $serviceId)
             ->exists();
+    }
+
+    /**
+     * This dentist's allowed service ids for $date from
+     * dentist_service_limits, or null when they have no limit row at all
+     * that date — fully unrestricted, every credentialed service still
+     * allowed. Shared by isServiceAllowedForDentist() above (which only
+     * needs a yes/no) and the two "explain why this day shows empty"
+     * helpers below (which need the actual allowed list to name what a
+     * dentist IS offering instead).
+     */
+    private function allowedServiceIdsForLimit(int $dentistId, string $date): ?array
+    {
+        $limit = DB::table('dentist_service_limits')->where('dentist_id', $dentistId)->where('date', $date)->first();
+
+        if (! $limit) {
+            return null;
+        }
+
+        return DB::table('dentist_service_limit_service')->where('dentist_service_limit_id', $limit->id)->pluck('service_id')->all();
+    }
+
+    /**
+     * Single-dentist version of serviceExclusionDetails() below — is THIS
+     * one dentist's empty day explained by their own service limit
+     * excluding $serviceId, rather than a genuinely full calendar? Returns
+     * [] when no (unrestricted, or their limit still allows this
+     * service) — getDayAvailabilitySummary() then falls back to its
+     * ordinary full/limited/available count-based status, unchanged.
+     */
+    private function singleDentistServiceExclusion(int $dentistId, string $date, ?int $serviceId): array
+    {
+        if ($serviceId === null) {
+            return [];
+        }
+
+        $allowed = $this->allowedServiceIdsForLimit($dentistId, $date);
+
+        if ($allowed === null || in_array($serviceId, $allowed, true)) {
+            return [];
+        }
+
+        return [
+            'dentists' => [User::find($dentistId)?->name ?? 'This dentist'],
+            'offering' => Service::whereIn('id', $allowed)->orderBy('name')->pluck('name')->all(),
+        ];
+    }
+
+    /**
+     * "Any Available Doctor" version — among the dentists open (not day-off/
+     * clinic-closed) on $date, is every single one of them excluded from
+     * $serviceId by their own service limit that date? If so, this date's
+     * empty slot count isn't "fully booked," it's "nobody credentialed is
+     * offering this today" — returns who, and what they ARE offering
+     * instead, so getDayAvailabilitySummaryAnyDentist() can report
+     * 'service_excluded' instead of the misleading 'full' status. Returns
+     * [] the moment any open dentist turns out to be unrestricted or still
+     * allows the service — the day's emptiness then has some other real
+     * cause (genuinely fully booked), not worth a special explanation.
+     */
+    private function serviceExclusionDetails(array $openDentistIds, int $serviceId, string $date): array
+    {
+        $excludedIds = [];
+        $offeringServiceIds = [];
+
+        foreach ($openDentistIds as $dentistId) {
+            $allowed = $this->allowedServiceIdsForLimit($dentistId, $date);
+
+            if ($allowed === null || in_array($serviceId, $allowed, true)) {
+                return [];
+            }
+
+            $excludedIds[] = $dentistId;
+            array_push($offeringServiceIds, ...$allowed);
+        }
+
+        if (empty($excludedIds)) {
+            return [];
+        }
+
+        return [
+            'dentists' => User::whereIn('id', $excludedIds)->orderBy('name')->pluck('name')->all(),
+            'offering' => Service::whereIn('id', array_values(array_unique($offeringServiceIds)))->orderBy('name')->pluck('name')->all(),
+        ];
     }
 
     /**

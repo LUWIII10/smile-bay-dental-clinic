@@ -93,11 +93,16 @@ function startOfDay(date) {
 // aggregated "any dentist" union, same as that patient-facing wizard's
 // own Date & Time step; offDentistNames names whichever credentialed
 // dentist(s) are off on a given day.
-function slotTooltipText(status, count, isPast, reason, offDentistNames) {
+function slotTooltipText(status, count, isPast, reason, offDentistNames, offering) {
   if (status === 'full') return 'Fully booked';
   if (status === 'limited') return `${count} slot${count === 1 ? '' : 's'} left`;
   if (status === 'available') return `${count} slots open`;
   if (isPast) return 'Already passed';
+  if (reason === 'service_excluded') {
+    const names = offDentistNames?.length ? offDentistNames.join(', ') : 'The dentist';
+    const svc = offering?.length ? offering.join(', ') : 'something else';
+    return `${names}: ${svc} only today`;
+  }
   if (reason !== 'day_off') return 'Clinic closed';
   if (offDentistNames?.length) {
     return `${offDentistNames.join(', ')} ${offDentistNames.length === 1 ? 'is' : 'are'} off`;
@@ -720,21 +725,22 @@ function WalkInBookingModal({ open, onClose, selectedSlotData, services, onSucce
                         {calendarCells.map((cellDate, i) => {
                           if (!cellDate) return <span key={`blank-${i}`} className="calendar-cell calendar-cell--blank" />; // eslint-disable-line react/no-array-index-key
                           const key = toDateKey(cellDate);
-                          const info = dayAvailability[key] || { status: 'unavailable', count: 0, reason: null, dentists: null };
+                          const info = dayAvailability[key] || { status: 'unavailable', count: 0, reason: null, dentists: null, offering: null };
                           const isSelected = key === date;
                           const isPast = cellDate < todayStart;
-                          const tipTone = info.status === 'unavailable' ? '' : ` calendar-cell-tip--${info.status}`;
+                          const isServiceExcluded = info.status === 'unavailable' && info.reason === 'service_excluded';
+                          const tipTone = info.status === 'unavailable' ? (isServiceExcluded ? ' calendar-cell-tip--service-excluded' : '') : ` calendar-cell-tip--${info.status}`;
                           return (
                             <button
                               key={key}
                               type="button"
-                              className={`calendar-cell calendar-cell--${info.status}${isSelected ? ' calendar-cell--selected' : ''}`}
-                              disabled={info.status === 'unavailable'}
+                              className={`calendar-cell calendar-cell--${info.status}${isServiceExcluded ? ' calendar-cell--service-excluded' : ''}${isSelected ? ' calendar-cell--selected' : ''}`}
+                              disabled={info.status === 'unavailable' && !isServiceExcluded}
                               onClick={() => setDate(key)}
                             >
                               {cellDate.getDate()}
                               <span className={`calendar-cell-tip${tipTone}`}>
-                                {slotTooltipText(info.status, info.count, isPast, info.reason, info.dentists)}
+                                {slotTooltipText(info.status, info.count, isPast, info.reason, info.dentists, info.offering)}
                               </span>
                             </button>
                           );
@@ -760,10 +766,33 @@ function WalkInBookingModal({ open, onClose, selectedSlotData, services, onSucce
                       <h4 className="slots-panel-date">{formatDateLong(date)}</h4>
                     </div>
                   </div>
+                  {!loadingSlots && dayAvailability[date]?.reason === 'service_excluded' && (
+                    <div className="suggestion-banner">
+                      <span className="suggestion-banner-icon"><AlertIcon /></span>
+                      <div className="suggestion-banner-text">
+                        <p className="suggestion-banner-title">
+                          No dentist is doing {services.find((s) => String(s.id) === serviceId)?.name} on {formatDateLong(date)}
+                        </p>
+                        <p className="suggestion-banner-subtitle">
+                          {dayAvailability[date].dentists?.join(', ') || 'The dentist'}{' '}
+                          {(dayAvailability[date].dentists?.length ?? 1) === 1 ? 'is' : 'are'} only offering{' '}
+                          {dayAvailability[date].offering?.join(', ') || 'a different service'} that day. Try another
+                          date, or switch to a service they're still doing today.
+                        </p>
+                      </div>
+                      <button type="button" className="suggestion-banner-btn" onClick={() => setStep(2)}>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
+                        Change Service
+                      </button>
+                    </div>
+                  )}
+
                   {loadingSlots ? (
                     <p className="booking-empty-note">Loading open slots…</p>
                   ) : timeSlots.length === 0 ? (
-                    <p className="booking-empty-note">No open slots for this date.</p>
+                    dayAvailability[date]?.reason !== 'service_excluded' && (
+                      <p className="booking-empty-note">No open slots for this date.</p>
+                    )
                   ) : (
                     <div className={styles.slotGrid}>
                       {timeSlots.map((t) => (

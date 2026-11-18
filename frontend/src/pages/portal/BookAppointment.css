@@ -918,6 +918,32 @@
   cursor: not-allowed;
 }
 
+/* A dentist deliberately not offering this service today (see
+   AppointmentSlotService::serviceExclusionDetails()) reads differently
+   from a genuinely closed/past/fully-booked day — dashed amber instead of
+   flat gray, and still clickable (overrides .calendar-cell--unavailable's
+   cursor/disabled look) so the patient can select it and see the full
+   explanation + "Change Service" action in the slots panel. */
+.calendar-cell--service-excluded {
+  background: var(--portal-amber-bg);
+  color: var(--portal-amber-text);
+  border-style: dashed;
+  border-color: var(--portal-amber-border);
+  cursor: pointer;
+}
+
+.calendar-cell--service-excluded:hover {
+  border-color: var(--portal-amber-text);
+}
+
+.calendar-cell-tip--service-excluded {
+  background: var(--portal-amber-text);
+}
+
+.calendar-cell-tip--service-excluded::after {
+  border-top-color: var(--portal-amber-text);
+}
+
 .calendar-cell--available:hover,
 .calendar-cell--limited:hover {
   border-color: var(--portal-blue);
