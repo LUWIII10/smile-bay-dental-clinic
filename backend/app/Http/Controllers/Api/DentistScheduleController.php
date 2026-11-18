@@ -44,8 +44,16 @@ class DentistScheduleController extends Controller
                     });
             })
             ->with([
-                'patient:id,user_id,patient_number,first_name,last_name',
+                'patient:id,user_id,patient_number,first_name,last_name,is_dependent,relationship_to_parent,parent_patient_id',
                 'patient.user:id,avatar_path',
+                // Minor-dependent context (same pattern every other staff
+                // view of a patient already uses — PatientRecordController,
+                // StaffAppointmentController, AppointmentDetailModal) — who
+                // the account-holder parent is, so the dentist immediately
+                // sees "Christof Mundoy, Ward of Christian Louie Mundoy"
+                // instead of a dependent reading identically to any other
+                // patient on the schedule.
+                'patient.parent:id,first_name,last_name',
                 'service:id,name,duration_minutes',
                 // Only ever non-null for a completed row saved through the
                 // new Complete-and-record flow — carries the procedure
